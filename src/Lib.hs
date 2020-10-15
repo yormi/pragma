@@ -106,9 +106,7 @@ function = do
             return (functionName, type_)
 
     functionName <- identifier
-    params <-
-        Parser.many1 identifier
-            |> map NonEmpty.fromList
+    params <- Parser.many identifier
     reservedOperator "="
 
     body <- Indent.withPos expression

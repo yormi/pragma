@@ -4,7 +4,6 @@ module Module
     ) where
 
 
-import Data.List.NonEmpty (NonEmpty)
 
 import Expression
 import qualified Type as T
@@ -19,7 +18,7 @@ data TopLevel
     = Function
         { type_ :: Maybe T.Type
         , functionName :: Identifier
-        , params :: NonEmpty Identifier
+        , params :: [Identifier]
         , body :: Expr
         }
         deriving (Eq, Show)

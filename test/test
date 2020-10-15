@@ -1,6 +1,10 @@
 foo : Int -> Int
 foo a =
-    "string"
+    if charles a b then
+        a
+
+    else
+        3
 
 --foo : ((Int -> Int) -> Float) -> Int
 --foo a =

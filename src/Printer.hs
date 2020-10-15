@@ -157,7 +157,8 @@ expression e =
 
 
         Lambda { Expression.params, Expression.body } ->
-            "\\" ++ printParams params ++ " -> " ++ expression body
+            "\\" ++ (printParams <| NonEmpty.toList <| params)
+                ++ " -> " ++ expression body
 
         Application { Expression.functionName, args } ->
             functionName ++ " " ++ printArgs args
@@ -227,9 +228,9 @@ parenthesized s =
 
 
 
-printParams :: NonEmpty Identifier -> String
+printParams :: [Identifier] -> String
 printParams =
-    String.unwords << NonEmpty.toList
+    String.unwords 
 
 
 printValue :: Value -> String
