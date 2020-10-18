@@ -2,15 +2,9 @@ module Lib
     ( someFunc
     ) where
 
-import Data.Bifunctor (bimap)
-import Data.Functor ((<&>))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Text (Text)
-import Text.Parsec  ((<|>), Parsec)
-import qualified Text.Parsec as Parser
-import qualified Text.Parsec.Indent as Indent
-import qualified Text.Parsec.Token as Token
 import qualified System.Directory as Directory
 import System.IO (readFile)
 
@@ -18,75 +12,25 @@ import Debug (printAll)
 import Expression
 import Module
 import qualified Type as T
-import Parser (Parser)
+import Parser.Parser (Parser)
+import qualified Parser.Parser as Parser
+import qualified Parser.Value as Value
 import qualified Printer
 import qualified TypeChecker
 import qualified Utils.Either as Either
-
-
--- PARSER
-
-
-
-languageDefinition :: Monad m => Token.GenLanguageDef String () m
-languageDefinition = Token.LanguageDef
-  { Token.commentStart    = "{-"
-  , Token.commentEnd      = "-}"
-  , Token.commentLine     = "--"
-  , Token.nestedComments  = True
-  , Token.identStart      = Parser.letter
-  , Token.identLetter     = Parser.alphaNum <|> Parser.oneOf "_'"
-  , Token.opStart         = Parser.oneOf "=!+-*/><|\\:"
-  , Token.opLetter        = Parser.oneOf "=!+-*/><|\\:"
-  , Token.reservedNames   =
-    [ "type", "alias"
-    , "if", "then", "else"
-    , "let", "in"
-    , "case", "of"
-    , "False", "True"
-    ]
-  , Token.reservedOpNames =
-    [ "="
-    , ":"
-    , "\\", "->"
-    , "_"
-    , ">>", "<<", "|>", "<|"
-    ]
-  , Token.caseSensitive   = True
-  }
-
-
-lexer :: Monad m => Token.GenTokenParser String () m
-lexer =
-    Token.makeTokenParser languageDefinition
-
-
-identifier :: Parser String
-identifier =
-    Token.identifier lexer
-
-
-reserved :: String -> Parser ()
-reserved =
-    Token.reserved lexer
-
-
-reservedOperator :: String -> Parser ()
-reservedOperator =
-    Token.reservedOp lexer
 
 
 -- TopLevel
 
 moduleParser :: Parser Module
 moduleParser =
-    Parser.many1 moduleLevel
+    Parser.many moduleLevel
         |> map Module
 
 
 moduleLevel :: Parser TopLevel
 moduleLevel = do
-    Parser.choice
+    Parser.oneOf
         [ function
         ]
 
@@ -96,20 +40,20 @@ moduleLevel = do
 
 function :: Parser TopLevel
 function = do
-    Indent.topLevel
+    Parser.topLevel
 
     typeLine <-
-        Parser.optionMaybe <| Parser.try <| do
-            functionName <- identifier
-            reservedOperator ":"
+        Parser.maybe <| do
+            functionName <- Parser.identifier
+            Parser.reservedOperator ":"
             type_ <- typeParser
             return (functionName, type_)
 
-    functionName <- identifier
-    params <- Parser.many identifier
-    reservedOperator "="
+    functionName <- Parser.identifier
+    params <- Parser.many Parser.identifier
+    Parser.reservedOperator "="
 
-    body <- Indent.withPos expression
+    body <- Parser.withPositionReference expression
 
     case typeLine of
         Just (typeLineName, type_) ->
@@ -129,28 +73,28 @@ typeParser :: Parser T.Type
 typeParser =
     let
         functionTypeParser =
-            Parser.try <|
+            Parser.unconsumeOnFailure <|
                 do -- careful not to start with typeParser.
                    -- It creates an infinite loop =/
                     a <- simpleTypeParser
-                    reservedOperator "->"
+                    Parser.reservedOperator "->"
                     b <- typeParser
                     return <| T.Function a b
     in
-    Parser.choice [ functionTypeParser, simpleTypeParser ]
+    Parser.oneOf [ functionTypeParser, simpleTypeParser ]
 
 
 simpleTypeParser :: Parser T.Type
 simpleTypeParser =
-    Parser.choice
-        [ map (const T.Int) <| reserved "Int"
-        , map (const T.Float) <| reserved "Float"
-        , map (const T.Char) <| reserved "Char"
-        , map (const T.String) <| reserved "String"
+    Parser.oneOf
+        [ map (const T.Int) <| Parser.reserved "Int"
+        , map (const T.Float) <| Parser.reserved "Float"
+        , map (const T.Char) <| Parser.reserved "Char"
+        , map (const T.String) <| Parser.reserved "String"
         , do
-            reservedOperator "("
+            Parser.reservedOperator "("
             t <- typeParser
-            reservedOperator ")"
+            Parser.reservedOperator ")"
             return t
         ]
 
@@ -160,14 +104,14 @@ simpleTypeParser =
 
 expression :: Parser Expr
 expression =
-    Parser.choice
+    Parser.oneOf
         [ parenthesisedExpression
         , caseOf
         , ifThenElse
         , letIn
         , application
-        , map Reference identifier
-        , map Value value
+        , map Reference Parser.identifier
+        , map Value Value.valueParser
         , lambda
         ]
 
@@ -177,31 +121,30 @@ expression =
 
 application :: Parser Expr
 application =
-    Parser.try <| do
-        functionName <- identifier
+    Parser.unconsumeOnFailure <| do
+        functionName <- Parser.identifier
         args <-
-            map NonEmpty.fromList <| Parser.many1 <|
-                do
-                    Indent.sameOrIndented
-                    argument
+            Parser.atLeastOne <| do
+                Parser.sameLineOrIndented
+                argument
         return <| Application functionName args
 
 
 argument :: Parser Argument
 argument =
-    Parser.choice
-        [ map ValueArgument value
-        , map ReferenceArgument identifier
+    Parser.oneOf
+        [ map ValueArgument Value.valueParser
+        , map ReferenceArgument Parser.identifier
         , map ExpressionArgument parenthesisedExpression
         ]
 
 
 parenthesisedExpression :: Parser Expr
 parenthesisedExpression = do
-    Parser.between
-        (reservedOperator "(")
-        (reservedOperator ")")
-        expression
+    Parser.reservedOperator "("
+    expr <- expression
+    Parser.reservedOperator ")"
+    return expr
 
 
 -- LAMBDA
@@ -209,49 +152,12 @@ parenthesisedExpression = do
 
 lambda :: Parser Expr
 lambda = do
-    reservedOperator "\\"
-    params <- map NonEmpty.fromList <| Parser.many1 identifier
-    reservedOperator "->"
+    Parser.reservedOperator "\\"
+    params <- Parser.atLeastOne Parser.identifier
+    Parser.reservedOperator "->"
     expr <- expression
     return <| Lambda params expr
 
-
-
--- VALUE
-
-
-value :: Parser Value
-value =
-    Parser.choice
-        [ map Bool bool
-        , map Char <| Token.charLiteral lexer
-        , number
-        , map String <| Token.stringLiteral lexer
-        ]
-
-
-number :: Parser Value
-number =
-    Parser.choice
-        [ do
-            reservedOperator "-"
-            n <- Token.naturalOrFloat lexer
-            n
-                |> bimap ((*) (-1)) ((*) (-1))
-                |> Either.fold Int Float
-                |> return
-
-        , Token.naturalOrFloat lexer
-            |> map (Either.fold Int Float)
-        ]
-
-
-bool :: Parser BoolLiteral
-bool =
-    Parser.choice
-        [ map (const TrueLiteral) <| reserved "True"
-        , map (const FalseLiteral) <| reserved "False"
-        ]
 
 
 -- IF THEN ELSE
@@ -261,11 +167,11 @@ ifThenElse :: Parser Expr
 ifThenElse = do
     condition <-
         Parser.between
-            (reserved "if")
-            (reserved "then")
-            expression
+            (Parser.reserved "if")
+            (Parser.reserved "then")
+            (expression)
     whenTrue <- expression
-    reserved "else"
+    Parser.reserved "else"
     whenFalse <- expression
     return (If condition whenTrue whenFalse)
 
@@ -275,24 +181,20 @@ ifThenElse = do
 
 letIn :: Parser Expr
 letIn = do
-    reserved "let"
-    definitions <- map NonEmpty.nonEmpty <| Parser.many1 definition
-    reserved "in"
+    definitions <-
+        Parser.between
+            (Parser.reserved "let")
+            (Parser.reserved "in")
+            (Parser.atLeastOne definition)
     expr <- expression
-
-    case definitions of
-        Just defs ->
-            return <| LetIn defs expr
-
-        Nothing ->
-            fail "There is no definitions in the let expression"
+    return <| LetIn definitions expr
 
 
 definition :: Parser Definition
 definition = do
-    id <- identifier
-    reservedOperator "="
-    expr <- Indent.withPos expression
+    id <- Parser.identifier
+    Parser.reservedOperator "="
+    expr <- Parser.withPositionReference expression
     return <| SimpleDefinition id expr
 
 
@@ -301,39 +203,37 @@ definition = do
 
 
 caseOf :: Parser Expr
-caseOf = Indent.withPos <|
+caseOf = Parser.withPositionReference <|
     do
-        expr <- Parser.between (reserved "case") (reserved "of") expression
-        cases <-
-            (do
-                Indent.indented
-                caseParser
-            )
-                |> Parser.many1
-                |> map NonEmpty.nonEmpty
-        case cases of
-            Just cs ->
-                return <| CaseOf expr cs
+        expr <-
+            Parser.between
+                (Parser.reserved "case")
+                (Parser.reserved "of")
+                (expression)
 
-            Nothing ->
-                fail "The case..of structure needs at least 1 case"
+        cases <-
+            Parser.atLeastOne <| do
+                Parser.indented
+                caseParser
+
+        return <| CaseOf expr cases
 
 
 caseParser :: Parser Case
 caseParser = do
     pattern <- patternParser
-    reservedOperator "->"
-    expr <- Indent.withPos expression
+    Parser.reservedOperator "->"
+    expr <- Parser.withPositionReference expression
     return <| Case pattern expr
 
 
 
 patternParser :: Parser Pattern
 patternParser =
-    Parser.choice
-         [ map ValuePattern value
-         , map IdentifierPattern identifier
-         , map (const WildCardPattern) <| reservedOperator "_"
+    Parser.oneOf
+         [ map ValuePattern Value.valueParser
+         , map IdentifierPattern Parser.identifier
+         , map (const WildCardPattern) <| Parser.reservedOperator "_"
          ]
 
 
@@ -351,7 +251,7 @@ someFunc = do
 
     file <- readFile filePath
     putStrLn file
-    let parsed = Indent.runIndentParser parser () filePath file
+    let parsed = Parser.runParser parser filePath file
 
     putStrLn <| "\n\n--- RESULT ---\n"
     putStrLn <| Either.fold show Printer.printModule parsed

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 15ec60c3118b5ad6e0d391c32fca2652b85f256f7ae04d3201001486b58d50f1
+-- hash: 927719c4fdfb8c36fe2c1b8cf26e3966de52e338164de1e4778baf478d5ce319
 
 name:           pragma
 version:        0.1.0.0
@@ -31,7 +31,8 @@ library
       Expression
       Lib
       Module
-      Parser
+      Parser.Parser
+      Parser.Value
       Prelude
       Prelude.Flow
       Prelude.String
@@ -82,6 +83,7 @@ test-suite pragma-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Parser.ValueSpec
       Paths_pragma
   hs-source-dirs:
       test
