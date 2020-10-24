@@ -8,13 +8,14 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import qualified Control.Monad.Reader as Reader
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tuple as Tuple
 
-import qualified Expression as E
+import qualified AST.Expression as E
+import qualified AST.Module as M
+import AST.Module (Module)
 import qualified Type as T
-import qualified Module as M
-import Module (Module)
 import qualified Utils.Either as Either
 
 
@@ -43,6 +44,8 @@ data TypeError
     | NotInScope E.Identifier
     | IfConditionMustBeBool E.Expr
     | BothIfExpressionsMustHaveSameType E.Expr E.Expr
+    | ShadowingIds E.Expr [E.Identifier]
+    | TODO E.Expr
     deriving (Eq, Show)
 
 
@@ -51,10 +54,29 @@ failCheck =
     Left >> lift
 
 
--- TODO priorize according to latest scope
-withEnv :: [( E.Identifier, T.Type )] -> Check -> Check
-withEnv reference =
-    Reader.local (\env -> reference ++ env)
+-- TODO Clean up that expression param stuff
+-- TODO Pretty print expression
+-- TODO Add position in AST element
+withEnv :: [( E.Identifier, T.Type )] -> E.Expr -> Check -> Check
+withEnv references expression innerChecker = do
+    currentEnv <- Reader.ask
+    let currentIdentifiers = map fst currentEnv
+    let shadowingIds =
+            references
+                |> map fst
+                |> List.intersect currentIdentifiers
+
+    case shadowingIds of
+        [] ->
+            Reader.local
+                (\env -> references ++ env)
+                innerChecker
+
+        ids ->
+            failCheck <| ShadowingIds expression ids
+
+
+
 
 
 lookupReference :: E.Identifier -> Check
@@ -81,8 +103,8 @@ showCheckResult =
 check :: Module -> [Check]
 check (M.Module topLevels) =
     topLevels
-        |> map (\t ->
-            case t of
+        |> map (\topLevel ->
+            case topLevel of
                 M.Function { M.type_, M.params, M.body } -> do
                     case type_ of
                         Just t -> do
@@ -92,7 +114,7 @@ check (M.Module topLevels) =
 
                             let ps = paramsWithTypes t params
                             expressionType  <-
-                                withEnv ps <| checkExpr body
+                                withEnv ps body <| checkExpr body
 
                             if functionType == expressionType then
                                 return functionType
@@ -166,26 +188,48 @@ checkExpr expr =
                     |> failCheck
 
             else
-                return whenTrueType
+                let
+                    sharedReturnType = whenTrueType
+                in
+                return sharedReturnType
+
+        E.LetIn { E.definitions, E.body } -> do
+            withDefinitions definitions expr (checkExpr body)
 
         _ ->
-            return T.Bool
+            failCheck <| TODO expr
+
+
+withDefinitions :: NonEmpty E.Definition -> E.Expr -> Check -> Check
+withDefinitions definitions expression innerChecker =
+    let
+        toReference definition=
+            case definition of
+                E.SimpleDefinition id expr -> do
+                    type_ <- checkExpr expr
+                    return (id, type_)
+    in do
+    references <-
+        definitions
+            |> traverse toReference
+            |> map NonEmpty.toList
+    withEnv references expression innerChecker
 
 
 checkValue :: E.Value -> Check
 checkValue v =
     case v of
-        E.Bool b ->
+        E.Bool _ ->
             return T.Bool
 
-        E.Char c ->
+        E.Char _ ->
             return T.Char
 
-        E.Float d ->
+        E.Float _ ->
             return T.Float
 
-        E.Int i ->
+        E.Int _ ->
             return T.Int
 
-        E.String str ->
+        E.String _ ->
             return T.String

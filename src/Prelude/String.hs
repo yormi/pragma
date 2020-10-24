@@ -45,7 +45,7 @@ import qualified Debug.Trace as Debug
 import Relude (String)
 import qualified Relude
 
-import Prelude.Flow ((>>), (<|))
+import Prelude.Flow ((>>))
 
 
 trace :: String -> b -> b

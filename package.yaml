@@ -30,8 +30,12 @@ dependencies:
 - transformers
 - text == 1.2.4.0
 
+ghc-options:
+- -Wall
 
 default-extensions:
+#- DuplicateRecordFields
+#- LambdaCase
 - NamedFieldPuns
 - OverloadedStrings
 

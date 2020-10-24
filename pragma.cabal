@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 927719c4fdfb8c36fe2c1b8cf26e3966de52e338164de1e4778baf478d5ce319
+-- hash: 8f856f3fcf2db7c3ca4e07c70095950cde97e557047b753c929e7eeb1d340e80
 
 name:           pragma
 version:        0.1.0.0
@@ -27,10 +27,13 @@ source-repository head
 
 library
   exposed-modules:
-      Debug
-      Expression
+      AST.Expression
+      AST.Module
+      AST.Position
       Lib
-      Module
+      Parser.Debug
+      Parser.Expression
+      Parser.Module
       Parser.Parser
       Parser.Value
       Prelude
@@ -40,12 +43,14 @@ library
       Type
       TypeChecker
       Utils.Either
+      Utils.List
       Utils.Maybe
   other-modules:
       Paths_pragma
   hs-source-dirs:
       src
   default-extensions: NamedFieldPuns OverloadedStrings
+  ghc-options: -Wall
   build-depends:
       base-noprelude >=4.7 && <5
     , directory
@@ -65,7 +70,7 @@ executable pragma-exe
   hs-source-dirs:
       app
   default-extensions: NamedFieldPuns OverloadedStrings
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base-noprelude >=4.7 && <5
     , directory
@@ -88,7 +93,7 @@ test-suite pragma-test
   hs-source-dirs:
       test
   default-extensions: NamedFieldPuns OverloadedStrings
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base-noprelude >=4.7 && <5
     , directory

@@ -1,15 +1,11 @@
 module Printer (printModule) where
 
-import Data.Functor ((<&>))
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.String as String
-import qualified Text.PrettyPrint as P
 
-import Debug.Trace
-
-import Expression
+import AST.Expression
     ( Argument(..)
     , BoolLiteral(..)
     , Case(..)
@@ -19,8 +15,9 @@ import Expression
     , Pattern(..)
     , Value(..)
     )
-import Module (Module(..), TopLevel(..))
-import qualified Module
+import qualified AST.Expression as Expression
+import AST.Module (Module(..), TopLevel(..))
+import qualified AST.Module as Module
 import Type (Type)
 import qualified Type
 import qualified Utils.Maybe as Maybe
@@ -38,8 +35,8 @@ printModule (Module functions) =
 
 
 topLevel :: TopLevel -> String
-topLevel t =
-    case t of
+topLevel element =
+    case element of
         Function
             { Module.type_
             , Module.functionName
@@ -65,6 +62,9 @@ topLevel t =
 printType :: Type -> String
 printType type_ =
     case type_ of
+        Type.Bool ->
+            "Bool"
+
         Type.Int ->
             "Int"
 
@@ -81,7 +81,7 @@ printType type_ =
             let
                 formattedT1 =
                     case t1 of
-                        Type.Function a b ->
+                        Type.Function _ _ ->
                             t1
                                 |> printType
                                 |> parenthesized
@@ -110,11 +110,6 @@ indent indentation =
                     spaces ++ line
             )
         >> List.intercalate "\n"
-
-
-identifier :: Identifier -> String
-identifier id =
-    id
 
 
 expression :: Expr -> String
@@ -198,9 +193,6 @@ printDefinition def =
         SimpleDefinition name expr ->
             name ++ " =\n"
                 ++ (indent 1 <| expression expr)
-
-        _ ->
-            "TODO"
 
 
 printArgs :: NonEmpty Argument -> String

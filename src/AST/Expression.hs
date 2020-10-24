@@ -1,4 +1,4 @@
-module Expression
+module AST.Expression
     ( Argument(..)
     , BoolLiteral(..)
     , Case(..)
@@ -52,9 +52,6 @@ data Argument
 
 data Definition
     = SimpleDefinition Identifier Expr
-    | Tuple2Definition Identifier Identifier Expr
-    | Tuple3Definition Identifier Identifier Identifier Expr
-    | LambdaDefinition [ Identifier ] Expr
     deriving (Eq, Show)
 
 

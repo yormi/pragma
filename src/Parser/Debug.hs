@@ -1,6 +1,6 @@
-module Debug (printAll) where
+module Parser.Debug (printAll) where
 
-import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
+import qualified Control.Monad.Reader as Reader
 import qualified Data.List as List
 import qualified Text.Parsec as Parser
 import qualified Text.Parsec.Indent as Indent
@@ -38,7 +38,7 @@ printPosition str = do
 
 printRefPosition :: String -> Parser ()
 printRefPosition str = do
-    a <- ask
+    a <- Reader.ask
     print_ "REF" str <| show a
 
 

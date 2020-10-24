@@ -33,8 +33,8 @@ mapRight  =
 
 
 toMaybe :: Either a b -> Maybe b
-toMaybe either =
-    case either of
+toMaybe e =
+    case e of
          Right x ->
              Just x
 

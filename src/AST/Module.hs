@@ -1,11 +1,11 @@
-module Module
+module AST.Module
     ( Module(..)
     , TopLevel(..)
     ) where
 
 
 
-import Expression
+import AST.Expression
 import qualified Type as T
 
 

@@ -22,7 +22,6 @@ module Parser.Parser
 
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
-import Text.Parsec  ((<|>), Parsec)
 import qualified Text.Parsec as Parser
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
@@ -46,7 +45,7 @@ languageDefinition = Token.LanguageDef
   , Token.commentLine     = "--"
   , Token.nestedComments  = True
   , Token.identStart      = Parser.letter
-  , Token.identLetter     = Parser.alphaNum <|> Parser.oneOf "_'"
+  , Token.identLetter     = Parser.choice [ Parser.alphaNum, Parser.oneOf "_'" ]
   , Token.opStart         = Parser.oneOf "=!+-*/><|\\:"
   , Token.opLetter        = Parser.oneOf "=!+-*/><|\\:"
   , Token.reservedNames   =
@@ -131,7 +130,7 @@ oneOf =
     Parser.choice
 
 
-between :: Parser a -> Parser b -> Parser c -> Parser c
+between :: Parser () -> Parser () -> Parser c -> Parser c
 between before after mainParser = do
     before
     x <- mainParser
