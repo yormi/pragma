@@ -7,6 +7,7 @@ import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer
 import qualified TypeChecker
+import qualified TypeCheck.Check as Check
 import qualified Utils.Either as Either
 
 
@@ -24,11 +25,11 @@ run = do
 
     putStrLn <| "\n\n--- RESULT ---\n"
     putStrLn <| Either.fold show Printer.printModule parsed
-    --putStrLn $ show parsed
+    --putStrLn <| show parsed
 
     putStrLn <| "\n\n--- TYPE CHECK ---\n"
     parsed
         |> map TypeChecker.check
-        |> map TypeChecker.showCheckResult
+        |> map Check.showResult
         |> Either.fold (const "FAIL") identity
         |> putStrLn

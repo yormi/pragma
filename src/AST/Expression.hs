@@ -56,7 +56,7 @@ data Definition
 
 
 data Case
-    = Case Pattern Expr
+    = Case { pattern :: Pattern, caseBody :: Expr }
     deriving (Eq, Show)
 
 
@@ -65,7 +65,6 @@ data Pattern
     | ValuePattern Value
     | IdentifierPattern Identifier
     | TuplePattern Pattern Pattern
-    | Tuple3Pattern Pattern Pattern Pattern
     deriving (Eq, Show)
 
 

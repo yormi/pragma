@@ -51,7 +51,6 @@ import Control.Applicative as X
 import Control.Monad as X
     ( Monad
     , return
-    , fail
     )
 
 import Data.Either as X

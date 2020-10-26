@@ -7,4 +7,4 @@ spec :: Spec
 spec = do
     describe "" <|
         it "parses boolean" <|
-            
+            "a" `shouldBe` "a"

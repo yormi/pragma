@@ -1,0 +1,25 @@
+--foo : ((Int -> Int) -> Float) -> Int
+--foo a =
+--    let
+--        banana =
+--            \x -> a b
+--                c d
+--
+--        zoo =
+--            d
+--    in
+--    case x of
+--        True ->
+--            \x -> a b
+--                c d
+--
+--        False ->
+--            \x -> a b
+--                c d
+--
+--bar a =
+--    if charles a b then
+--        guillaume a (yo a b)
+--
+--    else
+--        "audrey"

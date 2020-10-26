@@ -20,7 +20,6 @@ import AST.Module (Module(..), TopLevel(..))
 import qualified AST.Module as Module
 import Type (Type)
 import qualified Type
-import qualified Utils.Maybe as Maybe
 
 
 type Indentation = Int
@@ -46,9 +45,8 @@ topLevel element =
             let
                 typeLine =
                     type_
-                        |> map printType
-                        |> map (\t -> functionName ++ " : " ++ t ++ "\n")
-                        |> Maybe.withDefault ""
+                        |> printType
+                        |> (\t -> functionName ++ " : " ++ t ++ "\n")
 
 
             in
@@ -77,11 +75,11 @@ printType type_ =
         Type.String ->
             "String"
 
-        Type.Function t1 t2 ->
+        Type.Function (Type.FunctionType t1 t2) ->
             let
                 formattedT1 =
                     case t1 of
-                        Type.Function _ _ ->
+                        Type.Function _ ->
                             t1
                                 |> printType
                                 |> parenthesized
@@ -179,12 +177,6 @@ printPattern p =
 
         TuplePattern a b ->
             "( " ++ printPattern a ++ ", " ++ printPattern b ++ " )"
-
-        Tuple3Pattern a b c ->
-            "( " ++ printPattern a
-                ++ ", " ++ printPattern b
-                ++ ", " ++ printPattern c
-            ++ " )"
 
 
 printDefinition :: Definition -> String

@@ -16,7 +16,7 @@ data Module =
 
 data TopLevel
     = Function
-        { type_ :: Maybe T.Type
+        { type_ :: T.Type
         , functionName :: Identifier
         , params :: [Identifier]
         , body :: Expr

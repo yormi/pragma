@@ -1,5 +1,7 @@
 module Type
     ( Type(..)
+    , FunctionType(..)
+    , VariableNumber
     ) where
 
 
@@ -9,9 +11,13 @@ data Type
     | Float
     | Char
     | String
-    -- | TypeBuilder1 Type Type
-    -- | TypeBuilder2 Type Type Type
-    -- | TypeBuilder3 Type Type Type Type
-    -- | TypeBuilder4 Type Type Type Type Type
-    | Function Type Type
+    | Function FunctionType
+    | Variable VariableNumber
     deriving (Eq, Show)
+
+
+data FunctionType = FunctionType Type Type
+    deriving (Eq, Show)
+
+
+type VariableNumber = Int

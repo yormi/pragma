@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8f856f3fcf2db7c3ca4e07c70095950cde97e557047b753c929e7eeb1d340e80
+-- hash: d76b20a969c8be17d99b3a0096c3189ff3e2a3602050a3f0a834a9588837f0aa
 
 name:           pragma
 version:        0.1.0.0
@@ -41,6 +41,10 @@ library
       Prelude.String
       Printer
       Type
+      TypeCheck.CaseOf
+      TypeCheck.Check
+      TypeCheck.Expression
+      TypeCheck.Function
       TypeChecker
       Utils.Either
       Utils.List
@@ -89,14 +93,17 @@ test-suite pragma-test
   main-is: Spec.hs
   other-modules:
       Parser.ValueSpec
+      TypeCheck.ExpressionSpec
       Paths_pragma
   hs-source-dirs:
       test
   default-extensions: NamedFieldPuns OverloadedStrings
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base-noprelude >=4.7 && <5
+      QuickCheck
+    , base-noprelude >=4.7 && <5
     , directory
+    , hspec
     , indents
     , mtl
     , parsec ==3.1.14.0

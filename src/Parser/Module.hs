@@ -2,6 +2,8 @@ module Parser.Module
     ( moduleParser
     ) where
 
+import Control.Monad as Monad
+
 import AST.Module (Module(..), TopLevel(..))
 import qualified Type as T
 import Parser.Parser (Parser)
@@ -38,15 +40,17 @@ function = do
     case typeLine of
         Just (typeLineName, type_) ->
             if typeLineName == functionName then
-                return <| Function (Just type_) functionName params body
+                return <| Function type_ functionName params body
             else
-                fail <|
+                Monad.fail <|
                     "The function signature for '"
                         ++ typeLineName
                         ++ "' needs a body"
 
         Nothing ->
-            return <| Function Nothing functionName params body
+            Monad.fail <|
+                "The function '" ++ functionName ++ "' needs a signature"
+
 
 
 typeParser :: Parser T.Type
@@ -59,7 +63,7 @@ typeParser =
                     a <- simpleTypeParser
                     Parser.reservedOperator "->"
                     b <- typeParser
-                    return <| T.Function a b
+                    return <| T.Function (T.FunctionType a b)
     in
     Parser.oneOf [ functionTypeParser, simpleTypeParser ]
 
@@ -67,7 +71,8 @@ typeParser =
 simpleTypeParser :: Parser T.Type
 simpleTypeParser =
     Parser.oneOf
-        [ map (const T.Int) <| Parser.reserved "Int"
+        [ map (const T.Bool) <| Parser.reserved "Bool"
+        , map (const T.Int) <| Parser.reserved "Int"
         , map (const T.Float) <| Parser.reserved "Float"
         , map (const T.Char) <| Parser.reserved "Char"
         , map (const T.String) <| Parser.reserved "String"
