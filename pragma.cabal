@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d76b20a969c8be17d99b3a0096c3189ff3e2a3602050a3f0a834a9588837f0aa
+-- hash: ce2d0b914f962b8b1fb4529adb11cfe965e980088b45845f6a083d805316320f
 
 name:           pragma
 version:        0.1.0.0
@@ -41,6 +41,7 @@ library
       Prelude.String
       Printer
       Type
+      Type.Inference
       TypeCheck.CaseOf
       TypeCheck.Check
       TypeCheck.Expression
@@ -57,6 +58,7 @@ library
   ghc-options: -Wall
   build-depends:
       base-noprelude >=4.7 && <5
+    , containers
     , directory
     , indents
     , mtl
@@ -77,6 +79,7 @@ executable pragma-exe
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base-noprelude >=4.7 && <5
+    , containers
     , directory
     , indents
     , mtl
@@ -102,6 +105,7 @@ test-suite pragma-test
   build-depends:
       QuickCheck
     , base-noprelude >=4.7 && <5
+    , containers
     , directory
     , hspec
     , indents

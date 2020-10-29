@@ -195,12 +195,6 @@ unifyTypeVariable typeVariableNumber constrainingType =
                     |> (\c -> state { constraints = c : (constraints state) })
                     |> State.put
                     |> lift
-    unifyVariable
-
-
-unifyVariable :: Check ()
-unifyVariable = do
-    state <- lift State.get
 
 
 
