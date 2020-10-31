@@ -53,6 +53,10 @@ import Control.Monad as X
     , return
     )
 
+import Control.Monad.Trans.Class as X
+    ( lift
+    )
+
 import Data.Either as X
     ( Either(..)
     )

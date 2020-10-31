@@ -4,7 +4,6 @@ module TypeCheck.Expression
 
 
 import qualified Data.List as List
-import qualified Data.Tuple as Tuple
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
@@ -13,7 +12,6 @@ import qualified Type as T
 import qualified TypeCheck.CaseOf as CaseOf
 import TypeCheck.Check (Check)
 import qualified TypeCheck.Check as Check
-import qualified Utils.List as List
 
 
 checkExpression :: E.Expr -> Check T.Type
@@ -47,7 +45,7 @@ checkExpression expr =
 
 
         E.LetIn { E.definitions, E.body } -> do
-            withDefinitions definitions expr (checkExpression body)
+            withDefinitions definitions (checkExpression body)
 
 
         E.CaseOf { E.element, E.cases } ->
@@ -78,7 +76,7 @@ checkExpression expr =
         E.Application { E.functionName, E.args } -> do
             referenceType <- Check.lookupVariable functionName
             case referenceType of
-                T.Function functionType ->
+                T.Function _ ->
                     checkArguments referenceType args
 
                 _ ->
@@ -89,9 +87,8 @@ checkArguments :: T.Type -> NonEmpty E.Argument -> Check T.Type
 checkArguments functionType arguments =
     List.foldl
         (\fType arg -> do
-            functionType <- fType
-
-            case functionType of
+            type_ <- fType
+            case type_ of
                 T.Function (T.FunctionType nextParamType b) -> do
                     argType <- argumentType arg
                     if argType == nextParamType then
@@ -135,8 +132,8 @@ argumentType arg =
 
 
 withDefinitions
-    :: NonEmpty E.Definition -> E.Expr -> Check T.Type -> Check T.Type
-withDefinitions definitions expression innerChecker =
+    :: NonEmpty E.Definition -> Check T.Type -> Check T.Type
+withDefinitions definitions innerChecker =
     let
         toReference definition=
             case definition of

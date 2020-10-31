@@ -10,6 +10,7 @@ case "$1" in
 You need to install:
   stack
   ghcid
+  haskell-language-server (lsp - linter, auto-completion, etc.)
 EOF
     ;;
 
@@ -18,7 +19,12 @@ EOF
     ;;
 
   test )
-    ENV=test stack test --file-watch
+    #ENV=test stack test --file-watch
+    #ghcid --command 'stack ghci' --test ':main' --warnings --no-height-limit --reverse-errors
+
+    ghcid \
+          --command "stack ghci pragma:lib pragma:test:pragma-test --ghci-options=-fobject-code" \
+          --test "main"
     ;;
 
   *)

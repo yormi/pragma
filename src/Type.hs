@@ -1,7 +1,7 @@
 module Type
     ( Type(..)
     , FunctionType(..)
-    , VariableNumber
+    , TypeVariable
     ) where
 
 
@@ -12,7 +12,7 @@ data Type
     | Char
     | String
     | Function FunctionType
-    | Variable VariableNumber
+    | Variable TypeVariable
     deriving (Eq, Show)
 
 
@@ -20,4 +20,4 @@ data FunctionType = FunctionType Type Type
     deriving (Eq, Show)
 
 
-type VariableNumber = Int
+type TypeVariable = Int

@@ -88,6 +88,9 @@ printType type_ =
             in
             formattedT1 ++ " -> " ++ printType t2
 
+        Type.Variable n ->
+            "a" <> show n
+
 
 indent :: Indentation -> String -> String
 indent indentation =
@@ -214,7 +217,7 @@ parenthesized s =
 
 printParams :: [Identifier] -> String
 printParams =
-    String.unwords 
+    String.unwords
 
 
 printValue :: Value -> String

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ce2d0b914f962b8b1fb4529adb11cfe965e980088b45845f6a083d805316320f
+-- hash: a85b62f6e6aabd560382e286f68bbf65d95143ae7355b597081e30f74d57a30e
 
 name:           pragma
 version:        0.1.0.0
@@ -41,6 +41,10 @@ library
       Prelude.String
       Printer
       Type
+      Type.Constraint
+      Type.Constraint.Expression
+      Type.Constraint.Gatherer
+      Type.Constraint.Module
       Type.Inference
       TypeCheck.CaseOf
       TypeCheck.Check
@@ -95,8 +99,7 @@ test-suite pragma-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Parser.ValueSpec
-      TypeCheck.ExpressionSpec
+      Type.Constraint.ExpressionSpec
       Paths_pragma
   hs-source-dirs:
       test

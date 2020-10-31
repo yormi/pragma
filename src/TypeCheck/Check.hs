@@ -15,7 +15,6 @@ module TypeCheck.Check
     ) where
 
 
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
@@ -47,8 +46,8 @@ data State =
 
 
 data Constraint
-    = BoundWith T.VariableNumber T.VariableNumber
-    | ResolvedTo T.VariableNumber T.Type
+    = BoundWith T.TypeVariable T.TypeVariable
+    | ResolvedTo T.TypeVariable T.Type
         deriving (Eq, Show)
 
 
