@@ -6,7 +6,7 @@ import System.IO (readFile)
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer
-import Type.Constraint (gatherConstraints)
+import Type.Inference (infer)
 import qualified Utils.Either as Either
 
 
@@ -28,6 +28,6 @@ run = do
 
     putStrLn <| "\n\n--- TYPE CHECK ---\n"
     parsed
-        |> map gatherConstraints
+        |> map infer
         |> Either.fold show show
         |> putStrLn

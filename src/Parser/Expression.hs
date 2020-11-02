@@ -32,8 +32,17 @@ application =
         args <-
             Parser.atLeastOne <| do
                 Parser.sameLineOrIndented
-                expressionParser
+                argument
         return <| Application functionName args
+
+
+argument :: Parser Expr
+argument =
+    Parser.oneOf
+        [ map Value Value.valueParser
+        , map Reference Parser.identifier
+        , parenthesisedExpression
+        ]
 
 
 parenthesisedExpression :: Parser Expr

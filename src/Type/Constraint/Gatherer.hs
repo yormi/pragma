@@ -8,6 +8,7 @@ module Type.Constraint.Gatherer
     , fail
     , freshVariable
     , lookupReference
+    , run
     , withEnv
     ) where
 
