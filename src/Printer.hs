@@ -6,8 +6,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.String as String
 
 import AST.Expression
-    ( Argument(..)
-    , BoolLiteral(..)
+    ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
     , Expr(..)
@@ -190,22 +189,10 @@ printDefinition def =
                 ++ (indent 1 <| expression expr)
 
 
-printArgs :: NonEmpty Argument -> String
+printArgs :: NonEmpty Expr -> String
 printArgs =
-    let
-        printArg arg =
-            case arg of
-                ValueArgument v ->
-                    printValue v
-
-                ReferenceArgument r ->
-                    r
-
-                ExpressionArgument e ->
-                    parenthesized <| expression e
-    in
     NonEmpty.toList
-        >> map printArg
+        >> map expression
         >> String.unwords
 
 

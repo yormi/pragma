@@ -1,6 +1,5 @@
 module AST.Expression
-    ( Argument(..)
-    , BoolLiteral(..)
+    ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
     , Expr(..)
@@ -38,15 +37,8 @@ data Expr
         }
     | Application
         { functionName :: Identifier
-        , args :: NonEmpty Argument
+        , args :: NonEmpty Expr
         }
-    deriving (Eq, Show)
-
-
-data Argument
-    = ValueArgument Value
-    | ReferenceArgument Identifier
-    | ExpressionArgument Expr
     deriving (Eq, Show)
 
 

@@ -29,7 +29,7 @@ gatherFunction params body = do
     return <|
         List.foldl
             (\functionType paramType ->
-                T.FunctionType (T.Variable paramType) functionType
+                T.FunctionType paramType functionType
                     |> T.Function
             )
             bodyType_

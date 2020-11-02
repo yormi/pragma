@@ -97,12 +97,12 @@ data TypeError
     | TODO E.Expr
     | TooManyArguments
         { functionType :: T.Type
-        , arguments :: NonEmpty E.Argument
+        , arguments :: NonEmpty E.Expr
         }
     | WrongArgumentType
         { expected :: T.Type
         , actual :: T.Type
-        , argument :: E.Argument
+        , argument :: E.Expr
         }
     | ImpossibleConstraints
     deriving (Eq, Show)

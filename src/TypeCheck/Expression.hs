@@ -83,14 +83,14 @@ checkExpression expr =
                     Check.fail <| Check.NotFunction referenceType
 
 
-checkArguments :: T.Type -> NonEmpty E.Argument -> Check T.Type
+checkArguments :: T.Type -> NonEmpty E.Expr -> Check T.Type
 checkArguments functionType arguments =
     List.foldl
         (\fType arg -> do
             type_ <- fType
             case type_ of
                 T.Function (T.FunctionType nextParamType b) -> do
-                    argType <- argumentType arg
+                    argType <- checkExpression arg
                     if argType == nextParamType then
                         return b
 
@@ -105,7 +105,7 @@ checkArguments functionType arguments =
         arguments
 
 
-unifyArgument :: E.Argument -> T.Type -> T.Type -> Check ()
+unifyArgument :: E.Expr -> T.Type -> T.Type -> Check ()
 unifyArgument arg functionParamType argType =
     case (functionParamType, argType) of
         (T.Variable n, x) -> do
@@ -116,19 +116,6 @@ unifyArgument arg functionParamType argType =
 
         _ ->
             Check.fail <| Check.WrongArgumentType functionParamType argType arg
-
-
-argumentType :: E.Argument -> Check T.Type
-argumentType arg =
-    case arg of
-        E.ValueArgument v ->
-            checkValue v
-
-        E.ReferenceArgument r ->
-            Check.lookupVariable r
-
-        E.ExpressionArgument e ->
-            checkExpression e
 
 
 withDefinitions

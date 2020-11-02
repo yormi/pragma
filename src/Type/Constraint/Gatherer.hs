@@ -12,6 +12,7 @@ module Type.Constraint.Gatherer
     ) where
 
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -25,13 +26,6 @@ import qualified Type as T
 type Constraint = (T.Type, T.Type)
 
 
---data TypeScheme
---    = TypeScheme
---        { variables :: [TypeVariable]
---        , type_ :: T.Type
---        }
-
-
 type Gatherer a =
     RWST
         TypeEnv
@@ -41,10 +35,7 @@ type Gatherer a =
         a
 
 
-type TypeEnv = Map E.Identifier TypeVariable
-
-
-type TypeName = String
+type TypeEnv = Map E.Identifier T.Type
 
 
 type NextTypeVariable = TypeVariable
@@ -56,6 +47,11 @@ type TypeVariable = Int
 data ConstraintError
     = TODO String
     | UnboundVariable E.Identifier
+    | NotAFunction T.Type
+    | TooManyArguments
+        { functionType :: T.Type
+        , arguments :: NonEmpty E.Expr
+        }
     deriving (Eq, Show)
 
 
@@ -87,7 +83,7 @@ fail =
     lift << Left
 
 
-lookupReference :: E.Identifier -> Gatherer TypeVariable
+lookupReference :: E.Identifier -> Gatherer T.Type
 lookupReference identifier = do
     env <- RWST.ask
     case Map.lookup identifier env of
@@ -99,8 +95,7 @@ lookupReference identifier = do
 
 
 -- TODO Fail on shadowing
-withEnv ::
-    [(TypeName, TypeVariable)] -> Gatherer a -> Gatherer a
+withEnv :: [(E.Identifier, T.Type)] -> Gatherer a -> Gatherer a
 withEnv newEnv = do
   let scope oldEnv =
         List.foldl
@@ -114,21 +109,21 @@ withEnv newEnv = do
   RWST.local scope
 
 
-removeFromEnv :: TypeName -> TypeEnv -> TypeEnv
-removeFromEnv typeVariable env =
-    Map.delete typeVariable env
+removeFromEnv :: E.Identifier -> TypeEnv -> TypeEnv
+removeFromEnv identifier env =
+    Map.delete identifier env
 
 
-extendEnv :: (TypeName, TypeVariable) -> TypeEnv -> TypeEnv
-extendEnv (name, typeVariable) env =
-    Map.insert name typeVariable env
+extendEnv :: (E.Identifier, T.Type) -> TypeEnv -> TypeEnv
+extendEnv (identifier, type_) env =
+    Map.insert identifier type_ env
 
 
-freshVariable :: Gatherer TypeVariable
+freshVariable :: Gatherer T.Type
 freshVariable = do
     nextTypeVariable <- RWST.get
     RWST.put <| nextTypeVariable + 1
-    return nextTypeVariable
+    return <| T.Variable nextTypeVariable
 
 
 addConstraint :: T.Type -> T.Type -> Gatherer ()

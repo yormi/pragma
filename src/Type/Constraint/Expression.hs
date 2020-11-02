@@ -1,5 +1,7 @@
 module Type.Constraint.Expression (gather) where
 
+import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
@@ -17,7 +19,6 @@ gather expression =
 
         E.Reference identifier ->
             Gatherer.lookupReference identifier
-                |> map T.Variable
 
 
         E.If { E.condition, E.whenTrue, E.whenFalse } -> do
@@ -38,12 +39,7 @@ gather expression =
                     case definition of
                         E.SimpleDefinition id expr -> do
                             type_ <- gather expr
-
-                            typeVariable <- Gatherer.freshVariable
-                            let freshType = T.Variable typeVariable
-                            Gatherer.addConstraint freshType type_
-
-                            return (id, typeVariable)
+                            return (id, type_)
             in do
             references <-
                 definitions
@@ -51,8 +47,56 @@ gather expression =
                     |> map NonEmpty.toList
             Gatherer.withEnv references (gather body)
 
+
+        --E.CaseOf { E.element, E.cases } ->
+
+
+        E.Lambda { E.params, E.body } -> do
+            let paramList = NonEmpty.toList params
+            variables <- traverse (const Gatherer.freshVariable) paramList
+            let paramWithTypes = List.zip paramList variables
+            bodyType <- Gatherer.withEnv paramWithTypes (gather body)
+
+            variables
+                |> List.foldl
+                    (\lambdaType paramType ->
+                        T.FunctionType paramType lambdaType
+                            |> T.Function
+                    )
+                    bodyType
+                |> return
+
+
+        E.Application { E.functionName, E.args } -> do
+            referenceType <- Gatherer.lookupReference functionName
+            case referenceType of
+                T.Function _ ->
+                    gatherArguments referenceType args
+
+                _ ->
+                    Gatherer.fail <| Gatherer.NotAFunction referenceType
+
+
         _ ->
             Gatherer.fail <| Gatherer.TODO "Gather Expression"
+
+
+gatherArguments :: T.Type -> NonEmpty E.Expr -> Gatherer T.Type
+gatherArguments functionType arguments =
+    List.foldl
+        (\fType arg -> do
+            type_ <- fType
+            case type_ of
+                T.Function (T.FunctionType nextParamType b) -> do
+                    argType <- gather arg
+                    Gatherer.addConstraint argType nextParamType
+                    return b
+                _ ->
+                    Gatherer.TooManyArguments functionType arguments
+                        |> Gatherer.fail
+        )
+        (return functionType)
+        arguments
 
 
 valueType :: E.Value -> T.Type
