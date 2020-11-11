@@ -22,9 +22,7 @@ import qualified Control.Monad.Trans.RWS.CPS as RWST
 
 import qualified AST.Expression as E
 import qualified Type as T
-
-
-type Constraint = (T.Type, T.Type)
+import Type.Constraint.Model (Constraint(..))
 
 
 type Gatherer a =
@@ -127,6 +125,6 @@ freshVariable = do
     return <| T.Variable nextTypeVariable
 
 
-addConstraint :: T.Type -> T.Type -> Gatherer ()
-addConstraint a b =
-    RWST.tell [(a, b)]
+addConstraint :: Constraint -> Gatherer ()
+addConstraint c =
+    RWST.tell [c]

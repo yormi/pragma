@@ -1,13 +1,13 @@
 module Type.Constraint.Expression (gather) where
 
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
 import qualified Type as T
 import Type.Constraint.Gatherer (Gatherer)
 import qualified Type.Constraint.Gatherer as Gatherer
+import qualified Type.Constraint.Model as Constraint
 
 
 gather :: E.Expr -> Gatherer T.Type
@@ -26,11 +26,17 @@ gather expression =
             whenTrueType <- gather whenTrue
             whenFalseType <- gather whenFalse
 
-            Gatherer.addConstraint T.Bool conditionType
-            Gatherer.addConstraint whenTrueType whenFalseType
+            ifType <- Gatherer.freshVariable
 
-            let sharedReturnType = whenTrueType
-            return sharedReturnType
+            Constraint.IfThenElse
+                { Constraint.condition = conditionType
+                , Constraint.whenTrue = whenTrueType
+                , Constraint.whenFalse = whenFalseType
+                , Constraint.returnType = ifType
+                }
+                |> Gatherer.addConstraint
+
+            return ifType
 
 
         E.LetIn { E.definitions, E.body } ->
@@ -69,34 +75,45 @@ gather expression =
 
         E.Application { E.functionName, E.args } -> do
             referenceType <- Gatherer.lookupReference functionName
-            case referenceType of
-                T.Function _ ->
-                    gatherArguments referenceType args
+            argsType <- traverse gather args
+            returnType <- Gatherer.freshVariable
 
-                _ ->
-                    Gatherer.fail <| Gatherer.NotAFunction referenceType
+            Constraint.Application
+                { Constraint.functionReference = referenceType
+                , Constraint.args = argsType
+                , Constraint.returnType = returnType
+                }
+                |> Gatherer.addConstraint
 
+            return returnType
 
         _ ->
             Gatherer.fail <| Gatherer.TODO "Gather Expression"
 
 
-gatherArguments :: T.Type -> NonEmpty E.Expr -> Gatherer T.Type
-gatherArguments functionType arguments =
-    List.foldl
-        (\fType arg -> do
-            type_ <- fType
-            case type_ of
-                T.Function (T.FunctionType nextParamType b) -> do
-                    argType <- gather arg
-                    Gatherer.addConstraint argType nextParamType
-                    return b
-                _ ->
-                    Gatherer.TooManyArguments functionType arguments
-                        |> Gatherer.fail
-        )
-        (return functionType)
-        arguments
+-- generate fresh variable
+-- generate constraint
+-- make sure to use latest concluded variable
+-- fail with error
+-- traversal
+
+
+--gatherArguments :: T.Type -> NonEmpty E.Expr -> Gatherer T.Type
+--gatherArguments functionType arguments =
+--    List.foldl
+--        (\fType arg -> do
+--            type_ <- fType
+--            case type_ of
+--                T.Function (T.FunctionType nextParamType b) -> do
+--                    argType <- gather arg
+--                    Gatherer.addConstraint argType nextParamType
+--                    return b
+--                _ ->
+--                    Gatherer.TooManyArguments functionType arguments
+--                        |> Gatherer.fail
+--        )
+--        (return functionType)
+--        arguments
 
 
 valueType :: E.Value -> T.Type
