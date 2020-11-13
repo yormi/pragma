@@ -6,6 +6,8 @@ module Type.ConstraintSolver
 
 import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -21,17 +23,13 @@ type TypeSolution = Map T.TypeVariable T.Type
 
 data SolvingError
     = UnsolvableConstraint T.Type T.Type
+    | NotAFunction
     deriving (Eq, Show)
 
 
 fail :: SolvingError -> Solver a
 fail e =
     lift <| Left e
-
-
-addToSolution :: T.TypeVariable -> T.Type -> Solver ()
-addToSolution v t =
-    State.modify (Map.insert v t)
 
 
 inferedType :: T.TypeVariable -> Solver (Maybe T.Type)
@@ -58,30 +56,23 @@ updateTypeSolution typeVariable concludedType = do
                 fail <| UnsolvableConstraint a concludedType
 
 
+addToSolution :: T.TypeVariable -> T.Type -> Solver ()
+addToSolution v t =
+    State.modify (Map.insert v t)
+
+
 ------------------
 
 
-solve :: [Constraint] -> Either SolvingError T.Type
+solve :: [Constraint] -> Either SolvingError TypeSolution
 solve constraints =
-    solveConstraints constraints
+    traverse solveConstraint constraints
         |> processSolution
-        |> const (return T.Bool)
 
 
 processSolution :: Solver a -> Either SolvingError TypeSolution
 processSolution =
     flip State.execStateT Map.empty
-
-
-solveConstraints :: [Constraint] -> Solver ()
-solveConstraints constraints =
-    case constraints of
-        [] ->
-            return ()
-
-        c : cs -> do
-           solveConstraint c
-           solveConstraints cs
 
 
 solveConstraint :: Constraint -> Solver ()
@@ -116,18 +107,48 @@ solveConstraint constraint =
                     updateTypeSolution a b
 
 
-        -- TODO - Handle Function in here then switch this to a module called
-        -- by the ConstraintGatherer (that we should rename Infer i guess)
-
-
         Simple a b ->
             if a == b then
                 return ()
             else
                 fail <| UnsolvableConstraint a b
 
--- \ a b ->
---      if True then
---          a
---      else
---          b
+
+        IfThenElse { condition, whenTrue, whenFalse, returnType } -> do
+            solveConstraint (Simple condition T.Bool)
+            solveConstraint (Simple whenTrue whenFalse)
+            solveConstraint (Simple returnType whenFalse)
+
+
+        Application { functionReference, args, returnType } -> do
+            (resultType, constraints) <-
+                List.foldl
+                    (\monad arg -> do
+                        (currentType, constraints) <- monad
+                        case currentType of
+                            T.Function (T.FunctionType param resultingType) ->
+                                return
+                                    ( resultingType
+                                    , constraints ++ [Simple arg param]
+                                    )
+
+                            _ ->
+                                fail NotAFunction
+
+                    )
+                    (return (functionReference, []))
+                    (NonEmpty.toList args)
+
+
+            constraints ++ [Simple returnType resultType]
+                |> traverse solveConstraint
+                |> void
+
+
+
+        Function { functionType, params, body } ->
+            return ()
+
+
+-- TODO - Make a function that takes care of solving simple constraint to use
+-- in other constraint solution

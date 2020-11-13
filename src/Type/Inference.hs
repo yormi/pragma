@@ -1,30 +1,31 @@
 module Type.Inference (GatherConstraints, infer) where
 
---import qualified Data.List as List
+import qualified Data.Bifunctor as Bifunctor
+import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.String as String
 
 import AST.Module (Module(..), TopLevel)
 import qualified AST.Expression as E
 import qualified AST.Module as M
+import qualified Printer as TypePrinter
 import qualified Type as T
 import Type.ConstraintSolver (SolvingError)
 import Type.Constraint.Gatherer (Constraint, ConstraintError)
 import qualified Type.Constraint.Gatherer as Gatherer
+import qualified Type.Constraint.Printer as Printer
+import Type.ConstraintSolver (TypeSolution)
 import qualified Type.ConstraintSolver as ConstraintSolver
 import qualified Type.Constraint.Module as Module
 import qualified Utils.Either as Either
 
 
 type TypeCheck =
-    Module -> [Either TypeError T.Type]
+    Module -> [Either TypeError ConstraintSolver.TypeSolution]
 
 
 type GatherConstraints =
     TopLevel -> Either ConstraintError [Constraint]
-
-
-type SolveType =
-    [Constraint] -> T.Type -> Either SolvingError ()
 
 
 data TypeError
@@ -50,25 +51,45 @@ infer (Module topLevels)=
     map
         (gatherConstraints env
             >> Either.mapLeft ConstraintError
-            >> printConstraints
+            >> traceConstraints
+            >> trace "---"
             >> bind (ConstraintSolver.solve >> Either.mapLeft SolvingError)
+            >> traceResult
         )
         topLevels
 
 
-printConstraints :: Either a [Constraint] -> Either a [Constraint]
-printConstraints result =
-    case result of
-        Right cs ->
-            (cs
-                |> map (show :: Constraint -> String)
-                |> String.unlines
-                |> trace
-            )
-            result
+traceResult :: Either TypeError TypeSolution -> Either TypeError TypeSolution
+traceResult =
+    map
+        (\solution ->
+            let
+                solutions =
+                    solution
+                        |> Map.toList
+                        |> map (Bifunctor.first (\n -> "a" ++ show n))
+                        |> map
+                            (\(variable, type_) ->
+                                variable
+                                    ++ " :: "
+                                    ++ TypePrinter.printType type_
+                            )
+                        |> List.intercalate ",   "
+            in
+            trace ("Result:\n\t" ++ solutions) solution
+        )
+    >> Either.mapLeft (\e -> trace ("Result:\n\t" ++ show e) e)
 
-        Left _ ->
-            result
+
+traceConstraints :: Either a [Constraint] -> Either a [Constraint]
+traceConstraints =
+    map
+        (\constraints ->
+            constraints
+                |> map (Printer.printConstraint)
+                |> String.unlines
+                |> flip trace constraints
+        )
 
 
 

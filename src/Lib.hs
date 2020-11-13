@@ -1,7 +1,8 @@
 module Lib (run) where
 
+import GHC.IO.Encoding as Encoding
 import qualified System.Directory as Directory
-import System.IO (readFile)
+import System.IO (BufferMode(..), hSetBuffering, readFile, stdout)
 
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
@@ -12,6 +13,9 @@ import qualified Utils.Either as Either
 
 run :: IO ()
 run = do
+    Encoding.setLocaleEncoding Encoding.utf8
+    setFlushingStdoutRightAway
+
     dir <- Directory.getCurrentDirectory
     putStrLn dir
 
@@ -30,4 +34,9 @@ run = do
     parsed
         |> map infer
         |> Either.fold show show
-        |> putStrLn
+        |> \s -> putStrLn ("\n" ++ s)
+
+
+setFlushingStdoutRightAway :: IO ()
+setFlushingStdoutRightAway =
+    hSetBuffering stdout LineBuffering

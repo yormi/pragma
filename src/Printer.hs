@@ -1,4 +1,4 @@
-module Printer (printModule) where
+module Printer (printModule, printType) where
 
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
