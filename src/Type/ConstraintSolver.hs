@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..))
+import qualified Utils.Maybe as Maybe
 
 
 type Solver a = StateT TypeSolution (Either SolvingError) a
@@ -32,16 +33,27 @@ fail e =
     lift <| Left e
 
 
-inferedType :: T.TypeVariable -> Solver (Maybe T.Type)
-inferedType v =
-    State.get
-        |> map (Map.lookup v)
+mostPrecised :: T.Type -> Solver T.Type
+mostPrecised type_ =
+    case type_ of
+        T.Variable v -> do
+            state <- State.get
+            closest <-
+                Map.lookup v state
+                    |> traverse mostPrecised
+            closest
+                |> Maybe.withDefault type_
+                |> return
+
+        _ ->
+            return type_
 
 
 updateTypeSolution :: T.TypeVariable -> T.Type -> Solver ()
 updateTypeSolution typeVariable concludedType = do
-    infered <- inferedType typeVariable
-    case infered of
+    state <- State.get
+
+    case Map.lookup typeVariable state of
         Nothing ->
             addToSolution typeVariable concludedType
 
@@ -78,77 +90,65 @@ processSolution =
 solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
-        Simple (T.Variable a) (T.Variable b) -> do
-            inferedA <- inferedType a
-            inferedB <- inferedType b
-
-            case (inferedA, inferedB) of
-                (Just newA, Just newB) ->
-                    solveConstraint <| Simple newA newB
-
-                (Just newA, Nothing) ->
-                    solveConstraint <| Simple newA (T.Variable b)
-
-                (Nothing, Just newB) ->
-                    solveConstraint <| Simple (T.Variable a) newB
-
-                (Nothing, Nothing) -> do
-                    -- TODO - Better error
-                    fail <| UnsolvableConstraint (T.Variable a) (T.Variable b)
-
-
-        Simple (T.Variable a) b -> do
-            inferedA <- inferedType a
-            case inferedA of
-                Just newA ->
-                    solveConstraint <| Simple newA b
-
-                Nothing ->
-                    updateTypeSolution a b
-
-
         Simple a b ->
-            if a == b then
+            solveSimple a b
+
+
+        IfThenElse { condition, whenTrue, whenFalse, returnType } -> do
+            solveSimple condition T.Bool
+            solveSimple whenTrue whenFalse
+            solveSimple returnType whenFalse
+
+
+        Application { functionReference, args, returnType } ->
+            buildFunction (NonEmpty.toList args) returnType
+                |> solveSimple functionReference
+
+
+        Function { functionType, params, body } ->
+            buildFunction params body
+                |> solveSimple functionType
+
+
+buildFunction :: [T.Type] -> T.Type -> T.Type
+buildFunction params finalType =
+    List.foldl
+        (\builtType p ->
+            T.Function <| T.FunctionType p builtType
+        )
+        finalType
+        (List.reverse params)
+
+
+solveSimple :: T.Type -> T.Type -> Solver ()
+solveSimple a b = do
+    precisedA <- mostPrecised a
+    precisedB <- mostPrecised b
+
+    case (precisedA, precisedB) of
+        (T.Function f, T.Function g) ->
+            solveFunction f g
+
+        (T.Variable _, T.Variable _) -> do
+            fail <| UnsolvableConstraint a b
+
+        (T.Variable variableA, _) -> do
+            updateTypeSolution variableA b
+
+        (_, T.Variable variableB) -> do
+            updateTypeSolution variableB a
+
+        _ ->
+            if precisedA == precisedB then
                 return ()
             else
                 fail <| UnsolvableConstraint a b
 
 
-        IfThenElse { condition, whenTrue, whenFalse, returnType } -> do
-            solveConstraint (Simple condition T.Bool)
-            solveConstraint (Simple whenTrue whenFalse)
-            solveConstraint (Simple returnType whenFalse)
+solveFunction :: T.FunctionType -> T.FunctionType -> Solver ()
+solveFunction (T.FunctionType argA returnA) (T.FunctionType argB returnB) = do
+    a <- mostPrecised argA
+    b <- mostPrecised argB
 
-
-        Application { functionReference, args, returnType } -> do
-            (resultType, constraints) <-
-                List.foldl
-                    (\monad arg -> do
-                        (currentType, constraints) <- monad
-                        case currentType of
-                            T.Function (T.FunctionType param resultingType) ->
-                                return
-                                    ( resultingType
-                                    , constraints ++ [Simple arg param]
-                                    )
-
-                            _ ->
-                                fail NotAFunction
-
-                    )
-                    (return (functionReference, []))
-                    (NonEmpty.toList args)
-
-
-            constraints ++ [Simple returnType resultType]
-                |> traverse solveConstraint
-                |> void
-
-
-
-        Function { functionType, params, body } ->
-            return ()
-
-
--- TODO - Make a function that takes care of solving simple constraint to use
--- in other constraint solution
+    solveSimple a b
+    solveSimple returnA returnB

@@ -24,20 +24,3 @@ gather topLevel =
                 , Constraint.body = bodyType
                 }
                 |> Gatherer.addConstraint
-
-
-
---gatherFunction :: [E.Identifier] -> E.Expr -> Gatherer T.Type
---gatherFunction params body = do
---    paramTypes <- traverse (const Gatherer.freshVariable) params
---    let paramWithTypes = List.zip params paramTypes
---    bodyType_ <- Gatherer.withEnv paramWithTypes <| Expression.gather body
---
---    return <|
---        List.foldl
---            (\functionType paramType ->
---                T.FunctionType paramType functionType
---                    |> T.Function
---            )
---            bodyType_
---            paramTypes

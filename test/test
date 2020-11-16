@@ -1,17 +1,17 @@
-b : Int
-b =
-    35
-
-
 biggerThan : Int -> Int -> Bool
 biggerThan a c =
     True
 
 
-foo : Int -> Int
-foo a =
-    if biggerThan a b then
+foo : (Int -> Int -> Bool) -> Int -> Int
+foo f a =
+    if f a b then
         a
 
     else
         3
+
+
+b : Int
+b =
+    35

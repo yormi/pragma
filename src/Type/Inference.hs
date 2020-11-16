@@ -1,4 +1,4 @@
-module Type.Inference (GatherConstraints, infer) where
+module Type.Inference (TypeError(..), gatherConstraints, infer) where
 
 import qualified Data.Bifunctor as Bifunctor
 import qualified Data.List as List
@@ -6,10 +6,10 @@ import qualified Data.Map as Map
 import qualified Data.String as String
 
 import AST.Module (Module(..), TopLevel)
-import qualified AST.Expression as E
+-- import qualified AST.Expression as E
 import qualified AST.Module as M
 import qualified Printer as TypePrinter
-import qualified Type as T
+-- import qualified Type as T
 import Type.ConstraintSolver (SolvingError)
 import Type.Constraint.Gatherer (Constraint, ConstraintError)
 import qualified Type.Constraint.Gatherer as Gatherer
@@ -24,10 +24,6 @@ type TypeCheck =
     Module -> [Either TypeError ConstraintSolver.TypeSolution]
 
 
-type GatherConstraints =
-    TopLevel -> Either ConstraintError [Constraint]
-
-
 data TypeError
     = ConstraintError ConstraintError
     | NoMainFunction
@@ -37,19 +33,9 @@ data TypeError
 
 -- TODO - REFACTOR !
 infer :: TypeCheck
-infer (Module topLevels)=
-    let
-        env =
-            map
-                (\topLevel ->
-                    case topLevel of
-                        M.Function { M.functionName, M.type_ } ->
-                            (functionName, type_)
-                )
-                topLevels
-    in do
+infer module_@(Module topLevels)=
     map
-        (gatherConstraints env
+        (gatherConstraints module_
             >> Either.mapLeft ConstraintError
             >> traceConstraints
             >> trace "---"
@@ -74,11 +60,11 @@ traceResult =
                                     ++ " :: "
                                     ++ TypePrinter.printType type_
                             )
-                        |> List.intercalate ",   "
+                        |> List.intercalate "\n\t"
             in
             trace ("Result:\n\t" ++ solutions) solution
         )
-    >> Either.mapLeft (\e -> trace ("Result:\n\t" ++ show e) e)
+        >> Either.mapLeft (\e -> trace ("Result:\n\t" ++ show e) e)
 
 
 traceConstraints :: Either a [Constraint] -> Either a [Constraint]
@@ -93,8 +79,18 @@ traceConstraints =
 
 
 
-gatherConstraints :: [(E.Identifier, T.Type)] -> GatherConstraints
-gatherConstraints env topLevel =
+gatherConstraints :: Module -> TopLevel -> Either ConstraintError [Constraint]
+gatherConstraints (Module topLevels) topLevel =
+    let
+        env =
+            map
+                (\t ->
+                    case t of
+                        M.Function { M.functionName, M.type_ } ->
+                            (functionName, type_)
+                )
+                topLevels
+    in do
     Module.gather topLevel
         |> Gatherer.withEnv env
         |> Gatherer.gatherConstraints
