@@ -12,7 +12,7 @@ import qualified Type.Constraint.Model as Constraint
 
 gather :: E.Expr -> Gatherer T.Type
 gather expression =
-    case expression of
+    case E.expression expression of
         E.Value v ->
             return <| valueType v
 
@@ -29,9 +29,21 @@ gather expression =
             ifType <- Gatherer.freshVariable
 
             Constraint.IfThenElse
-                { Constraint.condition = conditionType
-                , Constraint.whenTrue = whenTrueType
-                , Constraint.whenFalse = whenFalseType
+                { Constraint.condition =
+                    Constraint.Element
+                        (E.position condition)
+                        (E.expression condition)
+                        conditionType
+                , Constraint.whenTrue =
+                    Constraint.Element
+                        (E.position whenTrue)
+                        (E.expression whenTrue)
+                        whenTrueType
+                , Constraint.whenFalse =
+                    Constraint.Element
+                        (E.position whenFalse)
+                        (E.expression whenFalse)
+                        whenFalseType
                 , Constraint.returnType = ifType
                 }
                 |> Gatherer.addConstraint
@@ -79,8 +91,11 @@ gather expression =
             returnType <- Gatherer.freshVariable
 
             Constraint.Application
-                { Constraint.functionReference = referenceType
-                , Constraint.args = argsType
+                { Constraint.position = E.position expression
+                , Constraint.functionName = functionName
+                , Constraint.args = args
+                , Constraint.functionReference = referenceType
+                , Constraint.argTypes = argsType
                 , Constraint.returnType = returnType
                 }
                 |> Gatherer.addConstraint
@@ -89,31 +104,6 @@ gather expression =
 
         _ ->
             Gatherer.fail <| Gatherer.TODO "Gather Expression"
-
-
--- generate fresh variable
--- generate constraint
--- make sure to use latest concluded variable
--- fail with error
--- traversal
-
-
---gatherArguments :: T.Type -> NonEmpty E.Expr -> Gatherer T.Type
---gatherArguments functionType arguments =
---    List.foldl
---        (\fType arg -> do
---            type_ <- fType
---            case type_ of
---                T.Function (T.FunctionType nextParamType b) -> do
---                    argType <- gather arg
---                    Gatherer.addConstraint argType nextParamType
---                    return b
---                _ ->
---                    Gatherer.TooManyArguments functionType arguments
---                        |> Gatherer.fail
---        )
---        (return functionType)
---        arguments
 
 
 valueType :: E.Value -> T.Type

@@ -9,6 +9,7 @@ module Prelude.Flow
     , apply
     , bind
     , map
+    , map2
     ) where
 
 import Control.Monad as X (join)
@@ -20,6 +21,7 @@ import Data.Traversable as X
 
 
 import Control.Applicative (Applicative, (<**>))
+import qualified Control.Applicative as Applicative
 import Control.Monad (Monad, (=<<))
 import Data.Function (($), (&), (.), flip)
 import Data.Functor (Functor, fmap)
@@ -58,3 +60,8 @@ bind =
 map :: Functor f => (a -> b) -> f a -> f b
 map =
     fmap
+
+
+map2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
+map2 =
+    Applicative.liftA2

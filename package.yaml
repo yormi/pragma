@@ -35,7 +35,7 @@ ghc-options:
 - -Wall
 
 default-extensions:
-#- DuplicateRecordFields
+- DuplicateRecordFields
 #- LambdaCase
 - NamedFieldPuns
 - OverloadedStrings

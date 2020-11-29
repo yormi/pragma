@@ -16,6 +16,7 @@ import qualified Type.ConstraintSolver as ConstraintSolver
 import Type.Constraint.Gatherer (ConstraintError)
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Printer as Printer
+import qualified Type.ErrorPrinter as ErrorPrinter
 import qualified Type.Inference as Inference
 import qualified Utils.Either as Either
 
@@ -61,9 +62,9 @@ run = do
                 |> map
                     (bind
                         (ConstraintSolver.solve
-                            >> Either.mapLeft show
+                            >> Either.mapLeft ErrorPrinter.printSolvingError
                             >> Either.mapLeft
-                                (\s -> "CONSTRAINT SOLVING ERROR: " ++ s)
+                                (\s -> "CONSTRAINT SOLVING ERROR: \n" ++ s)
                         )
                     )
             ) :: [Either String TypeSolution]

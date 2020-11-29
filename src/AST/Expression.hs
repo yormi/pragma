@@ -3,8 +3,10 @@ module AST.Expression
     , Case(..)
     , Definition(..)
     , Expr(..)
+    , Expression(..)
     , Identifier
     , Pattern(..)
+    , Position(..)
     , Value(..)
     ) where
 
@@ -15,7 +17,24 @@ import Data.List.NonEmpty (NonEmpty)
 type Identifier = String
 
 
-data Expr
+data Expr =
+    Expr
+        { position :: Position
+        , expression :: Expression
+        }
+        deriving (Eq, Show)
+
+
+data Position =
+    Position
+        { filename :: String
+        , line :: Int
+        , column :: Int
+        }
+        deriving (Eq, Show)
+
+
+data Expression
     = Value Value
     | Reference Identifier
     | If

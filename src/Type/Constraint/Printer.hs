@@ -7,6 +7,7 @@ import qualified Data.String as String
 import qualified Printer as TypePrinter
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..))
+import qualified Type.Constraint.Model as Constraint
 
 
 printConstraint :: Constraint -> String
@@ -20,13 +21,20 @@ printConstraint constraint =
 
         IfThenElse { condition, whenTrue, whenFalse, returnType } ->
             [ "If Then Else"
-            , "\tCondition:\t" ++ printSimpleConstraint condition T.Bool
-            , "\tAlternatives:\t" ++ printSimpleConstraint whenTrue whenFalse
-            , "\tReturns:\t" ++ printSimpleConstraint returnType whenTrue
+            , "\tCondition:\t"
+                ++ printSimpleConstraintTypes
+                    (Constraint.type_ condition)
+                    T.Bool
+            , "\tAlternatives:\t"
+                ++ printSimpleConstraint whenTrue whenFalse
+            , "\tReturns:\t"
+                ++ printSimpleConstraintTypes
+                    returnType
+                    (Constraint.type_ whenTrue)
             ]
             |> String.unlines
 
-        Application { functionReference, args, returnType } ->
+        Application { functionReference, argTypes, returnType } ->
             let
                 application =
                     List.foldl
@@ -34,10 +42,10 @@ printConstraint constraint =
                             T.Function (T.FunctionType a type_)
                         )
                         returnType
-                        (NonEmpty.reverse args)
+                        (NonEmpty.reverse argTypes)
             in
             [ "Application"
-            , "\t" ++ printSimpleConstraint application functionReference
+            , "\t" ++ printSimpleConstraintTypes application functionReference
             ]
             |> String.unlines
 
@@ -52,11 +60,18 @@ printConstraint constraint =
                         (List.reverse params)
             in
             [ "Function Definition"
-            , "\t" ++ printSimpleConstraint calculated functionType
+            , "\t" ++ printSimpleConstraintTypes calculated functionType
             ]
             |> String.unlines
 
 
-printSimpleConstraint :: T.Type -> T.Type -> String
+printSimpleConstraint :: Constraint.Element -> Constraint.Element -> String
 printSimpleConstraint a b =
+    printSimpleConstraintTypes
+        (Constraint.type_ a)
+        (Constraint.type_ b)
+
+
+printSimpleConstraintTypes :: T.Type -> T.Type -> String
+printSimpleConstraintTypes a b =
     TypePrinter.printType a ++ "  vs.  " ++ TypePrinter.printType b

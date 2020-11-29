@@ -1,4 +1,4 @@
-module Printer (printModule, printType) where
+module Printer (printModule, printType, printExpression) where
 
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
@@ -9,14 +9,14 @@ import AST.Expression
     ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
-    , Expr(..)
+    , Expr
+    , Expression(..)
     , Identifier
     , Pattern(..)
     , Value(..)
     )
 import qualified AST.Expression as Expression
 import AST.Module (Module(..), TopLevel(..))
-import qualified AST.Module as Module
 import Type (Type)
 import qualified Type
 
@@ -36,10 +36,10 @@ topLevel :: TopLevel -> String
 topLevel element =
     case element of
         Function
-            { Module.type_
-            , Module.functionName
-            , Module.params
-            , Module.body
+            { type_
+            , functionName
+            , params
+            , body
             } ->
             let
                 typeLine =
@@ -53,7 +53,7 @@ topLevel element =
                 ++ functionName ++ " "
                 ++ printParams params
                 ++ " =\n"
-                ++ (indent 1 <| expression body)
+                ++ (indent 1 <| printExpression body)
 
 
 printType :: Type -> String
@@ -112,9 +112,9 @@ indent indentation =
         >> List.intercalate "\n"
 
 
-expression :: Expr -> String
-expression e =
-    case e of
+printExpression :: Expr -> String
+printExpression e =
+    case Expression.expression e of
         Value v ->
             printValue v
 
@@ -122,10 +122,10 @@ expression e =
             r
 
         If condition whenTrue whenFalse ->
-            "if " ++ expression condition ++ " then" ++ "\n"
-                ++ (indent 1 <| expression whenTrue ++ "\n\n")
+            "if " ++ printExpression condition ++ " then" ++ "\n"
+                ++ (indent 1 <| printExpression whenTrue ++ "\n\n")
                 ++ "else\n"
-                ++ (indent 1 <| expression whenFalse ++ "\n")
+                ++ (indent 1 <| printExpression whenFalse ++ "\n")
 
         LetIn { Expression.definitions, Expression.body } ->
             "let\n"
@@ -137,11 +137,11 @@ expression e =
                         |> indent 1
                     )
                 ++ "\nin\n"
-                ++ expression body
+                ++ printExpression body
 
 
         CaseOf element cases ->
-            "case " ++ expression element ++ " of\n"
+            "case " ++ printExpression element ++ " of\n"
                 ++
                     ( cases
                         |> NonEmpty.toList
@@ -153,7 +153,7 @@ expression e =
 
         Lambda { Expression.params, Expression.body } ->
             "\\" ++ (printParams <| NonEmpty.toList <| params)
-                ++ " -> " ++ expression body
+                ++ " -> " ++ printExpression body
 
         Application { Expression.functionName, args } ->
             functionName ++ " " ++ printArgs args
@@ -162,7 +162,7 @@ expression e =
 printCase :: Case -> String
 printCase (Case pattern expr) =
     printPattern pattern ++ " ->\n"
-        ++ (indent 1 <| expression expr)
+        ++ (indent 1 <| printExpression expr)
 
 
 printPattern :: Pattern -> String
@@ -186,13 +186,13 @@ printDefinition def =
     case def of
         SimpleDefinition name expr ->
             name ++ " =\n"
-                ++ (indent 1 <| expression expr)
+                ++ (indent 1 <| printExpression expr)
 
 
 printArgs :: NonEmpty Expr -> String
 printArgs =
     NonEmpty.toList
-        >> map expression
+        >> map printExpression
         >> String.unwords
 
 

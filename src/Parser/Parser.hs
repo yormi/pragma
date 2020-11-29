@@ -8,7 +8,7 @@ module Parser.Parser
     , many
     , maybe
     , numberLiteral
-    , withPositionReference
+    , position
     , oneOf
     , reserved
     , reservedOperator
@@ -17,6 +17,7 @@ module Parser.Parser
     , stringLiteral
     , topLevel
     , unconsumeOnFailure
+    , withPositionReference
     ) where
 
 
@@ -27,6 +28,7 @@ import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 
 
+import AST.Expression (Position(..))
 import Utils.Maybe as Maybe
 
 
@@ -141,6 +143,21 @@ between before after mainParser = do
 unconsumeOnFailure :: Parser a -> Parser a
 unconsumeOnFailure =
     Parser.try
+
+
+-- Position
+
+
+position :: Parser Position
+position =
+    map
+        (\sourcePosition ->
+            Position
+                (Parser.sourceName sourcePosition)
+                (Parser.sourceLine sourcePosition)
+                (Parser.sourceColumn sourcePosition)
+        )
+        Parser.getPosition
 
 
 -- Indentation

@@ -1,5 +1,5 @@
 module Type.ConstraintSolver
-    ( SolvingError
+    ( SolvingError(..)
     , TypeSolution
     , solve
     ) where
@@ -8,11 +8,14 @@ import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import qualified AST.Expression as E
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..))
+import qualified Type.Constraint.Model as Constraint
 import qualified Utils.Maybe as Maybe
 
 
@@ -23,8 +26,28 @@ type TypeSolution = Map T.TypeVariable T.Type
 
 
 data SolvingError
-    = UnsolvableConstraint T.Type T.Type
+    = UnsolvableConstraint
+        { expected :: Constraint.Element
+        , actual :: Constraint.Element
+        }
+    | TypeVariableCannotSatisfyBothConstraint T.Type T.Type
+    | IfConditionMustBeABool Constraint.Element
+    | BothIfAlternativesMustHaveSameType Constraint.Element Constraint.Element
     | NotAFunction
+        { position :: E.Position
+        , functionName :: E.Identifier
+        , args :: NonEmpty E.Expr
+        , functionType :: T.Type
+        }
+    | BadApplication
+        { position :: E.Position
+        , functionName :: E.Identifier
+        , args :: NonEmpty E.Expr
+        , referenceType :: T.Type
+        , functionType :: T.Type
+        }
+    | FunctionDefinitionMustMatchType T.Type T.Type
+    | ShouldNotHappen String
     deriving (Eq, Show)
 
 
@@ -64,8 +87,7 @@ updateTypeSolution typeVariable concludedType = do
             if a == concludedType then
                 return ()
             else
-                -- TODO - Better error
-                fail <| UnsolvableConstraint a concludedType
+                fail <| TypeVariableCannotSatisfyBothConstraint a concludedType
 
 
 addToSolution :: T.TypeVariable -> T.Type -> Solver ()
@@ -91,23 +113,67 @@ solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
         Simple a b ->
-            solveSimple a b
+            solveSimple
+                (Constraint.type_ a)
+                (Constraint.type_ b)
+                (UnsolvableConstraint a b)
 
 
         IfThenElse { condition, whenTrue, whenFalse, returnType } -> do
-            solveSimple condition T.Bool
-            solveSimple whenTrue whenFalse
-            solveSimple returnType whenFalse
+            solveSimple
+                (Constraint.type_ condition)
+                T.Bool
+                (IfConditionMustBeABool condition)
+            solveSimple
+                (Constraint.type_ whenTrue)
+                (Constraint.type_ whenFalse)
+                (BothIfAlternativesMustHaveSameType whenTrue whenFalse)
+            solveSimple
+                returnType
+                (Constraint.type_ whenFalse)
+                (ShouldNotHappen "Matching if return type")
 
 
-        Application { functionReference, args, returnType } ->
-            buildFunction (NonEmpty.toList args) returnType
-                |> solveSimple functionReference
+        Application
+            { position
+            , functionName
+            , Constraint.args
+            , functionReference
+            , argTypes
+            , returnType
+            } ->
+            let
+                functionType =
+                    buildFunction (NonEmpty.toList argTypes) returnType
+            in do
+            referenceType <- mostPrecised functionReference
+            case referenceType of
+                T.Function _ ->
+                    solveSimple
+                        functionReference
+                        functionType
+                        (BadApplication
+                            position
+                            functionName
+                            args
+                            referenceType
+                            functionType
+                        )
+
+                _ ->
+                    NotAFunction position functionName args referenceType
+                        |> fail
 
 
         Function { functionType, params, body } ->
-            buildFunction params body
-                |> solveSimple functionType
+            let
+                actualType =
+                    buildFunction params body
+            in
+            solveSimple
+                functionType
+                actualType
+                (FunctionDefinitionMustMatchType functionType actualType)
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type
@@ -120,17 +186,18 @@ buildFunction params finalType =
         (List.reverse params)
 
 
-solveSimple :: T.Type -> T.Type -> Solver ()
-solveSimple a b = do
+solveSimple :: T.Type -> T.Type -> SolvingError -> Solver ()
+solveSimple a b error = do
     precisedA <- mostPrecised a
     precisedB <- mostPrecised b
 
     case (precisedA, precisedB) of
         (T.Function f, T.Function g) ->
-            solveFunction f g
+            solveFunction f g error
 
+        -- I'm skeptic about this... should not fail I think
         (T.Variable _, T.Variable _) -> do
-            fail <| UnsolvableConstraint a b
+            fail error
 
         (T.Variable variableA, _) -> do
             updateTypeSolution variableA b
@@ -142,13 +209,13 @@ solveSimple a b = do
             if precisedA == precisedB then
                 return ()
             else
-                fail <| UnsolvableConstraint a b
+                fail error
 
 
-solveFunction :: T.FunctionType -> T.FunctionType -> Solver ()
-solveFunction (T.FunctionType argA returnA) (T.FunctionType argB returnB) = do
+solveFunction :: T.FunctionType -> T.FunctionType -> SolvingError -> Solver ()
+solveFunction (T.FunctionType argA returnA) (T.FunctionType argB returnB) error = do
     a <- mostPrecised argA
     b <- mostPrecised argB
 
-    solveSimple a b
-    solveSimple returnA returnB
+    solveSimple a b error
+    solveSimple returnA returnB error

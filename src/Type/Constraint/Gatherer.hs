@@ -13,7 +13,6 @@ module Type.Constraint.Gatherer
     ) where
 
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -47,9 +46,13 @@ data ConstraintError
     = TODO String
     | UnboundVariable E.Identifier
     | NotAFunction T.Type
+    | TooManyParameters
+        { functionType :: T.Type
+        , params :: [E.Identifier]
+        }
     | TooManyArguments
         { functionType :: T.Type
-        , arguments :: NonEmpty E.Expr
+        , arguments :: [E.Identifier]
         }
     deriving (Eq, Show)
 

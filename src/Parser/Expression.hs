@@ -16,8 +16,11 @@ expressionParser =
         , ifThenElse
         , letIn
         , application
-        , map Reference Parser.identifier
+        , Parser.identifier
+            |> map Reference
+            |> exprParser
         , map Value Value.valueParser
+            |> exprParser
         , lambda
         ]
 
@@ -27,20 +30,25 @@ expressionParser =
 
 application :: Parser Expr
 application =
-    Parser.unconsumeOnFailure <| do
+    (do
         functionName <- Parser.identifier
         args <-
             Parser.atLeastOne <| do
                 Parser.sameLineOrIndented
                 argument
         return <| Application functionName args
+    )
+        |> exprParser
+        |> Parser.unconsumeOnFailure
 
 
 argument :: Parser Expr
 argument =
     Parser.oneOf
         [ map Value Value.valueParser
+            |> exprParser
         , map Reference Parser.identifier
+            |> exprParser
         , parenthesisedExpression
         ]
 
@@ -57,12 +65,15 @@ parenthesisedExpression = do
 
 
 lambda :: Parser Expr
-lambda = do
-    Parser.reservedOperator "\\"
-    params <- Parser.atLeastOne Parser.identifier
-    Parser.reservedOperator "->"
-    expr <- expressionParser
-    return <| Lambda params expr
+lambda =
+    (do
+        Parser.reservedOperator "\\"
+        params <- Parser.atLeastOne Parser.identifier
+        Parser.reservedOperator "->"
+        expr <- expressionParser
+        return <| Lambda params expr
+    )
+    |> exprParser
 
 
 
@@ -70,30 +81,36 @@ lambda = do
 
 
 ifThenElse :: Parser Expr
-ifThenElse = do
-    condition <-
-        Parser.between
-            (Parser.reserved "if")
-            (Parser.reserved "then")
-            (expressionParser)
-    whenTrue <- expressionParser
-    Parser.reserved "else"
-    whenFalse <- expressionParser
-    return (If condition whenTrue whenFalse)
+ifThenElse =
+    (do
+        condition <-
+            Parser.between
+                (Parser.reserved "if")
+                (Parser.reserved "then")
+                (expressionParser)
+        whenTrue <- expressionParser
+        Parser.reserved "else"
+        whenFalse <- expressionParser
+        return <| If condition whenTrue whenFalse
+    )
+        |> exprParser
 
 
 -- LET IN
 
 
 letIn :: Parser Expr
-letIn = do
-    definitions <-
-        Parser.between
-            (Parser.reserved "let")
-            (Parser.reserved "in")
-            (Parser.atLeastOne definition)
-    expr <- expressionParser
-    return <| LetIn definitions expr
+letIn =
+    (do
+        definitions <-
+            Parser.between
+                (Parser.reserved "let")
+                (Parser.reserved "in")
+                (Parser.atLeastOne definition)
+        expr <- expressionParser
+        return <| LetIn definitions expr
+    )
+        |> exprParser
 
 
 definition :: Parser Definition
@@ -109,8 +126,8 @@ definition = do
 
 
 caseOf :: Parser Expr
-caseOf = Parser.withPositionReference <|
-    do
+caseOf =
+    ( do
         expr <-
             Parser.between
                 (Parser.reserved "case")
@@ -123,6 +140,9 @@ caseOf = Parser.withPositionReference <|
                 caseParser
 
         return <| CaseOf expr cases
+    )
+        |> exprParser
+        |> Parser.withPositionReference
 
 
 caseParser :: Parser Case
@@ -141,3 +161,11 @@ patternParser =
          , map IdentifierPattern Parser.identifier
          , map (const WildCardPattern) <| Parser.reservedOperator "_"
          ]
+
+
+exprParser :: Parser Expression -> Parser Expr
+exprParser parser =
+    map2
+        Expr
+        Parser.position
+        parser
