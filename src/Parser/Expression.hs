@@ -83,6 +83,8 @@ lambda =
 ifThenElse :: Parser Expr
 ifThenElse =
     (do
+        from <- Parser.position
+
         condition <-
             Parser.between
                 (Parser.reserved "if")
@@ -91,7 +93,21 @@ ifThenElse =
         whenTrue <- expressionParser
         Parser.reserved "else"
         whenFalse <- expressionParser
-        return <| If condition whenTrue whenFalse
+
+        to <- Parser.position
+
+        If
+            (CodeQuote
+                (filename (from :: Position))
+                (line from)
+                (column from)
+                (line to)
+                (column to)
+            )
+            condition
+            whenTrue
+            whenFalse
+            |> return
     )
         |> exprParser
 

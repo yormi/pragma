@@ -3,15 +3,19 @@ biggerThan a c =
     True
 
 
-foo : (Int -> Int -> Bool) -> Int -> Int
-foo f a =
-    if b a 3.3 then
-        a
-
-    else
-        3
-
-
 b : Int
 b =
     35
+
+
+foo : (Int -> Int -> Bool) -> Int -> Int
+foo f a =
+    let
+        blah =
+            if f a 3 then
+                a
+            else
+                3.3
+    in
+    blah
+

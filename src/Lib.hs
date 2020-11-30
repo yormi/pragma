@@ -62,7 +62,8 @@ run = do
                 |> map
                     (bind
                         (ConstraintSolver.solve
-                            >> Either.mapLeft ErrorPrinter.printSolvingError
+                            >> Either.mapLeft
+                                (ErrorPrinter.printSolvingError file)
                             >> Either.mapLeft
                                 (\s -> "CONSTRAINT SOLVING ERROR: \n" ++ s)
                         )

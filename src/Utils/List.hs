@@ -2,12 +2,17 @@ module Utils.List
     ( module X
     , head
     , isEmpty
+    , slice
     ) where
 
 import qualified Data.List as List
 
 import Data.List as X
-    (filter
+    ( concat
+    , filter
+    , foldl
+    , length
+    , replicate
     )
 
 
@@ -24,3 +29,9 @@ head xs =
 isEmpty :: [a] -> Bool
 isEmpty =
     List.null
+
+
+slice :: Int -> Int -> [a] -> [a]
+slice from to =
+    List.drop from
+        >> List.take (to - from + 1)

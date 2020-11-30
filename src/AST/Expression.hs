@@ -1,6 +1,7 @@
 module AST.Expression
     ( BoolLiteral(..)
     , Case(..)
+    , CodeQuote(..)
     , Definition(..)
     , Expr(..)
     , Expression(..)
@@ -8,6 +9,7 @@ module AST.Expression
     , Pattern(..)
     , Position(..)
     , Value(..)
+    , codeQuoteToPosition
     ) where
 
 
@@ -34,11 +36,28 @@ data Position =
         deriving (Eq, Show)
 
 
+data CodeQuote =
+    CodeQuote
+        { filename :: String
+        , fromLine :: Int
+        , fromColumn :: Int
+        , toLine :: Int
+        , toColumn :: Int
+        }
+        deriving (Eq, Show)
+
+
+codeQuoteToPosition :: CodeQuote -> Position
+codeQuoteToPosition q =
+    Position (filename (q :: CodeQuote)) (fromLine q) (fromColumn q)
+
+
 data Expression
     = Value Value
     | Reference Identifier
     | If
-        { condition :: Expr
+        { codeQuote :: CodeQuote
+        , condition :: Expr
         , whenTrue :: Expr
         , whenFalse :: Expr
         }

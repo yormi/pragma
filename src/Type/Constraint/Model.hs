@@ -12,7 +12,8 @@ data Constraint
         , concludedFrom :: Element
         }
     | IfThenElse
-        { condition :: Element
+        { codeQuote :: E.CodeQuote
+        , condition :: Element
         , whenTrue :: Element
         , whenFalse :: Element
         , returnType :: T.Type

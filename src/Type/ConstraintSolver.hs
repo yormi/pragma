@@ -32,7 +32,12 @@ data SolvingError
         }
     | TypeVariableCannotSatisfyBothConstraint T.Type T.Type
     | IfConditionMustBeABool Constraint.Element
-    | BothIfAlternativesMustHaveSameType Constraint.Element Constraint.Element
+    | BothIfAlternativesMustHaveSameType
+        { codeQuote :: E.CodeQuote
+        , condition :: Constraint.Element
+        , whenTrue :: Constraint.Element
+        , whenFalse :: Constraint.Element
+        }
     | NotAFunction
         { position :: E.Position
         , functionName :: E.Identifier
@@ -119,7 +124,9 @@ solveConstraint constraint =
                 (UnsolvableConstraint a b)
 
 
-        IfThenElse { condition, whenTrue, whenFalse, returnType } -> do
+        IfThenElse
+            { codeQuote, condition, whenTrue, whenFalse, returnType }
+            -> do
             solveSimple
                 (Constraint.type_ condition)
                 T.Bool
@@ -127,7 +134,12 @@ solveConstraint constraint =
             solveSimple
                 (Constraint.type_ whenTrue)
                 (Constraint.type_ whenFalse)
-                (BothIfAlternativesMustHaveSameType whenTrue whenFalse)
+                (BothIfAlternativesMustHaveSameType
+                    codeQuote
+                    condition
+                    whenTrue
+                    whenFalse
+                )
             solveSimple
                 returnType
                 (Constraint.type_ whenFalse)

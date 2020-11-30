@@ -21,7 +21,7 @@ gather expression =
             Gatherer.lookupReference identifier
 
 
-        E.If { E.condition, E.whenTrue, E.whenFalse } -> do
+        E.If { E.codeQuote, E.condition, E.whenTrue, E.whenFalse } -> do
             conditionType <- gather condition
             whenTrueType <- gather whenTrue
             whenFalseType <- gather whenFalse
@@ -29,7 +29,8 @@ gather expression =
             ifType <- Gatherer.freshVariable
 
             Constraint.IfThenElse
-                { Constraint.condition =
+                { Constraint.codeQuote = codeQuote
+                , Constraint.condition =
                     Constraint.Element
                         (E.position condition)
                         (E.expression condition)

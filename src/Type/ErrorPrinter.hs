@@ -1,25 +1,27 @@
 module Type.ErrorPrinter (printSolvingError) where
 
-import qualified Data.List as List
-
 import qualified AST.Expression as E
 import qualified Printer
+import qualified Printer.Console as Console
 import qualified Type.Constraint.Model as Constraint
-import Type.ConstraintSolver (SolvingError(..))
+import Type.ConstraintSolver (SolvingError)
+import qualified Type.ConstraintSolver as Solver
+import qualified Utils.List as List
+import qualified Utils.String as String
 
 
-printSolvingError :: SolvingError -> String
-printSolvingError e =
+printSolvingError :: String -> SolvingError -> String
+printSolvingError sourceCode e =
     case e of
-        UnsolvableConstraint { expected, actual } ->
+        Solver.UnsolvableConstraint { expected, actual } ->
             show e
 
 
-        TypeVariableCannotSatisfyBothConstraint typeA typeB ->
+        Solver.TypeVariableCannotSatisfyBothConstraint typeA typeB ->
             show e
 
 
-        IfConditionMustBeABool
+        Solver.IfConditionMustBeABool
             (Constraint.Element
                 { Constraint.position
                 , Constraint.expression
@@ -28,20 +30,35 @@ printSolvingError e =
             )
             ->
             errorHeader position
-                [ "The if condition must be a Bool."
+                [ "The condition type in `if condition then` must be a Bool."
                 , ""
-                , "\tExpected :\t" ++ "Bool"
-                , "\tActual :\t" ++ show type_
+                , Console.green <| "\tExpected :\t" ++ "Bool"
+                , Console.red <| "\tActual :\t" ++ show type_
                 , ""
                 ]
                 expression
 
 
-        BothIfAlternativesMustHaveSameType whenTrue whenFalse ->
-            show e
+        Solver.BothIfAlternativesMustHaveSameType
+            { codeQuote
+            , whenTrue
+            , whenFalse
+            }
+            ->
+            errorHeader2 sourceCode
+                codeQuote
+                [ "The if expressions must return the same type for both alternatives."
+                , ""
+                , Console.red
+                    ("\tTrue :\t" ++ show (Constraint.type_ whenTrue))
+                , Console.red
+                    ("\tFalse :\t" ++ show (Constraint.type_ whenFalse))
+                , ""
+                , "Which type do you want your structure to return ?"
+                ]
 
 
-        NotAFunction
+        Solver.NotAFunction
             { position
             , functionName
             , args
@@ -56,7 +73,7 @@ printSolvingError e =
                 (E.Application functionName args)
 
 
-        BadApplication
+        Solver.BadApplication
             { position
             , functionName
             , args
@@ -75,8 +92,76 @@ printSolvingError e =
                 (E.Application functionName args)
 
 
-        FunctionDefinitionMustMatchType functionType actualType ->
+        Solver.FunctionDefinitionMustMatchType functionType actualType ->
             show e
+
+
+errorHeader2 :: String -> E.CodeQuote -> [String] -> String
+errorHeader2 sourceCode codeQuote errorExplaination =
+    [
+        [ ""
+        , ""
+        , "File: " ++ E.filename (codeQuote :: E.CodeQuote)
+        , ""
+        , ""
+        ]
+    ,
+        errorExplaination
+    , [ "", "" ]
+    , formatCodeQuote sourceCode codeQuote
+    ]
+        |> List.concat
+        |> map (\s -> "\t" ++ s)
+        |> String.mergeLines
+
+
+formatCodeQuote :: String -> E.CodeQuote -> [String]
+formatCodeQuote sourceCode codeQuote =
+    let
+        toZeroBased n =
+            n - 1
+
+        firstLine =
+            E.fromLine codeQuote
+                |> toZeroBased
+
+        lastLine =
+            E.toLine codeQuote
+                |> toZeroBased
+
+    in
+    sourceCode
+        |> String.splitLines
+        |> List.slice firstLine lastLine
+        |> formatWithLineNumbers firstLine lastLine
+
+
+formatWithLineNumbers :: Int -> Int -> [String] -> [String]
+formatWithLineNumbers firstLine lastLine =
+    List.foldl
+        (\(lineNumber, result) line ->
+            formatLine lastLine lineNumber line
+                |> \l -> result ++ [l]
+                |> \r -> (lineNumber + 1, r)
+        )
+        (firstLine, [])
+        >> snd
+
+
+formatLine :: Int -> Int -> String -> String
+formatLine lastLine currentLineNumber line =
+    let
+        longestNumberLength =
+            lastLine
+                |> (show :: Int -> String)
+                |> List.length
+
+    in
+    currentLineNumber
+        |> show
+        |> String.padLeft longestNumberLength
+        |> (\s -> s ++ " |\t" ++ line)
+
 
 
 errorHeader :: E.Position -> [String] -> E.Expression -> String
@@ -84,7 +169,7 @@ errorHeader position errorExplaination expression =
     [
         [ ""
         , ""
-        , "File: " ++ E.filename position
+        , "File: " ++ E.filename (position :: E.Position)
         , "Line: " ++ show (E.line position)
         , "Column: " ++ show (E.column position)
         , ""
@@ -93,7 +178,7 @@ errorHeader position errorExplaination expression =
     ,
         errorExplaination
     , [ "", "" ]
-    , codeQuote position expression
+    , formatExpression position expression
     --,
     --    [ ""
     --    , "---------------------------------------"
@@ -101,11 +186,11 @@ errorHeader position errorExplaination expression =
     ]
         |> List.concat
         |> map (\s -> "\t" ++ s)
-        |> List.unlines
+        |> String.mergeLines
 
 
-codeQuote :: E.Position -> E.Expression -> [String]
-codeQuote position expression =
+formatExpression :: E.Position -> E.Expression -> [String]
+formatExpression position expression =
     let
         longerNumber =
             position

@@ -121,7 +121,7 @@ printExpression e =
         Reference r ->
             r
 
-        If condition whenTrue whenFalse ->
+        If _ condition whenTrue whenFalse ->
             "if " ++ printExpression condition ++ " then" ++ "\n"
                 ++ (indent 1 <| printExpression whenTrue ++ "\n\n")
                 ++ "else\n"
