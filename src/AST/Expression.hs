@@ -1,19 +1,18 @@
 module AST.Expression
     ( BoolLiteral(..)
     , Case(..)
-    , CodeQuote(..)
     , Definition(..)
     , Expr(..)
     , Expression(..)
     , Identifier
     , Pattern(..)
-    , Position(..)
     , Value(..)
-    , codeQuoteToPosition
     ) where
 
 
 import Data.List.NonEmpty (NonEmpty)
+
+import AST.CodeQuote (CodeQuote, Position)
 
 
 type Identifier = String
@@ -25,31 +24,6 @@ data Expr =
         , expression :: Expression
         }
         deriving (Eq, Show)
-
-
-data Position =
-    Position
-        { filename :: String
-        , line :: Int
-        , column :: Int
-        }
-        deriving (Eq, Show)
-
-
-data CodeQuote =
-    CodeQuote
-        { filename :: String
-        , fromLine :: Int
-        , fromColumn :: Int
-        , toLine :: Int
-        , toColumn :: Int
-        }
-        deriving (Eq, Show)
-
-
-codeQuoteToPosition :: CodeQuote -> Position
-codeQuoteToPosition q =
-    Position (filename (q :: CodeQuote)) (fromLine q) (fromColumn q)
 
 
 data Expression
@@ -74,7 +48,8 @@ data Expression
         , body :: Expr
         }
     | Application
-        { functionName :: Identifier
+        { codeQuote :: CodeQuote
+        , functionName :: Identifier
         , args :: NonEmpty Expr
         }
     deriving (Eq, Show)

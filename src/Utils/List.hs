@@ -13,6 +13,7 @@ import Data.List as X
     , foldl
     , length
     , replicate
+    , reverse
     )
 
 

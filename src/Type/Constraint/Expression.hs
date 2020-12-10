@@ -86,13 +86,13 @@ gather expression =
                 |> return
 
 
-        E.Application { E.functionName, E.args } -> do
+        E.Application { E.codeQuote, E.functionName, E.args } -> do
             referenceType <- Gatherer.lookupReference functionName
             argsType <- traverse gather args
             returnType <- Gatherer.freshVariable
 
             Constraint.Application
-                { Constraint.position = E.position expression
+                { Constraint.codeQuote = codeQuote
                 , Constraint.functionName = functionName
                 , Constraint.args = args
                 , Constraint.functionReference = referenceType

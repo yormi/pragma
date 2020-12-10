@@ -12,6 +12,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..))
@@ -33,19 +34,19 @@ data SolvingError
     | TypeVariableCannotSatisfyBothConstraint T.Type T.Type
     | IfConditionMustBeABool Constraint.Element
     | BothIfAlternativesMustHaveSameType
-        { codeQuote :: E.CodeQuote
+        { codeQuote :: CodeQuote
         , condition :: Constraint.Element
         , whenTrue :: Constraint.Element
         , whenFalse :: Constraint.Element
         }
     | NotAFunction
-        { position :: E.Position
+        { codeQuote :: CodeQuote
         , functionName :: E.Identifier
         , args :: NonEmpty E.Expr
         , functionType :: T.Type
         }
     | BadApplication
-        { position :: E.Position
+        { codeQuote :: CodeQuote
         , functionName :: E.Identifier
         , args :: NonEmpty E.Expr
         , referenceType :: T.Type
@@ -147,7 +148,7 @@ solveConstraint constraint =
 
 
         Application
-            { position
+            { codeQuote
             , functionName
             , Constraint.args
             , functionReference
@@ -165,7 +166,7 @@ solveConstraint constraint =
                         functionReference
                         functionType
                         (BadApplication
-                            position
+                            codeQuote
                             functionName
                             args
                             referenceType
@@ -173,7 +174,7 @@ solveConstraint constraint =
                         )
 
                 _ ->
-                    NotAFunction position functionName args referenceType
+                    NotAFunction codeQuote functionName args referenceType
                         |> fail
 
 

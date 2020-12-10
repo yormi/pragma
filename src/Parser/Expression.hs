@@ -2,6 +2,8 @@ module Parser.Expression
     ( expressionParser
     ) where
 
+import qualified AST.CodeQuote as CodeQuote
+import AST.CodeQuote (CodeQuote(..), Position)
 import AST.Expression
 import Parser.Parser (Parser)
 import qualified Parser.Parser as Parser
@@ -31,12 +33,16 @@ expressionParser =
 application :: Parser Expr
 application =
     (do
+        from <- Parser.position
         functionName <- Parser.identifier
         args <-
             Parser.atLeastOne <| do
                 Parser.sameLineOrIndented
                 argument
-        return <| Application functionName args
+        to <- Parser.position
+        let codeQuote = CodeQuote.fromPositions from to
+        Application codeQuote functionName args
+            |> return
     )
         |> exprParser
         |> Parser.unconsumeOnFailure
@@ -98,11 +104,11 @@ ifThenElse =
 
         If
             (CodeQuote
-                (filename (from :: Position))
-                (line from)
-                (column from)
-                (line to)
-                (column to)
+                (CodeQuote.filename (from :: Position))
+                (CodeQuote.line from)
+                (CodeQuote.column from)
+                (CodeQuote.line to)
+                (CodeQuote.column to)
             )
             condition
             whenTrue

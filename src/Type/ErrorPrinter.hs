@@ -1,8 +1,11 @@
 module Type.ErrorPrinter (printSolvingError) where
 
+import AST.CodeQuote (CodeQuote, Position)
+import qualified AST.CodeQuote as CodeQuote
 import qualified AST.Expression as E
 import qualified Printer
 import qualified Printer.Console as Console
+import qualified Type as T
 import qualified Type.Constraint.Model as Constraint
 import Type.ConstraintSolver (SolvingError)
 import qualified Type.ConstraintSolver as Solver
@@ -59,49 +62,76 @@ printSolvingError sourceCode e =
 
 
         Solver.NotAFunction
-            { position
+            { codeQuote
             , functionName
             , args
             , functionType
             }
             ->
-            errorHeader position
+            errorHeader2
+                sourceCode
+                codeQuote
                 [ functionName ++ " must be a function if you want to pass arguments to it."
                 , ""
                 , "\tActual :\t" ++ Printer.printType functionType
                 ]
-                (E.Application functionName args)
 
 
         Solver.BadApplication
-            { position
+            { codeQuote
             , functionName
-            , args
             , referenceType
             , functionType
             } ->
-            errorHeader position
-                [ "Arguments does not match with "
+            errorHeader2
+                sourceCode
+                codeQuote
+                [ "Arguments does not match with the type of "
                     ++ functionName
-                    ++ " type."
                 , ""
                 , ""
-                , "\tExpected :\t" ++ Printer.printType referenceType
-                , "\tActual :\t" ++ Printer.printType functionType
+                , "The function type is:"
+                , ""
+                , "REPLACE PRINTER to make arrow white and non-matching type red"
+                , "\t" ++ Console.green (Printer.printType referenceType)
+                , ""
+                , "While according to the arguments, the function type should be:"
+                , ""
+                , let
+                    f refType applicationType =
+                        case (refType, applicationType) of
+                            ( T.Function (T.FunctionType expectedArg a)
+                                , T.Function (T.FunctionType actualArg b)
+                                ) ->
+                                let
+                                    color =
+                                        if actualArg == expectedArg then
+                                            Console.green
+                                        else
+                                            Console.red
+
+                                in
+                                color (Printer.printType actualArg)
+                                    ++ " -> "
+                                    ++ f a b
+
+                            ( _, actualArg) ->
+                                Console.green (Printer.printType actualArg)
+                in
+                "\t" ++ (f referenceType functionType)
                 ]
-                (E.Application functionName args)
 
 
         Solver.FunctionDefinitionMustMatchType functionType actualType ->
             show e
 
 
-errorHeader2 :: String -> E.CodeQuote -> [String] -> String
+errorHeader2 :: String -> CodeQuote -> [String] -> String
 errorHeader2 sourceCode codeQuote errorExplaination =
     [
         [ ""
         , ""
-        , "File: " ++ E.filename (codeQuote :: E.CodeQuote)
+        , "File: " ++ CodeQuote.filename (codeQuote :: CodeQuote)
         , ""
         , ""
         ]
@@ -115,18 +145,18 @@ errorHeader2 sourceCode codeQuote errorExplaination =
         |> String.mergeLines
 
 
-formatCodeQuote :: String -> E.CodeQuote -> [String]
+formatCodeQuote :: String -> CodeQuote -> [String]
 formatCodeQuote sourceCode codeQuote =
     let
         toZeroBased n =
             n - 1
 
         firstLine =
-            E.fromLine codeQuote
+            CodeQuote.fromLine codeQuote
                 |> toZeroBased
 
         lastLine =
-            E.toLine codeQuote
+            CodeQuote.toLine codeQuote
                 |> toZeroBased
 
     in
@@ -164,14 +194,14 @@ formatLine lastLine currentLineNumber line =
 
 
 
-errorHeader :: E.Position -> [String] -> E.Expression -> String
+errorHeader :: Position -> [String] -> E.Expression -> String
 errorHeader position errorExplaination expression =
     [
         [ ""
         , ""
-        , "File: " ++ E.filename (position :: E.Position)
-        , "Line: " ++ show (E.line position)
-        , "Column: " ++ show (E.column position)
+        , "File: " ++ CodeQuote.filename (position :: CodeQuote.Position)
+        , "Line: " ++ show (CodeQuote.line position)
+        , "Column: " ++ show (CodeQuote.column position)
         , ""
         , ""
         ]
@@ -189,12 +219,12 @@ errorHeader position errorExplaination expression =
         |> String.mergeLines
 
 
-formatExpression :: E.Position -> E.Expression -> [String]
+formatExpression :: Position -> E.Expression -> [String]
 formatExpression position expression =
     let
         longerNumber =
             position
-                |> E.line
+                |> CodeQuote.line
                 |> (\n -> n + 1 )
                 |> (show :: Int -> String)
                 |> List.length
@@ -206,9 +236,9 @@ formatExpression position expression =
                     List.replicate (longerNumber - List.length s) ' ' ++ s)
                 |> (\s -> s ++ " |")
     in
-        [ formatLineNumber (E.line position - 1)
+        [ formatLineNumber (CodeQuote.line position - 1)
         ,
-            formatLineNumber (E.line position) ++ "\t"
+            formatLineNumber (CodeQuote.line position) ++ "\t"
              ++ Printer.printExpression (E.Expr position expression)
-        , formatLineNumber (E.line position + 1)
+        , formatLineNumber (CodeQuote.line position + 1)
         ]

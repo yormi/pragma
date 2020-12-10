@@ -28,7 +28,7 @@ import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 
 
-import AST.Expression (Position(..))
+import AST.CodeQuote (Position(..))
 import Utils.Maybe as Maybe
 
 

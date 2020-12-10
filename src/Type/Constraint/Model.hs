@@ -2,6 +2,7 @@ module Type.Constraint.Model (Constraint(..), Element(..)) where
 
 import Data.List.NonEmpty (NonEmpty)
 
+import AST.CodeQuote (CodeQuote, Position)
 import qualified AST.Expression as E
 import qualified Type as T
 
@@ -12,14 +13,14 @@ data Constraint
         , concludedFrom :: Element
         }
     | IfThenElse
-        { codeQuote :: E.CodeQuote
+        { codeQuote :: CodeQuote
         , condition :: Element
         , whenTrue :: Element
         , whenFalse :: Element
         , returnType :: T.Type
         }
     | Application
-        { position :: E.Position
+        { codeQuote :: CodeQuote
         , functionName :: E.Identifier
         , args :: NonEmpty E.Expr
         , functionReference :: T.Type
@@ -36,7 +37,7 @@ data Constraint
 
 data Element =
     Element
-        { position :: E.Position
+        { position :: Position
         , expression :: E.Expression
         , type_ :: T.Type
         }

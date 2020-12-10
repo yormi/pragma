@@ -12,10 +12,10 @@ foo : (Int -> Int -> Bool) -> Int -> Int
 foo f a =
     let
         blah =
-            if f a 3 then
+            if f 3.3 then
                 a
             else
-                3.3
+                3
     in
     blah
 
