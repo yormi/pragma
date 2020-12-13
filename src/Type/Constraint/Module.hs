@@ -10,20 +10,25 @@ import Type.Constraint.Gatherer (Gatherer)
 import qualified Type.Constraint.Gatherer as Gatherer
 import qualified Type.Constraint.Model as Constraint
 
+import qualified Printer
+
 
 gather :: M.TopLevel -> Gatherer ()
 gather topLevel =
     case topLevel of
-        M.Function { M.type_, M.params, M.body } -> do
-            paramTypes <- traverse (const Gatherer.freshVariable) params
+        M.Function { M.codeQuote, M.type_, M.params, M.body } -> do
+
+
             paramsWithTypes_ <- paramsWithTypes type_ params
 
             bodyType <-
-                Gatherer.withEnv paramsWithTypes_ <| Expression.gather body
+                Expression.gather body
+                    |> Gatherer.withEnv paramsWithTypes_
 
             Constraint.Function
-                { Constraint.functionType = type_
-                , Constraint.params = paramTypes
+                { Constraint.codeQuote = codeQuote
+                , Constraint.signatureType = type_
+                , Constraint.params = List.map snd paramsWithTypes_
                 , Constraint.body = bodyType
                 }
                 |> Gatherer.addConstraint

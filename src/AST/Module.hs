@@ -6,6 +6,7 @@ module AST.Module
 
 
 import AST.Expression
+import AST.CodeQuote (CodeQuote)
 import qualified Type as T
 
 
@@ -16,7 +17,8 @@ data Module =
 
 data TopLevel
     = Function
-        { type_ :: T.Type
+        { codeQuote :: CodeQuote
+        , type_ :: T.Type
         , functionName :: Identifier
         , params :: [Identifier]
         , body :: Expr

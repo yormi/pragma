@@ -49,7 +49,7 @@ printConstraint constraint =
             ]
             |> String.unlines
 
-        Function { functionType, params, body } ->
+        Function { signatureType, params, body } ->
             let
                 calculated =
                     List.foldl
@@ -60,7 +60,7 @@ printConstraint constraint =
                         (List.reverse params)
             in
             [ "Function Definition"
-            , "\t" ++ printSimpleConstraintTypes calculated functionType
+            , "\t" ++ printSimpleConstraintTypes calculated signatureType
             ]
             |> String.unlines
 

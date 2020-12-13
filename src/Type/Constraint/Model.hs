@@ -28,7 +28,8 @@ data Constraint
         , returnType :: T.Type
         }
     | Function
-        { functionType :: T.Type
+        { codeQuote :: CodeQuote
+        , signatureType :: T.Type
         , params :: [T.Type]
         , body :: T.Type
         }

@@ -52,7 +52,11 @@ data SolvingError
         , referenceType :: T.Type
         , functionType :: T.Type
         }
-    | FunctionDefinitionMustMatchType T.Type T.Type
+    | FunctionDefinitionMustMatchType
+        { codeQuote :: CodeQuote
+        , signatureType :: T.Type
+        , definitionType :: T.Type
+        }
     | ShouldNotHappen String
     deriving (Eq, Show)
 
@@ -73,6 +77,15 @@ mostPrecised type_ =
             closest
                 |> Maybe.withDefault type_
                 |> return
+
+
+        T.Function (T.FunctionType arg returnType) -> do
+            precisedArg <- mostPrecised arg
+            precisedReturnType <- mostPrecised returnType
+            T.FunctionType precisedArg precisedReturnType
+                |> T.Function
+                |> return
+
 
         _ ->
             return type_
@@ -178,15 +191,21 @@ solveConstraint constraint =
                         |> fail
 
 
-        Function { functionType, params, body } ->
+        Function { codeQuote, signatureType, params, body } ->
             let
-                actualType =
+                definitionType =
                     buildFunction params body
-            in
+            in do
+            precisedFunctionType <- mostPrecised signatureType
+            precisedActualType <- mostPrecised definitionType
             solveSimple
-                functionType
-                actualType
-                (FunctionDefinitionMustMatchType functionType actualType)
+                signatureType
+                definitionType
+                (FunctionDefinitionMustMatchType
+                    codeQuote
+                    precisedFunctionType
+                    precisedActualType
+                )
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type

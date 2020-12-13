@@ -1,4 +1,9 @@
-module Printer (printModule, printType, printExpression) where
+module Printer
+    ( printModule
+    , printType
+    , printTypeAsParam
+    , printExpression
+    ) where
 
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
@@ -54,6 +59,16 @@ topLevel element =
                 ++ printParams params
                 ++ " =\n"
                 ++ (indent 1 <| printExpression body)
+
+
+printTypeAsParam :: Type -> String
+printTypeAsParam type_ =
+    case type_ of
+        Type.Function _ ->
+            "(" ++ printType type_ ++ ")"
+
+        _ ->
+            printType type_
 
 
 printType :: Type -> String

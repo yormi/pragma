@@ -9,11 +9,11 @@ b =
 
 
 foo : (Int -> Int -> Bool) -> Int -> Int
-foo f a =
+foo f =
     let
         blah =
-            if f 3.3 then
-                a
+            if f 3 3 then
+                4
             else
                 3
     in

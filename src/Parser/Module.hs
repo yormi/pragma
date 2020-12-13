@@ -4,6 +4,7 @@ module Parser.Module
 
 import Control.Monad as Monad
 
+import qualified AST.CodeQuote as CodeQuote
 import AST.Module (Module(..), TopLevel(..))
 import qualified Type as T
 import Parser.Parser (Parser)
@@ -22,6 +23,7 @@ moduleParser =
 
 function :: Parser TopLevel
 function = do
+    from <- Parser.position
     Parser.topLevel
 
     typeLine <-
@@ -36,11 +38,14 @@ function = do
     Parser.reservedOperator "="
 
     body <- Parser.withPositionReference Expression.expressionParser
+    to <- Parser.position
+
+    let codeQuote = CodeQuote.fromPositions from to
 
     case typeLine of
         Just (typeLineName, type_) ->
             if typeLineName == functionName then
-                return <| Function type_ functionName params body
+                return <| Function codeQuote type_ functionName params body
             else
                 Monad.fail <|
                     "The function signature for '"

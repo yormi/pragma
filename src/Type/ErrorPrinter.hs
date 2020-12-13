@@ -35,8 +35,13 @@ printSolvingError sourceCode e =
             errorHeader position
                 [ "The condition type in `if condition then` must be a Bool."
                 , ""
-                , Console.green <| "\tExpected :\t" ++ "Bool"
-                , Console.red <| "\tActual :\t" ++ show type_
+                , "\tExpected:"
+                , ""
+                , "\t\t" ++ (Console.green <| Printer.printType T.Bool)
+                , ""
+                , "\tActual:"
+                , ""
+                , "\t\t" ++ (Console.red <| Printer.printType type_)
                 , ""
                 ]
                 expression
@@ -50,12 +55,21 @@ printSolvingError sourceCode e =
             ->
             errorHeader2 sourceCode
                 codeQuote
-                [ "The if expressions must return the same type for both alternatives."
+                "The if expressions must return the same type for both alternatives."
+                [ "\tTrue:"
                 , ""
-                , Console.red
-                    ("\tTrue :\t" ++ show (Constraint.type_ whenTrue))
-                , Console.red
-                    ("\tFalse :\t" ++ show (Constraint.type_ whenFalse))
+                , "\t\t" ++
+                    (Constraint.type_ whenTrue
+                        |> Printer.printType
+                        |> Console.red
+                    )
+                , ""
+
+                , "\t\t" ++
+                    (Constraint.type_ whenFalse
+                        |> Printer.printType
+                        |> Console.red
+                    )
                 , ""
                 , "Which type do you want your structure to return ?"
                 ]
@@ -64,17 +78,14 @@ printSolvingError sourceCode e =
         Solver.NotAFunction
             { codeQuote
             , functionName
-            , args
             , functionType
             }
             ->
             errorHeader2
                 sourceCode
                 codeQuote
-                [ functionName ++ " must be a function if you want to pass arguments to it."
-                , ""
-                , "\tActual :\t" ++ Printer.printType functionType
-                ]
+                (functionName ++ " must be a function if you want to pass arguments to it.")
+                [ "\tActual :\t" ++ Printer.printType functionType ]
 
 
         Solver.BadApplication
@@ -82,62 +93,91 @@ printSolvingError sourceCode e =
             , functionName
             , referenceType
             , functionType
-            } ->
+            }
+            ->
             errorHeader2
                 sourceCode
                 codeQuote
-                [ "Arguments does not match with the type of "
-                    ++ functionName
+                ("Arguments type must match with the type of "
+                    ++ functionName ++
+                    " signature."
+                )
+                [ "\tSignature Type:"
                 , ""
+                , "\t\t" ++ Console.green (Printer.printType referenceType)
                 , ""
-                , "The function type is:"
+                , "\tType according to the arguments:"
                 , ""
-                , "REPLACE PRINTER to make arrow white and non-matching type red"
-                , "\t" ++ Console.green (Printer.printType referenceType)
-                , ""
-                , "While according to the arguments, the function type should be:"
-                , ""
-                , let
-                    f refType applicationType =
-                        case (refType, applicationType) of
-                            ( T.Function (T.FunctionType expectedArg a)
-                                , T.Function (T.FunctionType actualArg b)
-                                ) ->
-                                let
-                                    color =
-                                        if actualArg == expectedArg then
-                                            Console.green
-                                        else
-                                            Console.red
-
-                                in
-                                color (Printer.printType actualArg)
-                                    ++ " -> "
-                                    ++ f a b
-
-                            ( _, actualArg) ->
-                                Console.green (Printer.printType actualArg)
-                in
-                "\t" ++ (f referenceType functionType)
+                , "\t\t" ++ printComparedFunction referenceType functionType
                 ]
 
 
-        Solver.FunctionDefinitionMustMatchType functionType actualType ->
-            show e
+        Solver.FunctionDefinitionMustMatchType
+            { codeQuote
+            , signatureType
+            , definitionType
+            }
+            ->
+            errorHeader2
+                sourceCode
+                codeQuote
+                "The function signature and the function definition types must be the same."
+                [ "\tSignature Type:"
+                , ""
+                , "\t\t" ++ Console.green (Printer.printType signatureType)
+                , ""
+                , "\tDefinition Type:"
+                , ""
+                , "\t\t" ++ printComparedFunction signatureType definitionType
+                ]
 
 
-errorHeader2 :: String -> CodeQuote -> [String] -> String
-errorHeader2 sourceCode codeQuote errorExplaination =
+printComparedFunction :: T.Type -> T.Type -> String
+printComparedFunction reference toPrint =
+    let
+        colorPrint expected actual =
+            if actual == expected then
+                Console.green
+            else
+                Console.red
+
+        f refType applicationType =
+            case (refType, applicationType) of
+                ( T.Function (T.FunctionType expectedArg a)
+                    , T.Function (T.FunctionType actualArg b)
+                    ) ->
+                    colorPrint
+                        expectedArg
+                        actualArg
+                        (Printer.printTypeAsParam actualArg)
+                        ++ " -> "
+                        ++ f a b
+
+                (expectedType, actualType) ->
+                    colorPrint
+                        expectedType
+                        actualType
+                        (Printer.printTypeAsParam actualType)
+    in
+    f reference toPrint
+
+errorHeader2 :: String -> CodeQuote -> String -> [String] -> String
+errorHeader2 sourceCode codeQuote whatItShouldBe errorExplaination =
     [
         [ ""
         , ""
         , "File: " ++ CodeQuote.filename (codeQuote :: CodeQuote)
         , ""
         , ""
+        , "TYPE MISMATCH"
+        , ""
+        , whatItShouldBe
+        , ""
+        , ""
         ]
     ,
         errorExplaination
-    , [ "", "" ]
+    , [ "", "", "" ]
     , formatCodeQuote sourceCode codeQuote
     ]
         |> List.concat
