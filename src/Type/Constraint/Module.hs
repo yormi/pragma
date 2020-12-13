@@ -10,8 +10,6 @@ import Type.Constraint.Gatherer (Gatherer)
 import qualified Type.Constraint.Gatherer as Gatherer
 import qualified Type.Constraint.Model as Constraint
 
-import qualified Printer
-
 
 gather :: M.TopLevel -> Gatherer ()
 gather topLevel =
@@ -57,3 +55,4 @@ paramsWithTypes functionType params =
         (return (functionType, []))
         params
         |> map snd
+        |> map List.reverse

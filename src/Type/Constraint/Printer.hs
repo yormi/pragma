@@ -65,7 +65,7 @@ printConstraint constraint =
             |> String.unlines
 
 
-printSimpleConstraint :: Constraint.Element -> Constraint.Element -> String
+printSimpleConstraint :: Constraint.QuotedType -> Constraint.QuotedType -> String
 printSimpleConstraint a b =
     printSimpleConstraintTypes
         (Constraint.type_ a)

@@ -1,28 +1,28 @@
-module Type.Constraint.Model (Constraint(..), Element(..)) where
+module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.CodeQuote (CodeQuote, Position)
+import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type as T
 
 
 data Constraint
     = Simple
-        { newComing :: Element
-        , concludedFrom :: Element
+        { newComing :: QuotedType
+        , concludedFrom :: QuotedType
         }
     | IfThenElse
         { codeQuote :: CodeQuote
-        , condition :: Element
-        , whenTrue :: Element
-        , whenFalse :: Element
+        , condition :: QuotedType
+        , whenTrue :: QuotedType
+        , whenFalse :: QuotedType
         , returnType :: T.Type
         }
     | Application
         { codeQuote :: CodeQuote
         , functionName :: E.Identifier
-        , args :: NonEmpty E.Expr
+        , args :: NonEmpty E.QuotedExpression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
         , returnType :: T.Type
@@ -36,10 +36,9 @@ data Constraint
     deriving (Eq, Show)
 
 
-data Element =
-    Element
-        { position :: Position
-        , expression :: E.Expression
+data QuotedType =
+    QuotedType
+        { codeQuote :: CodeQuote
         , type_ :: T.Type
         }
     deriving (Eq, Show)

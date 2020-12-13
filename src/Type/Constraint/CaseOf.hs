@@ -13,8 +13,8 @@ import qualified Type.Constraint.Gatherer as Gatherer
 
 
 gather
-    :: (E.Expr -> Gatherer T.Type)
-    -> E.Expr
+    :: (E.QuotedExpression -> Gatherer T.Type)
+    -> E.QuotedExpression
     -> NonEmpty E.Case
     -> Gatherer T.Type
 gather _ _ _ = do
@@ -52,7 +52,7 @@ gather _ _ _ = do
     --    return <| NonEmpty.head bodyTypes
 
 
---checkPattern :: E.Expr -> E.Pattern -> Gatherer T.Type
+--checkPattern :: E.QuotedExpression -> E.Pattern -> Gatherer T.Type
 --checkPattern expression pattern =
 --    case pattern of
 --        E.WildCardPattern ->

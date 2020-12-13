@@ -10,6 +10,7 @@ module Prelude.Flow
     , bind
     , map
     , map2
+    , map3
     ) where
 
 import Control.Monad as X (join)
@@ -65,3 +66,8 @@ map =
 map2 :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
 map2 =
     Applicative.liftA2
+
+
+map3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+map3 =
+    Applicative.liftA3

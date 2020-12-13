@@ -3,14 +3,13 @@ module Parser.Expression
     ) where
 
 import qualified AST.CodeQuote as CodeQuote
-import AST.CodeQuote (CodeQuote(..), Position)
 import AST.Expression
 import Parser.Parser (Parser)
 import qualified Parser.Parser as Parser
 import qualified Parser.Value as Value
 
 
-expressionParser :: Parser Expr
+expressionParser :: Parser QuotedExpression
 expressionParser =
     Parser.oneOf
         [ parenthesisedExpression
@@ -30,25 +29,22 @@ expressionParser =
 -- APPLICATION
 
 
-application :: Parser Expr
+application :: Parser QuotedExpression
 application =
     (do
-        from <- Parser.position
         functionName <- Parser.identifier
         args <-
             Parser.atLeastOne <| do
                 Parser.sameLineOrIndented
                 argument
-        to <- Parser.position
-        let codeQuote = CodeQuote.fromPositions from to
-        Application codeQuote functionName args
+        Application functionName args
             |> return
     )
         |> exprParser
         |> Parser.unconsumeOnFailure
 
 
-argument :: Parser Expr
+argument :: Parser QuotedExpression
 argument =
     Parser.oneOf
         [ map Value Value.valueParser
@@ -59,7 +55,7 @@ argument =
         ]
 
 
-parenthesisedExpression :: Parser Expr
+parenthesisedExpression :: Parser QuotedExpression
 parenthesisedExpression = do
     Parser.reservedOperator "("
     expr <- expressionParser
@@ -70,7 +66,7 @@ parenthesisedExpression = do
 -- LAMBDA
 
 
-lambda :: Parser Expr
+lambda :: Parser QuotedExpression
 lambda =
     (do
         Parser.reservedOperator "\\"
@@ -86,11 +82,9 @@ lambda =
 -- IF THEN ELSE
 
 
-ifThenElse :: Parser Expr
+ifThenElse :: Parser QuotedExpression
 ifThenElse =
     (do
-        from <- Parser.position
-
         condition <-
             Parser.between
                 (Parser.reserved "if")
@@ -100,19 +94,7 @@ ifThenElse =
         Parser.reserved "else"
         whenFalse <- expressionParser
 
-        to <- Parser.position
-
-        If
-            (CodeQuote
-                (CodeQuote.filename (from :: Position))
-                (CodeQuote.line from)
-                (CodeQuote.column from)
-                (CodeQuote.line to)
-                (CodeQuote.column to)
-            )
-            condition
-            whenTrue
-            whenFalse
+        If condition whenTrue whenFalse
             |> return
     )
         |> exprParser
@@ -121,7 +103,7 @@ ifThenElse =
 -- LET IN
 
 
-letIn :: Parser Expr
+letIn :: Parser QuotedExpression
 letIn =
     (do
         definitions <-
@@ -147,7 +129,7 @@ definition = do
 -- CASE OF
 
 
-caseOf :: Parser Expr
+caseOf :: Parser QuotedExpression
 caseOf =
     ( do
         expr <-
@@ -185,9 +167,13 @@ patternParser =
          ]
 
 
-exprParser :: Parser Expression -> Parser Expr
+exprParser :: Parser Expression -> Parser QuotedExpression
 exprParser parser =
-    map2
-        Expr
+    map3
+        (\from parsed to ->
+            CodeQuote.fromPositions from to
+                |> (\q -> QuotedExpression q parsed)
+        )
         Parser.position
         parser
+        Parser.position

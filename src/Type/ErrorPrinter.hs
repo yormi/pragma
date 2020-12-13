@@ -1,12 +1,10 @@
 module Type.ErrorPrinter (printSolvingError) where
 
-import AST.CodeQuote (CodeQuote, Position)
+import AST.CodeQuote (CodeQuote)
 import qualified AST.CodeQuote as CodeQuote
-import qualified AST.Expression as E
 import qualified Printer
 import qualified Printer.Console as Console
 import qualified Type as T
-import qualified Type.Constraint.Model as Constraint
 import Type.ConstraintSolver (SolvingError)
 import qualified Type.ConstraintSolver as Solver
 import qualified Utils.List as List
@@ -16,35 +14,23 @@ import qualified Utils.String as String
 printSolvingError :: String -> SolvingError -> String
 printSolvingError sourceCode e =
     case e of
-        Solver.UnsolvableConstraint { expected, actual } ->
-            show e
+        Solver.TypeVariableCannotSatisfyBothConstraint _ _ ->
+            "TODO --- " ++ show e
 
 
-        Solver.TypeVariableCannotSatisfyBothConstraint typeA typeB ->
-            show e
-
-
-        Solver.IfConditionMustBeABool
-            (Constraint.Element
-                { Constraint.position
-                , Constraint.expression
-                , Constraint.type_
-                }
-            )
-            ->
-            errorHeader position
-                [ "The condition type in `if condition then` must be a Bool."
-                , ""
-                , "\tExpected:"
+        Solver.IfConditionMustBeABool { codeQuote, type_ } ->
+            formatError
+                sourceCode
+                codeQuote
+                "The type of the condition between the 'if' and the 'then' must be a Bool."
+                [ "\tExpected:"
                 , ""
                 , "\t\t" ++ (Console.green <| Printer.printType T.Bool)
                 , ""
                 , "\tActual:"
                 , ""
                 , "\t\t" ++ (Console.red <| Printer.printType type_)
-                , ""
                 ]
-                expression
 
 
         Solver.BothIfAlternativesMustHaveSameType
@@ -53,25 +39,24 @@ printSolvingError sourceCode e =
             , whenFalse
             }
             ->
-            errorHeader2 sourceCode
+            formatError sourceCode
                 codeQuote
                 "The if expressions must return the same type for both alternatives."
                 [ "\tTrue:"
                 , ""
                 , "\t\t" ++
-                    (Constraint.type_ whenTrue
+                    (whenTrue
                         |> Printer.printType
                         |> Console.red
                     )
                 , ""
-
+                , "\tFalse:"
+                , ""
                 , "\t\t" ++
-                    (Constraint.type_ whenFalse
+                    (whenFalse
                         |> Printer.printType
                         |> Console.red
                     )
-                , ""
-                , "Which type do you want your structure to return ?"
                 ]
 
 
@@ -81,7 +66,7 @@ printSolvingError sourceCode e =
             , functionType
             }
             ->
-            errorHeader2
+            formatError
                 sourceCode
                 codeQuote
                 (functionName ++ " must be a function if you want to pass arguments to it.")
@@ -95,7 +80,7 @@ printSolvingError sourceCode e =
             , functionType
             }
             ->
-            errorHeader2
+            formatError
                 sourceCode
                 codeQuote
                 ("Arguments type must match with the type of "
@@ -118,7 +103,7 @@ printSolvingError sourceCode e =
             , definitionType
             }
             ->
-            errorHeader2
+            formatError
                 sourceCode
                 codeQuote
                 "The function signature and the function definition types must be the same."
@@ -161,15 +146,15 @@ printComparedFunction reference toPrint =
     in
     f reference toPrint
 
-errorHeader2 :: String -> CodeQuote -> String -> [String] -> String
-errorHeader2 sourceCode codeQuote whatItShouldBe errorExplaination =
+formatError :: String -> CodeQuote -> String -> [String] -> String
+formatError sourceCode codeQuote whatItShouldBe errorExplaination =
     [
         [ ""
         , ""
+        , "TYPE MISMATCH"
+        , ""
         , "File: " ++ CodeQuote.filename (codeQuote :: CodeQuote)
         , ""
-        , ""
-        , "TYPE MISMATCH"
         , ""
         , whatItShouldBe
         , ""
@@ -231,54 +216,3 @@ formatLine lastLine currentLineNumber line =
         |> show
         |> String.padLeft longestNumberLength
         |> (\s -> s ++ " |\t" ++ line)
-
-
-
-errorHeader :: Position -> [String] -> E.Expression -> String
-errorHeader position errorExplaination expression =
-    [
-        [ ""
-        , ""
-        , "File: " ++ CodeQuote.filename (position :: CodeQuote.Position)
-        , "Line: " ++ show (CodeQuote.line position)
-        , "Column: " ++ show (CodeQuote.column position)
-        , ""
-        , ""
-        ]
-    ,
-        errorExplaination
-    , [ "", "" ]
-    , formatExpression position expression
-    --,
-    --    [ ""
-    --    , "---------------------------------------"
-    --    ]
-    ]
-        |> List.concat
-        |> map (\s -> "\t" ++ s)
-        |> String.mergeLines
-
-
-formatExpression :: Position -> E.Expression -> [String]
-formatExpression position expression =
-    let
-        longerNumber =
-            position
-                |> CodeQuote.line
-                |> (\n -> n + 1 )
-                |> (show :: Int -> String)
-                |> List.length
-
-        formatLineNumber n =
-            n
-                |> show
-                |> (\s ->
-                    List.replicate (longerNumber - List.length s) ' ' ++ s)
-                |> (\s -> s ++ " |")
-    in
-        [ formatLineNumber (CodeQuote.line position - 1)
-        ,
-            formatLineNumber (CodeQuote.line position) ++ "\t"
-             ++ Printer.printExpression (E.Expr position expression)
-        , formatLineNumber (CodeQuote.line position + 1)
-        ]

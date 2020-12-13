@@ -14,7 +14,7 @@ import AST.Expression
     ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
-    , Expr
+    , QuotedExpression
     , Expression(..)
     , Identifier
     , Pattern(..)
@@ -127,7 +127,7 @@ indent indentation =
         >> List.intercalate "\n"
 
 
-printExpression :: Expr -> String
+printExpression :: QuotedExpression -> String
 printExpression e =
     case Expression.expression e of
         Value v ->
@@ -136,7 +136,7 @@ printExpression e =
         Reference r ->
             r
 
-        If _ condition whenTrue whenFalse ->
+        If condition whenTrue whenFalse ->
             "if " ++ printExpression condition ++ " then" ++ "\n"
                 ++ (indent 1 <| printExpression whenTrue ++ "\n\n")
                 ++ "else\n"
@@ -204,7 +204,7 @@ printDefinition def =
                 ++ (indent 1 <| printExpression expr)
 
 
-printArgs :: NonEmpty Expr -> String
+printArgs :: NonEmpty QuotedExpression -> String
 printArgs =
     NonEmpty.toList
         >> map printExpression

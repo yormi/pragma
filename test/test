@@ -8,14 +8,10 @@ b =
     35
 
 
-foo : (Int -> Int -> Bool) -> Int -> Int
-foo f =
-    let
-        blah =
-            if f 3 3 then
-                4
-            else
-                3
-    in
-    blah
+foo : (Int -> Int -> Float) -> Int -> Int
+foo f b =
+    if f 3 3 then
+        4
+    else
+        3.3
 

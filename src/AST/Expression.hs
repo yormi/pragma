@@ -2,7 +2,7 @@ module AST.Expression
     ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
-    , Expr(..)
+    , QuotedExpression(..)
     , Expression(..)
     , Identifier
     , Pattern(..)
@@ -12,15 +12,15 @@ module AST.Expression
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.CodeQuote (CodeQuote, Position)
+import AST.CodeQuote (CodeQuote)
 
 
 type Identifier = String
 
 
-data Expr =
-    Expr
-        { position :: Position
+data QuotedExpression =
+    QuotedExpression
+        { codeQuote :: CodeQuote
         , expression :: Expression
         }
         deriving (Eq, Show)
@@ -30,38 +30,36 @@ data Expression
     = Value Value
     | Reference Identifier
     | If
-        { codeQuote :: CodeQuote
-        , condition :: Expr
-        , whenTrue :: Expr
-        , whenFalse :: Expr
+        { condition :: QuotedExpression
+        , whenTrue :: QuotedExpression
+        , whenFalse :: QuotedExpression
         }
     | LetIn
         { definitions :: NonEmpty Definition
-        , body :: Expr
+        , body :: QuotedExpression
         }
     | CaseOf
-        { element :: Expr
+        { element :: QuotedExpression
         , cases :: NonEmpty Case
         }
     | Lambda
         { params :: NonEmpty Identifier
-        , body :: Expr
+        , body :: QuotedExpression
         }
     | Application
-        { codeQuote :: CodeQuote
-        , functionName :: Identifier
-        , args :: NonEmpty Expr
+        { functionName :: Identifier
+        , args :: NonEmpty QuotedExpression
         }
     deriving (Eq, Show)
 
 
 data Definition
-    = SimpleDefinition Identifier Expr
+    = SimpleDefinition Identifier QuotedExpression
     deriving (Eq, Show)
 
 
 data Case
-    = Case { pattern :: Pattern, caseBody :: Expr }
+    = Case { pattern :: Pattern, caseBody :: QuotedExpression }
     deriving (Eq, Show)
 
 

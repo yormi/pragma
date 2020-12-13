@@ -5,7 +5,7 @@ module AST.Module
 
 
 
-import AST.Expression
+import AST.Expression (Identifier, QuotedExpression)
 import AST.CodeQuote (CodeQuote)
 import qualified Type as T
 
@@ -21,6 +21,6 @@ data TopLevel
         , type_ :: T.Type
         , functionName :: Identifier
         , params :: [Identifier]
-        , body :: Expr
+        , body :: QuotedExpression
         }
         deriving (Eq, Show)

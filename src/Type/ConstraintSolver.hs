@@ -8,14 +8,13 @@ import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type as T
-import Type.Constraint.Model (Constraint(..))
+import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
 import qualified Utils.Maybe as Maybe
 
@@ -27,28 +26,24 @@ type TypeSolution = Map T.TypeVariable T.Type
 
 
 data SolvingError
-    = UnsolvableConstraint
-        { expected :: Constraint.Element
-        , actual :: Constraint.Element
+    = TypeVariableCannotSatisfyBothConstraint T.Type T.Type
+    | IfConditionMustBeABool
+        { codeQuote :: CodeQuote
+        , type_ :: T.Type
         }
-    | TypeVariableCannotSatisfyBothConstraint T.Type T.Type
-    | IfConditionMustBeABool Constraint.Element
     | BothIfAlternativesMustHaveSameType
         { codeQuote :: CodeQuote
-        , condition :: Constraint.Element
-        , whenTrue :: Constraint.Element
-        , whenFalse :: Constraint.Element
+        , whenTrue :: T.Type
+        , whenFalse :: T.Type
         }
     | NotAFunction
         { codeQuote :: CodeQuote
         , functionName :: E.Identifier
-        , args :: NonEmpty E.Expr
         , functionType :: T.Type
         }
     | BadApplication
         { codeQuote :: CodeQuote
         , functionName :: E.Identifier
-        , args :: NonEmpty E.Expr
         , referenceType :: T.Type
         , functionType :: T.Type
         }
@@ -131,39 +126,35 @@ processSolution =
 solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
-        Simple a b ->
-            solveSimple
-                (Constraint.type_ a)
-                (Constraint.type_ b)
-                (UnsolvableConstraint a b)
-
-
         IfThenElse
             { codeQuote, condition, whenTrue, whenFalse, returnType }
             -> do
             solveSimple
                 (Constraint.type_ condition)
                 T.Bool
-                (IfConditionMustBeABool condition)
+                (IfConditionMustBeABool
+                    ((Constraint.codeQuote :: QuotedType -> CodeQuote)
+                        condition
+                    )
+                    (Constraint.type_ condition)
+                )
             solveSimple
                 (Constraint.type_ whenTrue)
                 (Constraint.type_ whenFalse)
                 (BothIfAlternativesMustHaveSameType
                     codeQuote
-                    condition
-                    whenTrue
-                    whenFalse
+                    (Constraint.type_ whenTrue)
+                    (Constraint.type_ whenFalse)
                 )
             solveSimple
                 returnType
                 (Constraint.type_ whenFalse)
-                (ShouldNotHappen "Matching if return type")
+                (ShouldNotHappen "Solving temporary return type to return type")
 
 
         Application
             { codeQuote
             , functionName
-            , Constraint.args
             , functionReference
             , argTypes
             , returnType
@@ -181,13 +172,12 @@ solveConstraint constraint =
                         (BadApplication
                             codeQuote
                             functionName
-                            args
                             referenceType
                             functionType
                         )
 
                 _ ->
-                    NotAFunction codeQuote functionName args referenceType
+                    NotAFunction codeQuote functionName referenceType
                         |> fail
 
 

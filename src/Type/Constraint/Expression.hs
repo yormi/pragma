@@ -3,6 +3,7 @@ module Type.Constraint.Expression (gather) where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
+import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type as T
 import Type.Constraint.Gatherer (Gatherer)
@@ -10,7 +11,7 @@ import qualified Type.Constraint.Gatherer as Gatherer
 import qualified Type.Constraint.Model as Constraint
 
 
-gather :: E.Expr -> Gatherer T.Type
+gather :: E.QuotedExpression -> Gatherer T.Type
 gather expression =
     case E.expression expression of
         E.Value v ->
@@ -21,30 +22,23 @@ gather expression =
             Gatherer.lookupReference identifier
 
 
-        E.If { E.codeQuote, E.condition, E.whenTrue, E.whenFalse } -> do
+        E.If { E.condition, E.whenTrue, E.whenFalse } -> do
             conditionType <- gather condition
             whenTrueType <- gather whenTrue
             whenFalseType <- gather whenFalse
 
             ifType <- Gatherer.freshVariable
 
+            let quote = (E.codeQuote :: E.QuotedExpression -> CodeQuote)
+
             Constraint.IfThenElse
-                { Constraint.codeQuote = codeQuote
+                { Constraint.codeQuote = E.codeQuote expression
                 , Constraint.condition =
-                    Constraint.Element
-                        (E.position condition)
-                        (E.expression condition)
-                        conditionType
+                    Constraint.QuotedType (quote condition) conditionType
                 , Constraint.whenTrue =
-                    Constraint.Element
-                        (E.position whenTrue)
-                        (E.expression whenTrue)
-                        whenTrueType
+                    Constraint.QuotedType (quote whenTrue) whenTrueType
                 , Constraint.whenFalse =
-                    Constraint.Element
-                        (E.position whenFalse)
-                        (E.expression whenFalse)
-                        whenFalseType
+                    Constraint.QuotedType (quote whenFalse) whenFalseType
                 , Constraint.returnType = ifType
                 }
                 |> Gatherer.addConstraint
@@ -86,13 +80,13 @@ gather expression =
                 |> return
 
 
-        E.Application { E.codeQuote, E.functionName, E.args } -> do
+        E.Application { E.functionName, E.args } -> do
             referenceType <- Gatherer.lookupReference functionName
             argsType <- traverse gather args
             returnType <- Gatherer.freshVariable
 
             Constraint.Application
-                { Constraint.codeQuote = codeQuote
+                { Constraint.codeQuote = E.codeQuote expression
                 , Constraint.functionName = functionName
                 , Constraint.args = args
                 , Constraint.functionReference = referenceType
