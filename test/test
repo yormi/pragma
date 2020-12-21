@@ -8,10 +8,13 @@ b =
     35
 
 
-foo : (Int -> Int -> Float) -> Int -> Int
+foo : (Int -> Int -> Bool) -> Int -> Int
 foo f b =
+    let
+        c = \x -> x
+    in
     if f 3 3 then
-        4
+        c True
     else
-        3.3
+        c 3
 

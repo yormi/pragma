@@ -2,6 +2,7 @@ module Printer
     ( printModule
     , printType
     , printTypeAsParam
+    , printTypeSolution
     , printExpression
     ) where
 
@@ -24,6 +25,7 @@ import qualified AST.Expression as Expression
 import AST.Module (Module(..), TopLevel(..))
 import Type (Type)
 import qualified Type
+import qualified Type.Constraint.Solver.Model as Solver
 
 
 type Indentation = Int
@@ -69,6 +71,24 @@ printTypeAsParam type_ =
 
         _ ->
             printType type_
+
+
+printTypeSolution :: Solver.SolutionType -> String
+printTypeSolution solution =
+    case solution of
+        Solver.InstanceType type_ ->
+            printType type_
+
+        Solver.NamedType genericVariables type_ ->
+            let
+                formattedGenericVariable :: String
+                formattedGenericVariable =
+                    genericVariables
+                        |> map Type.Variable
+                        |> map printType
+                        |> List.intercalate ", "
+            in
+            "∀ " ++ formattedGenericVariable ++ " | " ++ printType type_
 
 
 printType :: Type -> String

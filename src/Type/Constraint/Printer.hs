@@ -13,12 +13,6 @@ import qualified Type.Constraint.Model as Constraint
 printConstraint :: Constraint -> String
 printConstraint constraint =
     case constraint of
-        Simple { newComing, concludedFrom } ->
-            [ "Simple Constraint"
-            , "\t" ++ printSimpleConstraint newComing concludedFrom
-            ]
-            |> String.unlines
-
         IfThenElse { condition, whenTrue, whenFalse, returnType } ->
             [ "If Then Else"
             , "\tCondition:\t"
@@ -29,7 +23,7 @@ printConstraint constraint =
                 ++ printSimpleConstraint whenTrue whenFalse
             , "\tReturns:\t"
                 ++ printSimpleConstraintTypes
-                    returnType
+                    (T.Variable returnType)
                     (Constraint.type_ whenTrue)
             ]
             |> String.unlines
@@ -41,7 +35,7 @@ printConstraint constraint =
                         (\type_ a ->
                             T.Function (T.FunctionType a type_)
                         )
-                        returnType
+                        (T.Variable returnType)
                         (NonEmpty.reverse argTypes)
             in
             [ "Application"
@@ -61,6 +55,15 @@ printConstraint constraint =
             in
             [ "Function Definition"
             , "\t" ++ printSimpleConstraintTypes calculated signatureType
+            ]
+            |> String.unlines
+
+        Generalized { actualType, returnType } ->
+            [ "Generic"
+            , "\t"
+                ++ printSimpleConstraintTypes
+                    (T.Variable returnType)
+                    actualType
             ]
             |> String.unlines
 

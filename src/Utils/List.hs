@@ -1,7 +1,9 @@
 module Utils.List
     ( module X
+    , contains
     , head
     , isEmpty
+    , unique
     , slice
     ) where
 
@@ -14,7 +16,13 @@ import Data.List as X
     , length
     , replicate
     , reverse
+    , zip
     )
+
+
+contains :: Eq a => a -> [a] -> Bool
+contains =
+    List.elem
 
 
 head :: [a] -> Maybe a
@@ -30,6 +38,11 @@ head xs =
 isEmpty :: [a] -> Bool
 isEmpty =
     List.null
+
+
+unique :: Eq a => [a] -> [a]
+unique =
+    List.nub
 
 
 slice :: Int -> Int -> [a] -> [a]

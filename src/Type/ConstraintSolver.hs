@@ -1,126 +1,25 @@
 module Type.ConstraintSolver
     ( SolvingError(..)
-    , TypeSolution
+    , Solution
     , solve
     ) where
 
-import Control.Monad.State (StateT)
-import qualified Control.Monad.State as State
-import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Map (Map)
-import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
-import qualified AST.Expression as E
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
-import qualified Utils.Maybe as Maybe
+import Type.Constraint.Solver.Model (Solver, SolvingError(..), Solution)
+import qualified Type.Constraint.Solver.Model as Solver
+import qualified Utils.List as List
 
 
-type Solver a = StateT TypeSolution (Either SolvingError) a
 
-
-type TypeSolution = Map T.TypeVariable T.Type
-
-
-data SolvingError
-    = TypeVariableCannotSatisfyBothConstraint T.Type T.Type
-    | IfConditionMustBeABool
-        { codeQuote :: CodeQuote
-        , type_ :: T.Type
-        }
-    | BothIfAlternativesMustHaveSameType
-        { codeQuote :: CodeQuote
-        , whenTrue :: T.Type
-        , whenFalse :: T.Type
-        }
-    | NotAFunction
-        { codeQuote :: CodeQuote
-        , functionName :: E.Identifier
-        , functionType :: T.Type
-        }
-    | BadApplication
-        { codeQuote :: CodeQuote
-        , functionName :: E.Identifier
-        , referenceType :: T.Type
-        , functionType :: T.Type
-        }
-    | FunctionDefinitionMustMatchType
-        { codeQuote :: CodeQuote
-        , signatureType :: T.Type
-        , definitionType :: T.Type
-        }
-    | ShouldNotHappen String
-    deriving (Eq, Show)
-
-
-fail :: SolvingError -> Solver a
-fail e =
-    lift <| Left e
-
-
-mostPrecised :: T.Type -> Solver T.Type
-mostPrecised type_ =
-    case type_ of
-        T.Variable v -> do
-            state <- State.get
-            closest <-
-                Map.lookup v state
-                    |> traverse mostPrecised
-            closest
-                |> Maybe.withDefault type_
-                |> return
-
-
-        T.Function (T.FunctionType arg returnType) -> do
-            precisedArg <- mostPrecised arg
-            precisedReturnType <- mostPrecised returnType
-            T.FunctionType precisedArg precisedReturnType
-                |> T.Function
-                |> return
-
-
-        _ ->
-            return type_
-
-
-updateTypeSolution :: T.TypeVariable -> T.Type -> Solver ()
-updateTypeSolution typeVariable concludedType = do
-    state <- State.get
-
-    case Map.lookup typeVariable state of
-        Nothing ->
-            addToSolution typeVariable concludedType
-
-        Just (T.Variable newTypeVariable) ->
-            updateTypeSolution newTypeVariable concludedType
-
-        Just a ->
-            if a == concludedType then
-                return ()
-            else
-                fail <| TypeVariableCannotSatisfyBothConstraint a concludedType
-
-
-addToSolution :: T.TypeVariable -> T.Type -> Solver ()
-addToSolution v t =
-    State.modify (Map.insert v t)
-
-
-------------------
-
-
-solve :: [Constraint] -> Either SolvingError TypeSolution
-solve constraints =
+solve :: T.TypeVariable -> [Constraint] -> Either SolvingError Solution
+solve nextAvailableTypeVariable constraints =
     traverse solveConstraint constraints
-        |> processSolution
-
-
-processSolution :: Solver a -> Either SolvingError TypeSolution
-processSolution =
-    flip State.execStateT Map.empty
+        |> Solver.processSolution nextAvailableTypeVariable
 
 
 solveConstraint :: Constraint -> Solver ()
@@ -129,6 +28,13 @@ solveConstraint constraint =
         IfThenElse
             { codeQuote, condition, whenTrue, whenFalse, returnType }
             -> do
+            precisedCondition <-
+                Solver.mostPrecised (Constraint.type_ condition)
+            precisedWhenTrue <-
+                Solver.mostPrecised (Constraint.type_ whenTrue)
+            precisedWhenFalse <-
+                Solver.mostPrecised (Constraint.type_ whenFalse)
+
             solveSimple
                 (Constraint.type_ condition)
                 T.Bool
@@ -136,20 +42,20 @@ solveConstraint constraint =
                     ((Constraint.codeQuote :: QuotedType -> CodeQuote)
                         condition
                     )
-                    (Constraint.type_ condition)
+                    precisedCondition
                 )
             solveSimple
                 (Constraint.type_ whenTrue)
                 (Constraint.type_ whenFalse)
                 (BothIfAlternativesMustHaveSameType
                     codeQuote
-                    (Constraint.type_ whenTrue)
-                    (Constraint.type_ whenFalse)
+                    precisedWhenTrue
+                    precisedWhenFalse
                 )
-            solveSimple
-                returnType
-                (Constraint.type_ whenFalse)
-                (ShouldNotHappen "Solving temporary return type to return type")
+
+            Constraint.type_ whenFalse
+                |> Solver.InstanceType
+                |> Solver.updateSolution returnType
 
 
         Application
@@ -161,9 +67,11 @@ solveConstraint constraint =
             } ->
             let
                 functionType =
-                    buildFunction (NonEmpty.toList argTypes) returnType
+                    buildFunction
+                        (NonEmpty.toList argTypes)
+                        (T.Variable returnType)
             in do
-            referenceType <- mostPrecised functionReference
+            referenceType <- Solver.mostPrecised functionReference
             case referenceType of
                 T.Function _ ->
                     solveSimple
@@ -178,7 +86,7 @@ solveConstraint constraint =
 
                 _ ->
                     NotAFunction codeQuote functionName referenceType
-                        |> fail
+                        |> Solver.fail
 
 
         Function { codeQuote, signatureType, params, body } ->
@@ -186,8 +94,8 @@ solveConstraint constraint =
                 definitionType =
                     buildFunction params body
             in do
-            precisedFunctionType <- mostPrecised signatureType
-            precisedActualType <- mostPrecised definitionType
+            precisedFunctionType <- Solver.mostPrecised signatureType
+            precisedActualType <- Solver.mostPrecised definitionType
             solveSimple
                 signatureType
                 definitionType
@@ -196,6 +104,30 @@ solveConstraint constraint =
                     precisedFunctionType
                     precisedActualType
                 )
+
+        Generalized { actualType, returnType } ->
+            let
+                generalize t = do
+                    precised <- Solver.mostPrecised t
+                    case precised of
+                        T.Variable typeVariable -> do
+                            return [typeVariable]
+
+                        T.Function (T.FunctionType arg returningType) -> do
+                            argVariables <- generalize arg
+                            returnVariables <- generalize returningType
+
+                            let typeVariables =
+                                    argVariables ++ returnVariables
+                                        |> List.unique
+                            return typeVariables
+
+                        _ ->
+                            return []
+            in do
+            genericVariables <- generalize actualType
+            Solver.updateSolution returnType
+                (Solver.NamedType genericVariables actualType)
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type
@@ -210,34 +142,34 @@ buildFunction params finalType =
 
 solveSimple :: T.Type -> T.Type -> SolvingError -> Solver ()
 solveSimple a b error = do
-    precisedA <- mostPrecised a
-    precisedB <- mostPrecised b
+    precisedA <- Solver.mostPrecised a
+    precisedB <- Solver.mostPrecised b
 
     case (precisedA, precisedB) of
         (T.Function f, T.Function g) ->
             solveFunction f g error
 
-        -- I'm skeptic about this... should not fail I think
+        -- I'm skeptic about this... should not Solver.fail I think
         (T.Variable _, T.Variable _) -> do
-            fail error
+            Solver.fail error
 
         (T.Variable variableA, _) -> do
-            updateTypeSolution variableA b
+            Solver.updateSolution variableA (Solver.InstanceType b)
 
         (_, T.Variable variableB) -> do
-            updateTypeSolution variableB a
+            Solver.updateSolution variableB (Solver.InstanceType a)
 
         _ ->
             if precisedA == precisedB then
                 return ()
             else
-                fail error
+                Solver.fail error
 
 
 solveFunction :: T.FunctionType -> T.FunctionType -> SolvingError -> Solver ()
 solveFunction (T.FunctionType argA returnA) (T.FunctionType argB returnB) error = do
-    a <- mostPrecised argA
-    b <- mostPrecised argB
+    a <- Solver.mostPrecised argA
+    b <- Solver.mostPrecised argB
 
     solveSimple a b error
     solveSimple returnA returnB error

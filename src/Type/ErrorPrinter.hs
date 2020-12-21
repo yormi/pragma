@@ -14,6 +14,15 @@ import qualified Utils.String as String
 printSolvingError :: String -> SolvingError -> String
 printSolvingError sourceCode e =
     case e of
+        Solver.TODO str ->
+            "TODO --- " ++ str
+
+        Solver.ShouldNotHappen str ->
+            "SHOULD NOT HAPPEN --- This is a bug --- "
+                ++ str
+                ++ " --- "
+                ++ show e
+
         Solver.TypeVariableCannotSatisfyBothConstraint _ _ ->
             "TODO --- " ++ show e
 

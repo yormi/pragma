@@ -11,14 +11,15 @@ import qualified AST.Module as M
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer as TypePrinter
-import Type.ConstraintSolver (TypeSolution)
+import Type.ConstraintSolver (Solution)
 import qualified Type.ConstraintSolver as ConstraintSolver
-import Type.Constraint.Gatherer (ConstraintError)
+import qualified Type.Constraint.Gatherer as Gatherer
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Printer as Printer
+import qualified Type.Constraint.Module as Module
 import qualified Type.ErrorPrinter as ErrorPrinter
-import qualified Type.Inference as Inference
 import qualified Utils.Either as Either
+
 
 
 run :: IO ()
@@ -61,14 +62,14 @@ run = do
             (constraintResults
                 |> map
                     (bind
-                        (ConstraintSolver.solve
+                        (ConstraintSolver.solve 100
                             >> Either.mapLeft
                                 (ErrorPrinter.printSolvingError file)
                             >> Either.mapLeft
                                 (\s -> "CONSTRAINT SOLVING ERROR: \n" ++ s)
                         )
                     )
-            ) :: [Either String TypeSolution]
+            ) :: [Either String Solution]
 
 
     putStrLn <| "\n\n--- TYPE INFERENCE ---\n"
@@ -86,19 +87,11 @@ run = do
 constraintGathering :: M.Module -> [Either String [Constraint]]
 constraintGathering parsedModule@(M.Module topLevels) =
     map
-        (gatherFunctionConstraints parsedModule
+        (gatherConstraints parsedModule
             >> Either.mapLeft show
             >> Either.mapLeft (\s -> "CONSTRAINT GATHERING ERROR: " ++ s)
         )
         topLevels
-
-
-gatherFunctionConstraints
-    :: M.Module
-    -> M.TopLevel
-    -> Either ConstraintError [Constraint]
-gatherFunctionConstraints parsedModule =
-    Inference.gatherConstraints parsedModule
 
 
 printConstraintResults :: Either String [Constraint] -> IO ()
@@ -114,7 +107,7 @@ printConstraintResults result =
             putStrLn e
 
 
-printSolutionResult :: Either String TypeSolution -> IO ()
+printSolutionResult :: Either String Solution -> IO ()
 printSolutionResult result =
     case result of
         Right solution ->
@@ -124,7 +117,7 @@ printSolutionResult result =
             putStrLn e
 
 
-printSolution :: TypeSolution -> IO ()
+printSolution :: Solution -> IO ()
 printSolution solution =
     let
         solutions =
@@ -135,8 +128,26 @@ printSolution solution =
                     (\(variable, type_) ->
                         variable
                             ++ " :: "
-                            ++ TypePrinter.printType type_
+                            ++ TypePrinter.printTypeSolution type_
                     )
                 |> List.intercalate "\n\t"
     in
     putStrLn <| "\t" ++ solutions
+
+
+gatherConstraints
+    :: M.Module -> M.TopLevel -> Either Gatherer.ConstraintError [Constraint]
+gatherConstraints (M.Module topLevels) topLevel =
+    let
+        env =
+            map
+                (\t ->
+                    case t of
+                        M.Function { M.functionName, M.type_ } ->
+                            (functionName, type_)
+                )
+                topLevels
+    in do
+    Module.gather topLevel
+        |> Gatherer.withEnv env
+        |> Gatherer.gatherConstraints

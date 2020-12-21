@@ -121,11 +121,11 @@ extendEnv (identifier, type_) env =
     Map.insert identifier type_ env
 
 
-freshVariable :: Gatherer T.Type
+freshVariable :: Gatherer T.TypeVariable
 freshVariable = do
     nextTypeVariable <- RWST.get
     RWST.put <| nextTypeVariable + 1
-    return <| T.Variable nextTypeVariable
+    return nextTypeVariable
 
 
 addConstraint :: Constraint -> Gatherer ()

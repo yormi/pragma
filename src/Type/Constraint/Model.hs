@@ -8,16 +8,12 @@ import qualified Type as T
 
 
 data Constraint
-    = Simple
-        { newComing :: QuotedType
-        , concludedFrom :: QuotedType
-        }
-    | IfThenElse
+    = IfThenElse
         { codeQuote :: CodeQuote
         , condition :: QuotedType
         , whenTrue :: QuotedType
         , whenFalse :: QuotedType
-        , returnType :: T.Type
+        , returnType :: T.TypeVariable
         }
     | Application
         { codeQuote :: CodeQuote
@@ -25,13 +21,17 @@ data Constraint
         , args :: NonEmpty E.QuotedExpression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
-        , returnType :: T.Type
+        , returnType :: T.TypeVariable
         }
     | Function
         { codeQuote :: CodeQuote
         , signatureType :: T.Type
         , params :: [T.Type]
         , body :: T.Type
+        }
+    | Generalized
+        { actualType :: T.Type
+        , returnType :: T.TypeVariable
         }
     deriving (Eq, Show)
 

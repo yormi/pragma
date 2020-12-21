@@ -43,7 +43,7 @@ gather expression =
                 }
                 |> Gatherer.addConstraint
 
-            return ifType
+            return <| T.Variable ifType
 
 
         E.LetIn { E.definitions, E.body } ->
@@ -52,7 +52,12 @@ gather expression =
                     case definition of
                         E.SimpleDefinition id expr -> do
                             type_ <- gather expr
-                            return (id, type_)
+                            returnType <- Gatherer.freshVariable
+
+                            Constraint.Generalized type_ returnType
+                                |> Gatherer.addConstraint
+
+                            return (id, T.Variable returnType)
             in do
             references <-
                 definitions
@@ -66,7 +71,9 @@ gather expression =
 
         E.Lambda { E.params, E.body } -> do
             let paramList = NonEmpty.toList params
-            variables <- traverse (const Gatherer.freshVariable) paramList
+            variables <-
+                traverse (const Gatherer.freshVariable) paramList
+                    |> map (map T.Variable)
             let paramWithTypes = List.zip paramList variables
             bodyType <- Gatherer.withEnv paramWithTypes (gather body)
 
@@ -95,7 +102,7 @@ gather expression =
                 }
                 |> Gatherer.addConstraint
 
-            return returnType
+            return (T.Variable returnType)
 
         _ ->
             Gatherer.fail <| Gatherer.TODO "Gather Expression"
