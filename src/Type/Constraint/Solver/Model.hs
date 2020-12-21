@@ -89,43 +89,12 @@ fail e =
 
 mostPrecised :: T.Type -> Solver T.Type
 mostPrecised type_ =
-    let
-        instantiate genericTypes t = do
-            instances <- traverse (const freshVariable) genericTypes
-            let replacements =
-                    instances
-                        |> List.zip genericTypes
-                        |> Map.fromList
-            replaceType replacements t
-                |> return
-
-        replaceType replacements t =
-            case t of
-                T.Variable variable ->
-                    Map.lookup variable replacements
-                        |> Maybe.withDefault t
-
-                T.Function (T.FunctionType arg returning) ->
-                    let
-                        replacedArg =
-                            replaceType replacements arg
-
-                        replaceReturning =
-                            replaceType replacements returning
-                    in
-                    T.FunctionType replacedArg replaceReturning
-                        |> T.Function
-
-                _ ->
-                    t
-
-    in
     case type_ of
         T.Variable v -> do
             state <- State.get
-            let closest = Map.lookup v (solution state)
+            let morePrecise = Map.lookup v (solution state)
 
-            case closest of
+            case morePrecise of
                 Just (NamedType genericTypes t) ->
                     instantiate genericTypes t
 
@@ -146,6 +115,39 @@ mostPrecised type_ =
 
         _ ->
             return type_
+
+
+instantiate :: [T.TypeVariable] -> T.Type -> Solver T.Type
+instantiate genericTypes generalizedType =
+    let
+        replaceType replacements type_ =
+            case type_ of
+                T.Variable variable ->
+                    Map.lookup variable replacements
+                        |> Maybe.withDefault type_
+
+                T.Function (T.FunctionType arg returning) ->
+                    let
+                        replacedArg =
+                            replaceType replacements arg
+
+                        replaceReturning =
+                            replaceType replacements returning
+                    in
+                    T.FunctionType replacedArg replaceReturning
+                        |> T.Function
+
+                _ ->
+                    type_
+
+    in do
+    instances <- traverse (const freshVariable) genericTypes
+    let replacements =
+            instances
+                |> List.zip genericTypes
+                |> Map.fromList
+    replaceType replacements generalizedType
+        |> return
 
 
 freshVariable :: Solver T.Type
