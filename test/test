@@ -14,7 +14,7 @@ foo f b =
         c = \x -> x
     in
     if f 3 3 then
-        c True
+        b
     else
         c 3
 

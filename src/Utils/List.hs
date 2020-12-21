@@ -2,17 +2,22 @@ module Utils.List
     ( module X
     , contains
     , head
+    , indexedMap
     , isEmpty
     , unique
     , slice
+    , singleton
     ) where
 
 import qualified Data.List as List
 
 import Data.List as X
-    ( concat
+    ( any
+    , concat
     , filter
     , foldl
+    , intercalate
+    , intersperse
     , length
     , replicate
     , reverse
@@ -35,6 +40,16 @@ head xs =
              Nothing
 
 
+indexedMap :: (Int -> a -> b) -> [a] -> [b]
+indexedMap f xs =
+    xs
+        |> List.foldl
+            (\(index, result) x -> (index + 1, f index x : result))
+            (0, [])
+        |> snd
+        |> List.reverse
+
+
 isEmpty :: [a] -> Bool
 isEmpty =
     List.null
@@ -43,6 +58,11 @@ isEmpty =
 unique :: Eq a => [a] -> [a]
 unique =
     List.nub
+
+
+singleton :: a -> [a]
+singleton x =
+    [x]
 
 
 slice :: Int -> Int -> [a] -> [a]

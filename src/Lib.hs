@@ -8,6 +8,7 @@ import qualified System.Directory as Directory
 import System.IO (readFile)
 
 import qualified AST.Module as M
+import qualified Generator
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer as TypePrinter
@@ -81,6 +82,13 @@ run = do
                 printSolutionResult solving
                 putStrLn "\n---\n"
             )
+        |> void
+
+
+    putStrLn <| "\n\n--- CODE GENERATION ---\n"
+    parsedModule
+        |> map Generator.generate
+        |> traverse putStrLn
         |> void
 
 

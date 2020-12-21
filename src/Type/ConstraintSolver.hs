@@ -15,7 +15,6 @@ import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 
 
-
 solve :: T.TypeVariable -> [Constraint] -> Either SolvingError Solution
 solve nextAvailableTypeVariable constraints =
     traverse solveConstraint constraints
