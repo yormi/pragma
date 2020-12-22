@@ -1,4 +1,4 @@
-module Type.Constraint.Expression (gather) where
+module Type.Constraint.Gatherer.Expression (gather) where
 
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -6,8 +6,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type as T
-import Type.Constraint.Gatherer (Gatherer)
-import qualified Type.Constraint.Gatherer as Gatherer
+import Type.Constraint.Gatherer.Model (Gatherer)
+import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Model as Constraint
 
 
@@ -19,7 +19,7 @@ gather expression =
 
 
         E.Reference identifier ->
-            Gatherer.lookupReference identifier
+            Gatherer.lookupDataReference identifier
 
 
         E.If { E.condition, E.whenTrue, E.whenFalse } -> do
@@ -63,7 +63,7 @@ gather expression =
                 definitions
                     |> traverse toReference
                     |> map NonEmpty.toList
-            Gatherer.withEnv references (gather body)
+            Gatherer.withDataReferences references (gather body)
 
 
         --E.CaseOf { E.element, E.cases } ->
@@ -75,7 +75,7 @@ gather expression =
                 traverse (const Gatherer.freshVariable) paramList
                     |> map (map T.Variable)
             let paramWithTypes = List.zip paramList variables
-            bodyType <- Gatherer.withEnv paramWithTypes (gather body)
+            bodyType <- Gatherer.withDataReferences paramWithTypes (gather body)
 
             variables
                 |> List.foldl
@@ -88,7 +88,7 @@ gather expression =
 
 
         E.Application { E.functionName, E.args } -> do
-            referenceType <- Gatherer.lookupReference functionName
+            referenceType <- Gatherer.lookupDataReference functionName
             argsType <- traverse gather args
             returnType <- Gatherer.freshVariable
 

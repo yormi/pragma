@@ -4,7 +4,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
 import qualified AST.Module as M
-import qualified Printer
+import qualified Printer.TypeAnnotation as TypeAnnotationPrinter
 import qualified Utils.List as List
 import qualified Utils.String as String
 
@@ -19,13 +19,13 @@ generateTopLevel :: M.TopLevel -> String
 generateTopLevel topLevel =
     case topLevel of
         M.Function
-            { type_
+            { typeAnnotation
             , functionName
             , params
             , body
             }
             ->
-            ["// " ++ Printer.printType type_ ]
+            ["//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
                 ++  generateConst functionName (generateFunction params body)
                 |> String.mergeLines
 

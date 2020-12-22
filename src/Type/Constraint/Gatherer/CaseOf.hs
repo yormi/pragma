@@ -1,4 +1,4 @@
-module Type.Constraint.CaseOf (gather) where
+module Type.Constraint.Gatherer.CaseOf (gather) where
 
 --import qualified Data.List as List
 --import qualified Data.Tuple as Tuple
@@ -7,8 +7,8 @@ import Data.List.NonEmpty (NonEmpty)
 
 import qualified AST.Expression as E
 import qualified Type as T
-import Type.Constraint.Gatherer (Gatherer)
-import qualified Type.Constraint.Gatherer as Gatherer
+import Type.Constraint.Gatherer.Model (Gatherer)
+import qualified Type.Constraint.Gatherer.Model as Gatherer
 --import qualified Utils.List as List
 
 

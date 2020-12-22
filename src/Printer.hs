@@ -23,6 +23,8 @@ import AST.Expression
     )
 import qualified AST.Expression as Expression
 import AST.Module (Module(..), TopLevel(..))
+import qualified Printer.TypeAnnotation as TypeAnnotation
+import qualified Printer.Utils as Utils
 import Type (Type)
 import qualified Type
 import qualified Type.Constraint.Solver.Model as Solver
@@ -43,15 +45,15 @@ topLevel :: TopLevel -> String
 topLevel element =
     case element of
         Function
-            { type_
+            { typeAnnotation
             , functionName
             , params
             , body
             } ->
             let
                 typeLine =
-                    type_
-                        |> printType
+                    typeAnnotation
+                        |> TypeAnnotation.print
                         |> (\t -> functionName ++ " : " ++ t ++ "\n")
 
 
@@ -116,7 +118,7 @@ printType type_ =
                         Type.Function _ ->
                             t1
                                 |> printType
-                                |> parenthesized
+                                |> Utils.parenthesized
                         _ ->
                             printType t1
             in
@@ -229,12 +231,6 @@ printArgs =
     NonEmpty.toList
         >> map printExpression
         >> String.unwords
-
-
-parenthesized :: String -> String
-parenthesized s =
-    "(" ++ s ++ ")"
-
 
 
 printParams :: [Identifier] -> String

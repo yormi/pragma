@@ -1,4 +1,4 @@
-module Type.Constraint.Printer (printConstraint) where
+module Printer.Type.Constraint (printConstraint) where
 
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty

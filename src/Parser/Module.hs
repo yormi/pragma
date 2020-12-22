@@ -5,8 +5,9 @@ module Parser.Module
 import Control.Monad as Monad
 
 import qualified AST.CodeQuote as CodeQuote
+import qualified AST.Expression as E
 import AST.Module (Module(..), TopLevel(..))
-import qualified Type as T
+import qualified AST.TypeAnnotation as T
 import Parser.Parser (Parser)
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
@@ -27,11 +28,7 @@ function = do
     Parser.topLevel
 
     typeLine <-
-        Parser.maybe <| do
-            functionName <- Parser.identifier
-            Parser.reservedOperator ":"
-            type_ <- typeParser
-            return (functionName, type_)
+        Parser.maybe <| typeLineParser
 
     functionName <- Parser.identifier
     params <- Parser.many Parser.identifier
@@ -57,23 +54,30 @@ function = do
                 "The function '" ++ functionName ++ "' needs a signature"
 
 
+typeLineParser :: Parser (E.Identifier, T.TypeAnnotation)
+typeLineParser = do
+    functionName <- Parser.identifier
+    Parser.reservedOperator ":"
+    type_ <- typeAnnotationParser
+    return (functionName, type_)
 
-typeParser :: Parser T.Type
-typeParser =
+
+typeAnnotationParser :: Parser T.TypeAnnotation
+typeAnnotationParser =
     let
         functionTypeParser =
             Parser.unconsumeOnFailure <|
                 do -- careful not to start with typeParser.
                    -- It creates an infinite loop =/
-                    a <- simpleTypeParser
+                    arg <- simpleTypeParser
                     Parser.reservedOperator "->"
-                    b <- typeParser
-                    return <| T.Function (T.FunctionType a b)
+                    returnType <- typeAnnotationParser
+                    return <| T.Function arg returnType
     in
     Parser.oneOf [ functionTypeParser, simpleTypeParser ]
 
 
-simpleTypeParser :: Parser T.Type
+simpleTypeParser :: Parser T.TypeAnnotation
 simpleTypeParser =
     Parser.oneOf
         [ map (const T.Bool) <| Parser.reserved "Bool"
@@ -83,9 +87,10 @@ simpleTypeParser =
         , map (const T.String) <| Parser.reserved "String"
         , do
             Parser.reservedOperator "("
-            t <- typeParser
+            t <- typeAnnotationParser
             Parser.reservedOperator ")"
             return t
+        , map (T.Variable) <| Parser.identifier
         ]
 
 

@@ -5,7 +5,7 @@ biggerThan a c =
 
 b : Int
 b =
-    35
+    2
 
 
 foo : (Int -> Int -> Bool) -> Int -> Int
@@ -13,8 +13,12 @@ foo f b =
     let
         c = \x -> x
     in
-    if f 3 3 then
+    if identity True then
         b
     else
-        c 3
+        identity 3
 
+
+identity : something -> something
+identity x =
+    x

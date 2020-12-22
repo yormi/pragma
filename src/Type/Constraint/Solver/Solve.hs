@@ -1,4 +1,4 @@
-module Type.ConstraintSolver
+module Type.Constraint.Solver.Solve
     ( SolvingError(..)
     , Solution
     , solve
@@ -148,9 +148,15 @@ solveSimple a b error = do
         (T.Function f, T.Function g) ->
             solveFunction f g error
 
-        -- I'm skeptic about this... should not Solver.fail I think
-        (T.Variable _, T.Variable _) -> do
-            Solver.fail error
+        -- TODO - Make sure this is correct
+        (T.Variable variableA, T.Variable variableB) -> do
+            if variableA == variableB then
+                return ()
+            else
+                Solver.fail error
+            -- <!> COMMENTED CURRENTLY INFINITE LOOPING <!>
+            -- Solver.updateSolution variableA (Solver.InstanceType b)
+            -- Solver.updateSolution variableB (Solver.InstanceType a)
 
         (T.Variable variableA, _) -> do
             Solver.updateSolution variableA (Solver.InstanceType b)

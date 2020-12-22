@@ -1,12 +1,12 @@
-module Type.ErrorPrinter (printSolvingError) where
+module Printer.Type.SolverError (printSolvingError) where
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.CodeQuote as CodeQuote
 import qualified Printer
 import qualified Printer.Console as Console
 import qualified Type as T
-import Type.ConstraintSolver (SolvingError)
-import qualified Type.ConstraintSolver as Solver
+import Type.Constraint.Solver.Model (SolvingError)
+import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 import qualified Utils.String as String
 

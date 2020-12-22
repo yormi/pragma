@@ -8,19 +8,21 @@ import qualified System.Directory as Directory
 import System.IO (readFile)
 
 import qualified AST.Module as M
+import qualified AST.TypeAnnotation as TypeAnnotation
 import qualified Generator
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer as TypePrinter
-import Type.ConstraintSolver (Solution)
-import qualified Type.ConstraintSolver as ConstraintSolver
-import qualified Type.Constraint.Gatherer as Gatherer
+import qualified Printer.Type.Constraint as ConstraintPrinter
+import qualified Printer.Type.SolverError as SolverErrorPrinter
+import Type.Constraint.Solver.Model (Solution)
+import qualified Type.Constraint.Solver.Solve as ConstraintSolver
+import qualified Type.Constraint.Gatherer.Model as Gatherer
 import Type.Constraint.Model (Constraint)
-import qualified Type.Constraint.Printer as Printer
-import qualified Type.Constraint.Module as Module
-import qualified Type.ErrorPrinter as ErrorPrinter
+import qualified Type.Constraint.Model as Constraint
+import qualified Type.Constraint.Gatherer.Module as Module
+import qualified Type as T
 import qualified Utils.Either as Either
-
 
 
 run :: IO ()
@@ -32,7 +34,7 @@ run = do
     let parser = Module.moduleParser
 
     file <- readFile filePath
-    -- putStrLn file
+    putStrLn file
 
     putStrLn <| "\n\n--- PARSING ---\n"
     let parsedModule =
@@ -41,16 +43,10 @@ run = do
                 |> Either.mapLeft (\s -> "PARSING ERROR: " ++ s)
 
 
-    -- putStrLn <| Either.fold show TypePrinter.printModule parsedModule
-    -- putStrLn <| show parsed
+    --putStrLn <| Either.fold show TypePrinter.printModule parsedModule
 
 
-    -- putStrLn <| "\n\n--- TYPE CHECK ---\n"
-    -- parsedModule
-    --     |> map Inference.infer
-    --     |> Either.fold show show
-    --     |> \s -> putStrLn ("\n" ++ s)
-
+    putStrLn <| "\n\n--- TYPE CHECK ---\n"
 
 
     let constraintResults =
@@ -65,7 +61,7 @@ run = do
                     (bind
                         (ConstraintSolver.solve 100
                             >> Either.mapLeft
-                                (ErrorPrinter.printSolvingError file)
+                                (SolverErrorPrinter.printSolvingError file)
                             >> Either.mapLeft
                                 (\s -> "CONSTRAINT SOLVING ERROR: \n" ++ s)
                         )
@@ -73,7 +69,7 @@ run = do
             ) :: [Either String Solution]
 
 
-    putStrLn <| "\n\n--- TYPE INFERENCE ---\n"
+    putStrLn <| "\n\n--- TYPE SOLUTION ---\n"
     List.zip constraintResults solverResult
         |> traverse
             (\(gathering, solving) -> do
@@ -85,11 +81,16 @@ run = do
         |> void
 
 
-    putStrLn <| "\n\n--- CODE GENERATION ---\n"
-    parsedModule
-        |> map Generator.generate
-        |> traverse putStrLn
-        |> void
+    case sequence solverResult of
+        Right _ -> do
+            putStrLn <| "\n\n--- CODE GENERATION ---\n"
+            parsedModule
+                |> map Generator.generate
+                |> traverse putStrLn
+                |> void
+
+        _ ->
+            return ()
 
 
 constraintGathering :: M.Module -> [Either String [Constraint]]
@@ -107,7 +108,7 @@ printConstraintResults result =
     case result of
         Right constraints ->
             constraints
-                |> map (Printer.printConstraint)
+                |> map (ConstraintPrinter.printConstraint)
                 |> String.unlines
                 |> putStrLn
 
@@ -146,16 +147,35 @@ printSolution solution =
 gatherConstraints
     :: M.Module -> M.TopLevel -> Either Gatherer.ConstraintError [Constraint]
 gatherConstraints (M.Module topLevels) topLevel =
-    let
-        env =
-            map
+    (do
+        context <-
+            traverse
                 (\t ->
                     case t of
-                        M.Function { M.functionName, M.type_ } ->
-                            (functionName, type_)
+                        M.Function { M.functionName, M.typeAnnotation } ->
+                            let
+                                hasTypeVariable =
+                                    TypeAnnotation.extractTypeVariables
+                                        typeAnnotation
+                                        |> \ts -> List.length ts > 0
+
+                            in do
+                            signatureType <-
+                                Module.signatureType typeAnnotation
+
+                            if hasTypeVariable then do
+                                returnType <- Gatherer.freshVariable
+                                Constraint.Generalized signatureType returnType
+                                    |> Gatherer.addConstraint
+
+                                return (functionName, T.Variable returnType)
+                            else
+                                return (functionName, signatureType)
+
                 )
                 topLevels
-    in do
-    Module.gather topLevel
-        |> Gatherer.withEnv env
+
+        Module.gather topLevel
+            |> Gatherer.withDataReferences context
+    )
         |> Gatherer.gatherConstraints

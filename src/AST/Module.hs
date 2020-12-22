@@ -4,10 +4,9 @@ module AST.Module
     ) where
 
 
-
 import AST.Expression (Identifier, QuotedExpression)
 import AST.CodeQuote (CodeQuote)
-import qualified Type as T
+import AST.TypeAnnotation (TypeAnnotation)
 
 
 data Module =
@@ -18,7 +17,7 @@ data Module =
 data TopLevel
     = Function
         { codeQuote :: CodeQuote
-        , type_ :: T.Type
+        , typeAnnotation :: TypeAnnotation
         , functionName :: Identifier
         , params :: [Identifier]
         , body :: QuotedExpression
