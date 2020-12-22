@@ -23,6 +23,11 @@ import qualified Type.Constraint.Model as Constraint
 import qualified Type.Constraint.Gatherer.Module as Module
 import qualified Type as T
 import qualified Utils.Either as Either
+import qualified Utils.List as List
+import qualified Utils.String as String
+
+
+import qualified Text.Layout.Table as Table
 
 
 run :: IO ()
@@ -85,9 +90,29 @@ run = do
         Right _ -> do
             putStrLn <| "\n\n--- CODE GENERATION ---\n"
             parsedModule
-                |> map Generator.generate
-                |> traverse putStrLn
+                |> map
+                    (\m ->
+                        Table.colsAllG Table.center
+                            [ String.splitLines <| Generator.generate m
+                            , String.splitLines <| TypePrinter.printModule m
+                            ]
+                    )
+                |> map List.singleton
+                |> traverse
+                    ( Table.tableString
+                        [ Table.fixedCol 80 Table.left
+                        , Table.column
+                            (Table.fixedUntil 80)
+                            Table.left
+                            Table.noAlign
+                            (Table.singleCutMark "...")
+                        ]
+                        Table.unicodeRoundS
+                        (Table.titlesH ["Generated NodeJS", "Pragma Source"])
+                        >> putStrLn
+                    )
                 |> void
+
 
         _ ->
             return ()

@@ -30,7 +30,7 @@ dependencies:
 - parsec == 3.1.14.0
 - pretty
 - relude
-  #- table-layout
+- table-layout
 - transformers
 - text == 1.2.4.0
 
