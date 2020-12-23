@@ -37,6 +37,9 @@ gather topLevel =
             Constraint.Generalized type_ returnType
                 |> Gatherer.addConstraint
 
+        M.SumType { M.codeQuote, M.typeName, M.dataChoices } ->
+            return ()
+
 
 signatureType :: TypeAnnotation -> Gatherer T.Type
 signatureType typeAnnotation = do

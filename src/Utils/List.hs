@@ -22,6 +22,7 @@ import Data.List as X
     , replicate
     , reverse
     , zip
+    , zip3
     )
 
 

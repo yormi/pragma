@@ -1,11 +1,18 @@
 module Utils.String
-    ( mergeLines
+    ( isEmpty
+    , mergeLines
+    , mergeWords
     , padLeft
     , splitLines
     )
     where
 
 import qualified Data.List as List
+
+
+isEmpty :: String -> Bool
+isEmpty =
+    List.null
 
 
 padLeft :: Int -> String -> String
@@ -21,4 +28,9 @@ splitLines =
 
 mergeLines :: [String] -> String
 mergeLines =
-    List.unlines
+    List.intercalate "\n"
+
+
+mergeWords :: [String] -> String
+mergeWords =
+    List.unwords

@@ -1,5 +1,6 @@
 module Parser.Parser
     ( Parser
+    , ParserError
     , atLeastOne
     , between
     , charLiteral
@@ -33,6 +34,8 @@ import Utils.Maybe as Maybe
 
 
 type Parser a = Indent.IndentParser String () a
+
+type ParserError = Parser.ParseError
 
 
 runParser :: Parser a -> FilePath -> String -> Either Parser.ParseError a

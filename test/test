@@ -1,6 +1,8 @@
-biggerThan : Int -> Int -> Bool
-biggerThan a c =
-    True
+type Color
+    = Red
+    | Blue
+    | green
+    | RGB Int Int Int
 
 
 b : Int

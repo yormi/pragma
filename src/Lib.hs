@@ -1,33 +1,32 @@
 module Lib (run) where
 
-import qualified Data.Bifunctor as Bifunctor
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.String as String
 import qualified System.Directory as Directory
 import System.IO (readFile)
+import qualified Text.Layout.Table as Table
 
 import qualified AST.Module as M
-import qualified AST.TypeAnnotation as TypeAnnotation
+import Compiler (Compiler, CompilerError(..))
+import qualified Compiler
 import qualified Generator
 import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
-import qualified Printer as TypePrinter
+import qualified Printer.AST.Module as ModulePrinter
+import qualified Printer.CompilerError as CompilerErrorPrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter
+import qualified Printer.Type.Solution as TypeSolutionPrinter
 import qualified Printer.Type.SolverError as SolverErrorPrinter
 import Type.Constraint.Solver.Model (Solution)
 import qualified Type.Constraint.Solver.Solve as ConstraintSolver
-import qualified Type.Constraint.Gatherer.Model as Gatherer
 import Type.Constraint.Model (Constraint)
-import qualified Type.Constraint.Model as Constraint
-import qualified Type.Constraint.Gatherer.Module as Module
-import qualified Type as T
+import qualified Type.Constraint.Gatherer.Gather as Constraint
 import qualified Utils.Either as Either
 import qualified Utils.List as List
 import qualified Utils.String as String
 
 
-import qualified Text.Layout.Table as Table
+type GeneratedCode = String
 
 
 run :: IO ()
@@ -36,171 +35,145 @@ run = do
     putStrLn dir
 
     let filePath = "test/test"
-    let parser = Module.moduleParser
 
-    file <- readFile filePath
-    putStrLn file
+    fileContent <- readFile filePath
 
-    putStrLn <| "\n\n--- PARSING ---\n"
-    let parsedModule =
-            Parser.runParser parser filePath file
-                |> Either.mapLeft show
-                |> Either.mapLeft (\s -> "PARSING ERROR: " ++ s)
+    compilationResult <-
+        compile filePath fileContent
+            |> Compiler.run
 
-
-    --putStrLn <| Either.fold show TypePrinter.printModule parsedModule
-
-
-    putStrLn <| "\n\n--- TYPE CHECK ---\n"
+    compilationResult
+        |> Either.fold
+            (map CompilerErrorPrinter.print
+                >> traverse putStrLn
+                >> void
+            )
+            (const <| return ())
 
 
-    let constraintResults =
-            (parsedModule
-                |> traverse constraintGathering
-                |> map join
-            ) :: [Either String [Constraint]]
-
-    let solverResult =
-            (constraintResults
-                |> map
-                    (bind
-                        (ConstraintSolver.solve 100
-                            >> Either.mapLeft
-                                (SolverErrorPrinter.printSolvingError file)
-                            >> Either.mapLeft
-                                (\s -> "CONSTRAINT SOLVING ERROR: \n" ++ s)
-                        )
-                    )
-            ) :: [Either String Solution]
+compile :: String -> String -> Compiler GeneratedCode
+compile filePath fileContent = do
+    parsedModule <- parse filePath fileContent
+    typeCheck parsedModule
+    generateCode parsedModule
 
 
-    putStrLn <| "\n\n--- TYPE SOLUTION ---\n"
-    List.zip constraintResults solverResult
+parse :: String -> String -> Compiler M.Module
+parse filePath fileContent =
+    let
+        parser =
+            Module.moduleParser
+    in do
+    printSectionHeader "PARSING"
+
+    parsedModule <-
+        Parser.runParser parser filePath fileContent
+            |> Either.mapLeft ParsingError
+            |> Compiler.fromEither
+
+    tablePrint "Parsed"
+        (ModulePrinter.print parsedModule)
+        fileContent
+
+    return parsedModule
+
+
+typeCheck :: M.Module -> Compiler ()
+typeCheck parsedModule@(M.Module topLevels) = do
+    printSectionHeader "TYPE CHECK"
+    constraintResults <- constraintGathering parsedModule
+    solverResult <- solveConstraints constraintResults
+
+    List.zip3 topLevels constraintResults solverResult
+        |> map
+            (\(topLevel, constraints, solution) ->
+                (topLevel
+                , [ constraints
+                        |> map ConstraintPrinter.print
+                        |> String.mergeLines
+                    , ""
+                    , "Solution :"
+                    , TypeSolutionPrinter.print solution
+                    , ""
+                    , ""
+                    , "---------------"
+                    , ""
+                    ]
+                    |> String.mergeLines
+                )
+            )
         |> traverse
-            (\(gathering, solving) -> do
-                printConstraintResults gathering
-                putStrLn "\nSolution :"
-                printSolutionResult solving
-                putStrLn "\n---\n"
+            (\(topLevel, solution) ->
+                tablePrint
+                    "Constraints"
+                    solution
+                    (ModulePrinter.printTopLevel topLevel)
             )
         |> void
 
 
-    case sequence solverResult of
-        Right _ -> do
-            putStrLn <| "\n\n--- CODE GENERATION ---\n"
-            parsedModule
-                |> map
-                    (\m ->
-                        Table.colsAllG Table.center
-                            [ String.splitLines <| Generator.generate m
-                            , String.splitLines <| TypePrinter.printModule m
-                            ]
-                    )
-                |> map List.singleton
-                |> traverse
-                    ( Table.tableString
-                        [ Table.fixedCol 80 Table.left
-                        , Table.column
-                            (Table.fixedUntil 80)
-                            Table.left
-                            Table.noAlign
-                            (Table.singleCutMark "...")
-                        ]
-                        Table.unicodeRoundS
-                        (Table.titlesH ["Generated NodeJS", "Pragma Source"])
-                        >> putStrLn
-                    )
-                |> void
-
-
-        _ ->
-            return ()
-
-
-constraintGathering :: M.Module -> [Either String [Constraint]]
+constraintGathering :: M.Module -> Compiler [[Constraint]]
 constraintGathering parsedModule@(M.Module topLevels) =
     map
-        (gatherConstraints parsedModule
-            >> Either.mapLeft show
-            >> Either.mapLeft (\s -> "CONSTRAINT GATHERING ERROR: " ++ s)
+        (Constraint.gather parsedModule
+            >> Either.mapLeft ConstraintGatheringError
         )
         topLevels
+        |> Compiler.fromEithers
 
 
-printConstraintResults :: Either String [Constraint] -> IO ()
-printConstraintResults result =
-    case result of
-        Right constraints ->
-            constraints
-                |> map (ConstraintPrinter.printConstraint)
-                |> String.unlines
-                |> putStrLn
-
-        Left e ->
-            putStrLn e
+solveConstraints :: [[Constraint]] -> Compiler [Solution]
+solveConstraints constraintResults =
+    constraintResults
+        |> List.indexedMap
+            (\index constraints ->
+                ConstraintSolver.solve (index * 100) constraints
+                    |> Either.mapLeft ConstraintSolvingError
+            )
+        |> Compiler.fromEithers
 
 
-printSolutionResult :: Either String Solution -> IO ()
-printSolutionResult result =
-    case result of
-        Right solution ->
-            printSolution solution
+generateCode :: M.Module -> Compiler GeneratedCode
+generateCode parsedModule = do
+    printSectionHeader "GENERATING CODE"
 
-        Left e ->
-            putStrLn e
+    let generatedCode = Generator.generate parsedModule
 
+    tablePrint "Generated NodeJS"
+        generatedCode
+        (ModulePrinter.print parsedModule)
 
-printSolution :: Solution -> IO ()
-printSolution solution =
-    let
-        solutions =
-            solution
-                |> Map.toList
-                |> map (Bifunctor.first (\n -> "a" ++ show n))
-                |> map
-                    (\(variable, type_) ->
-                        variable
-                            ++ " :: "
-                            ++ TypePrinter.printTypeSolution type_
-                    )
-                |> List.intercalate "\n\t"
-    in
-    putStrLn <| "\t" ++ solutions
+    return generatedCode
 
 
-gatherConstraints
-    :: M.Module -> M.TopLevel -> Either Gatherer.ConstraintError [Constraint]
-gatherConstraints (M.Module topLevels) topLevel =
-    (do
-        context <-
-            traverse
-                (\t ->
-                    case t of
-                        M.Function { M.functionName, M.typeAnnotation } ->
-                            let
-                                hasTypeVariable =
-                                    TypeAnnotation.extractTypeVariables
-                                        typeAnnotation
-                                        |> \ts -> List.length ts > 0
+--- PRINT ---
 
-                            in do
-                            signatureType <-
-                                Module.signatureType typeAnnotation
 
-                            if hasTypeVariable then do
-                                returnType <- Gatherer.freshVariable
-                                Constraint.Generalized signatureType returnType
-                                    |> Gatherer.addConstraint
+tablePrint :: String -> String -> String -> Compiler ()
+tablePrint columnName leftColumn rightColumn =
+    Table.tableString
+        [ Table.fixedCol 80 Table.left
+        , Table.column
+            (Table.fixedUntil 80)
+            Table.left
+            Table.noAlign
+            (Table.singleCutMark "...")
+        ]
+        Table.unicodeRoundS
+        (Table.titlesH [columnName, "Pragma Source"])
+        [ Table.colsAllG Table.center
+            [ String.splitLines <| leftColumn
+            , String.splitLines <| rightColumn
+            ]
+        ]
+        |> print
 
-                                return (functionName, T.Variable returnType)
-                            else
-                                return (functionName, signatureType)
 
-                )
-                topLevels
+printSectionHeader :: String -> Compiler ()
+printSectionHeader sectionName =
+    print <| "\n\n--- " ++ sectionName ++ " ---\n"
 
-        Module.gather topLevel
-            |> Gatherer.withDataReferences context
-    )
-        |> Gatherer.gatherConstraints
+
+print :: String -> Compiler ()
+print =
+    putStrLn >> Compiler.liftIO

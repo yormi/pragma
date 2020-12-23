@@ -6,20 +6,58 @@ import Control.Monad as Monad
 
 import qualified AST.CodeQuote as CodeQuote
 import qualified AST.Expression as E
-import AST.Module (Module(..), TopLevel(..))
+import AST.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
 import Parser.Parser (Parser)
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
+import qualified Utils.NonEmpty as NonEmpty
 
 
 moduleParser :: Parser Module
 moduleParser =
     Parser.oneOf
-        [ function
+        [ sumType
+        , function
         ]
         |> Parser.many
         |> map Module
+
+
+sumType :: Parser TopLevel
+sumType = do
+    from <- Parser.position
+    Parser.reserved "type"
+    typeName <- Parser.identifier
+
+    Parser.reservedOperator "="
+    firstChoice <- dataChoice
+
+    otherChoices <-
+        Parser.many <| do
+            Parser.reservedOperator "|"
+            dataChoice
+
+    to <- Parser.position
+    let codeQuote = CodeQuote.fromPositions from to
+    let dataChoices =
+            NonEmpty.build firstChoice otherChoices
+    return <| SumType codeQuote typeName dataChoices
+
+
+dataChoice :: Parser DataChoice
+dataChoice = do
+    Parser.withPositionReference <| do
+        from <- Parser.position
+        tag <- Parser.identifier
+        args <-
+            Parser.many <| do
+                Parser.sameLineOrIndented
+                typeAnnotationParser
+        to <- Parser.position
+
+        let codeQuote = CodeQuote.fromPositions from to
+        return <| DataChoice codeQuote tag args
 
 
 function :: Parser TopLevel

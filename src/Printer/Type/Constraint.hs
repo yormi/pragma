@@ -1,4 +1,4 @@
-module Printer.Type.Constraint (printConstraint) where
+module Printer.Type.Constraint (print) where
 
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -8,20 +8,26 @@ import qualified Printer as TypePrinter
 import qualified Type as T
 import Type.Constraint.Model (Constraint(..))
 import qualified Type.Constraint.Model as Constraint
+import Utils.String as String
 
 
-printConstraint :: Constraint -> String
-printConstraint constraint =
+tab :: String
+tab =
+    "      "
+
+
+print :: Constraint -> String
+print constraint =
     case constraint of
         IfThenElse { condition, whenTrue, whenFalse, returnType } ->
             [ "If Then Else"
-            , "\tCondition:\t"
+            , tab ++ "Condition:" ++ tab
                 ++ printSimpleConstraintTypes
                     (Constraint.type_ condition)
                     T.Bool
-            , "\tAlternatives:\t"
+            , tab ++ "Alternatives:" ++ tab
                 ++ printSimpleConstraint whenTrue whenFalse
-            , "\tReturns:\t"
+            , tab ++ "Returns:" ++ tab
                 ++ printSimpleConstraintTypes
                     (T.Variable returnType)
                     (Constraint.type_ whenTrue)
@@ -39,7 +45,7 @@ printConstraint constraint =
                         (NonEmpty.reverse argTypes)
             in
             [ "Application"
-            , "\t" ++ printSimpleConstraintTypes application functionReference
+            , tab ++ printSimpleConstraintTypes application functionReference
             ]
             |> String.unlines
 
@@ -54,18 +60,18 @@ printConstraint constraint =
                         (List.reverse params)
             in
             [ "Function Definition"
-            , "\t" ++ printSimpleConstraintTypes calculated signatureType
+            , tab ++ printSimpleConstraintTypes calculated signatureType
             ]
             |> String.unlines
 
         Generalized { actualType, returnType } ->
             [ "Generic"
-            , "\t"
+            , tab
                 ++ printSimpleConstraintTypes
                     (T.Variable returnType)
                     actualType
             ]
-            |> String.unlines
+            |> String.mergeLines
 
 
 printSimpleConstraint :: Constraint.QuotedType -> Constraint.QuotedType -> String

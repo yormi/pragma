@@ -4,7 +4,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
 import qualified AST.Module as M
-import qualified Printer.TypeAnnotation as TypeAnnotationPrinter
+import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Utils.List as List
 import qualified Utils.String as String
 
@@ -25,8 +25,21 @@ generateTopLevel topLevel =
             , body
             }
             ->
-            ["//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
+            [ "//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
                 ++  generateConst functionName (generateFunction params body)
+                |> String.mergeLines
+
+        M.SumType { typeName, dataChoices } ->
+            [ "//  Not sur how to encode this yet" ]
+                ++  generateConst typeName
+                    [ "// "
+                        ++
+                            ( dataChoices
+                                |> NonEmpty.toList
+                                |> map M.tag
+                                |> String.mergeWords
+                            )
+                    ]
                 |> String.mergeLines
 
 

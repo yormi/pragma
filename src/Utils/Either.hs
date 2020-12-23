@@ -1,5 +1,6 @@
 module Utils.Either
-    ( fold
+    ( module X
+    , fold
     , mapLeft
     , mapRight
     , toMaybe
@@ -8,6 +9,7 @@ module Utils.Either
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Either (either)
+import Data.Either as X (lefts, rights)
 
 
 fold :: (a -> c) -> (b -> c) -> Either a b -> c

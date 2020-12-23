@@ -1,4 +1,4 @@
-module Printer.TypeAnnotation (print) where
+module Printer.AST.TypeAnnotation (print) where
 
 import AST.TypeAnnotation (TypeAnnotation(..))
 import qualified Printer.Utils as Utils
