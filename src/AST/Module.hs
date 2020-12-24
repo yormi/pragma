@@ -1,5 +1,6 @@
 module AST.Module
     ( DataChoice(..)
+    , FunctionName
     , Module(..)
     , TopLevel(..)
     ) where
@@ -26,10 +27,13 @@ data TopLevel
         }
     | SumType
         { codeQuote :: CodeQuote
-        , typeName :: String
+        , typeName :: FunctionName
         , dataChoices :: NonEmpty DataChoice
         }
         deriving (Eq, Show)
+
+
+type FunctionName = String
 
 
 data DataChoice =

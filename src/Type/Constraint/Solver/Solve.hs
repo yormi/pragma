@@ -154,9 +154,6 @@ solveSimple a b error = do
                 return ()
             else
                 Solver.fail error
-            -- <!> COMMENTED CURRENTLY INFINITE LOOPING <!>
-            -- Solver.updateSolution variableA (Solver.InstanceType b)
-            -- Solver.updateSolution variableB (Solver.InstanceType a)
 
         (T.Variable variableA, _) -> do
             Solver.updateSolution variableA (Solver.InstanceType b)

@@ -1,7 +1,7 @@
 type Color
     = Red
     | Blue
-    | green
+    | Green
     | RGB Int Int Int
 
 

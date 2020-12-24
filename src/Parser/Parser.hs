@@ -1,9 +1,11 @@
 module Parser.Parser
     ( Parser
-    , ParserError
+    , ParserError(..)
     , atLeastOne
     , between
     , charLiteral
+    , endOfFile
+    , fail
     , identifier
     , indented
     , many
@@ -29,18 +31,30 @@ import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 
 
-import AST.CodeQuote (Position(..))
-import Utils.Maybe as Maybe
+import AST.CodeQuote (CodeQuote, Position(..))
+import qualified Utils.Either as Either
+import qualified Utils.Maybe as Maybe
 
 
-type Parser a = Indent.IndentParser String () a
+type Parser a = Indent.IndentParserT String () (Either ParserError) a
 
-type ParserError = Parser.ParseError
+-- type ParserError = Parser.ParseError
+data ParserError
+    = RawError Parser.ParseError
+    | SumTypeConstructorMustStartWithUpper CodeQuote
+    deriving (Eq, Show)
 
 
-runParser :: Parser a -> FilePath -> String -> Either Parser.ParseError a
+fail :: ParserError -> Parser a
+fail =
+    lift << lift << Left
+
+
+runParser :: Parser a -> FilePath -> String -> Either ParserError a
 runParser parser filePath file = do
-    Indent.runIndentParser parser () filePath file
+    Indent.runIndentParserT parser () filePath file
+        |> map (Either.mapLeft RawError)
+        |> join
 
 
 languageDefinition :: Monad m => Token.GenLanguageDef String () m
@@ -146,6 +160,11 @@ between before after mainParser = do
 unconsumeOnFailure :: Parser a -> Parser a
 unconsumeOnFailure =
     Parser.try
+
+
+endOfFile :: Parser ()
+endOfFile =
+    Parser.eof
 
 
 -- Position

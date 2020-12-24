@@ -1,4 +1,4 @@
-module Printer.Type.SolverError (printSolvingError) where
+module Printer.Type.SolverError (print) where
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.CodeQuote as CodeQuote
@@ -11,8 +11,8 @@ import qualified Utils.List as List
 import qualified Utils.String as String
 
 
-printSolvingError :: String -> SolvingError -> String
-printSolvingError sourceCode e =
+print :: String -> SolvingError -> String
+print sourceCode e =
     case e of
         Solver.TODO str ->
             "TODO --- " ++ str

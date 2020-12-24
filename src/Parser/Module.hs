@@ -2,26 +2,32 @@ module Parser.Module
     ( moduleParser
     ) where
 
+import qualified Data.Char as Char
 import Control.Monad as Monad
 
 import qualified AST.CodeQuote as CodeQuote
 import qualified AST.Expression as E
 import AST.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
-import Parser.Parser (Parser)
+import Parser.Parser (Parser, ParserError(..))
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
+import qualified Utils.List as List
+import qualified Utils.Maybe as Maybe
 import qualified Utils.NonEmpty as NonEmpty
 
 
 moduleParser :: Parser Module
-moduleParser =
-    Parser.oneOf
-        [ sumType
-        , function
-        ]
-        |> Parser.many
-        |> map Module
+moduleParser = do
+    module_ <-
+        Parser.oneOf
+            [ sumType
+            , function
+            ]
+            |> Parser.many
+            |> map Module
+    Parser.endOfFile
+    return module_
 
 
 sumType :: Parser TopLevel
@@ -50,14 +56,27 @@ dataChoice = do
     Parser.withPositionReference <| do
         from <- Parser.position
         tag <- Parser.identifier
-        args <-
-            Parser.many <| do
-                Parser.sameLineOrIndented
-                typeAnnotationParser
-        to <- Parser.position
 
-        let codeQuote = CodeQuote.fromPositions from to
-        return <| DataChoice codeQuote tag args
+        let isStartingWithUpperCase =
+                List.head tag
+                    |> map Char.isUpper
+                    |> Maybe.withDefault False
+
+        if isStartingWithUpperCase then do
+            args <-
+                Parser.many <| do
+                    Parser.sameLineOrIndented
+                    typeAnnotationParser
+            to <- Parser.position
+
+            let codeQuote = CodeQuote.fromPositions from to
+            return <| DataChoice codeQuote tag args
+
+        else do
+            afterTag <- Parser.position
+            let codeQuote = CodeQuote.fromPositions from afterTag
+            Parser.fail <| SumTypeConstructorMustStartWithUpper codeQuote
+
 
 
 function :: Parser TopLevel

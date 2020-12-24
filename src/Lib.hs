@@ -1,7 +1,6 @@
 module Lib (run) where
 
 import qualified Data.List as List
-import qualified Data.String as String
 import qualified System.Directory as Directory
 import System.IO (readFile)
 import qualified Text.Layout.Table as Table
@@ -16,13 +15,11 @@ import qualified Printer.AST.Module as ModulePrinter
 import qualified Printer.CompilerError as CompilerErrorPrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter
 import qualified Printer.Type.Solution as TypeSolutionPrinter
-import qualified Printer.Type.SolverError as SolverErrorPrinter
 import Type.Constraint.Solver.Model (Solution)
 import qualified Type.Constraint.Solver.Solve as ConstraintSolver
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Gatherer.Gather as Constraint
 import qualified Utils.Either as Either
-import qualified Utils.List as List
 import qualified Utils.String as String
 
 
@@ -44,7 +41,7 @@ run = do
 
     compilationResult
         |> Either.fold
-            (map CompilerErrorPrinter.print
+            (map (CompilerErrorPrinter.print fileContent)
                 >> traverse putStrLn
                 >> void
             )
@@ -56,6 +53,7 @@ compile filePath fileContent = do
     parsedModule <- parse filePath fileContent
     typeCheck parsedModule
     generateCode parsedModule
+    return ""
 
 
 parse :: String -> String -> Compiler M.Module
@@ -125,10 +123,9 @@ constraintGathering parsedModule@(M.Module topLevels) =
 solveConstraints :: [[Constraint]] -> Compiler [Solution]
 solveConstraints constraintResults =
     constraintResults
-        |> List.indexedMap
-            (\index constraints ->
-                ConstraintSolver.solve (index * 100) constraints
-                    |> Either.mapLeft ConstraintSolvingError
+        |> map
+            ( ConstraintSolver.solve 100
+                >> Either.mapLeft ConstraintSolvingError
             )
         |> Compiler.fromEithers
 
