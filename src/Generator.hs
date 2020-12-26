@@ -6,6 +6,7 @@ import qualified AST.Expression as E
 import AST.Identifier (DataId)
 import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
+import qualified Generate.Utils as Utils
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
@@ -29,7 +30,7 @@ generateTopLevel topLevel =
             }
             ->
             [ "//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
-                ++  formatConst
+                ++  Utils.formatConst
                     (Identifier.formatDataId functionName)
                     (generateFunction params body)
 
@@ -57,13 +58,13 @@ generateConstructor (M.DataChoice { tag, args }) =
                 Nothing
 
             else
-                Just <| formatParamLine argNames
+                Just <| Utils.formatParamLine argNames
 
         object =
             [ "({"
-            , indent
+            , Utils.indent
                 "tag: "
-                    ++ formatString
+                    ++ Utils.formatString
                         (Identifier.formatConstructorId tag)
                     ++ ","
             ]
@@ -74,29 +75,13 @@ generateConstructor (M.DataChoice { tag, args }) =
             if List.isEmpty argNames then
                 []
             else
-                [ indent <|
-                    "contents: " ++ formatList argNames
+                [ Utils.indent <|
+                    "contents: " ++ Utils.formatList argNames
                 ]
     in
-    formatConst
+    Utils.formatConst
         (Identifier.formatConstructorId tag)
-        (Maybe.toList paramLine ++ indentLines object)
-
-
-formatList :: [String] -> String
-formatList elements =
-    if List.isEmpty elements then
-        "[]"
-
-    else
-        "[ "
-            ++ List.intercalate ", " elements
-            ++ " ]"
-
-
-formatString :: String -> String
-formatString str =
-    "\"" ++ str ++ "\""
+        (Maybe.toList paramLine ++ Utils.indentLines object)
 
 
 generateExpression :: E.QuotedExpression -> [String]
@@ -119,17 +104,17 @@ generateExpression quotedExpression =
                     )
                         ++
                             (generateExpression whenTrue
-                                |> formatReturn
-                                |> indentLines
+                                |> Utils.formatReturn
+                                |> Utils.indentLines
                             )
                         ++ [ "} else {" ]
                         ++
                             ( generateExpression whenFalse
-                                |> formatReturn
-                                |> indentLines
+                                |> Utils.formatReturn
+                                |> Utils.indentLines
                             )
                         ++ [ "}" ]
-                        |> indentLines
+                        |> Utils.indentLines
                     )
                 ++ [ "}) ()" ]
 
@@ -165,7 +150,7 @@ generateLet definitions body =
         generateLetDefinition def =
             case def of
                 E.SimpleDefinition identifier definitionBody ->
-                    formatConst
+                    Utils.formatConst
                         (Identifier.formatDataId identifier)
                         (generateExpression definitionBody)
     in
@@ -174,13 +159,13 @@ generateLet definitions body =
             (definitions
                 |> map generateLetDefinition
                 |> join
-                |> indentLines
+                |> Utils.indentLines
             )
         ++
             ([ "return (" ]
-                ++ indentLines (generateExpression body)
+                ++ Utils.indentLines (generateExpression body)
                 ++ [")"]
-                |> indentLines
+                |> Utils.indentLines
             )
         ++ [ "}) ()" ]
 
@@ -196,7 +181,7 @@ generateFunction params body =
                 map Identifier.formatDataId params
 
             paramLine =
-                formatParamLine formattedParams
+                Utils.formatParamLine formattedParams
         in
         case E.expression body of
             E.Value v ->
@@ -213,64 +198,11 @@ generateFunction params body =
                 [ paramLine ++ "{"]
                     ++
                         ([ "return (" ]
-                            ++ indentLines (generateExpression body)
+                            ++ Utils.indentLines (generateExpression body)
                             ++ [ ")" ]
-                            |> indentLines
+                            |> Utils.indentLines
                         )
                     ++ [ "}" ]
-
-
-formatParamLine :: [String] -> String
-formatParamLine params =
-    case params of
-        [] ->
-            ""
-
-        p : [] ->
-            p ++ " => "
-
-        _ ->
-            List.intercalate " => " params ++ " => "
-
-
-formatReturn :: [String] -> [String]
-formatReturn lines =
-    case lines of
-        line : [] ->
-            if List.contains ' ' line then
-                [ "return (" ++ line ++ ")" ]
-
-            else
-                [ "return " ++ line ]
-
-        _ ->
-            [ "return (" ]
-                ++ indentLines lines
-                ++ [ ")" ]
-
-
-formatConst :: String -> [String] -> [String]
-formatConst name lines =
-    if List.length lines == 1 then
-        [ "const " ++ name ++ " = " ++ join lines ]
-
-    else
-        [ "const " ++ name ++ " =" ]
-            ++ indentLines lines
-
-
-indent :: String -> String
-indent line =
-    let
-        indentation =
-            "  "
-    in
-    indentation ++ line
-
-
-indentLines :: [String] -> [String]
-indentLines =
-    map indent
 
 
 generateValue :: E.Value -> String
@@ -292,4 +224,4 @@ generateValue value =
             show n
 
         E.String str ->
-            formatString str
+            Utils.formatString str
