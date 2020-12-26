@@ -15,15 +15,19 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
-import qualified AST.Expression as E
-import qualified Type as T
+import AST.Identifier (DataId, ReferenceId)
+import qualified Type.Model as T
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
 
 
 data SolutionType
     = InstanceType T.Type
-    | NamedType [T.TypeVariable] T.Type
+    | NamedType
+        { identifier :: DataId
+        , unconstrainedTypeVariables :: [T.TypeVariable]
+        , type_ :: T.Type
+        }
     deriving (Eq, Show)
 
 
@@ -63,12 +67,12 @@ data SolvingError
         }
     | NotAFunction
         { codeQuote :: CodeQuote
-        , functionName :: E.Identifier
+        , functionName :: ReferenceId
         , functionType :: T.Type
         }
     | BadApplication
         { codeQuote :: CodeQuote
-        , functionName :: E.Identifier
+        , functionName :: ReferenceId
         , referenceType :: T.Type
         , functionType :: T.Type
         }
@@ -95,7 +99,7 @@ mostPrecised type_ =
             let morePrecise = Map.lookup v (solution state)
 
             case morePrecise of
-                Just (NamedType genericTypes t) ->
+                Just (NamedType _ genericTypes t) ->
                     instantiate genericTypes t
 
                 Just (InstanceType t) ->

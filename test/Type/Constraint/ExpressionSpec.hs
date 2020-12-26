@@ -6,7 +6,7 @@ import Control.Monad (fail)
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
-import qualified Type as T
+import qualified Type.Model as T
 import qualified Type.Constraint.Gatherer as Gatherer
 import qualified Type.Constraint.Expression as Expression
 

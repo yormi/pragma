@@ -1,14 +1,14 @@
 module AST.Module
     ( DataChoice(..)
-    , FunctionName
     , Module(..)
     , TopLevel(..)
     ) where
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.Expression (Identifier, QuotedExpression)
 import AST.CodeQuote (CodeQuote)
+import AST.Expression (QuotedExpression)
+import AST.Identifier (ConstructorId, DataId, TypeId)
 import AST.TypeAnnotation (TypeAnnotation)
 
 
@@ -21,25 +21,22 @@ data TopLevel
     = Function
         { codeQuote :: CodeQuote
         , typeAnnotation :: TypeAnnotation
-        , functionName :: Identifier
-        , params :: [Identifier]
+        , functionName :: DataId
+        , params :: [DataId]
         , body :: QuotedExpression
         }
     | SumType
         { codeQuote :: CodeQuote
-        , typeName :: FunctionName
+        , typeName :: TypeId
         , dataChoices :: NonEmpty DataChoice
         }
         deriving (Eq, Show)
 
 
-type FunctionName = String
-
-
 data DataChoice =
     DataChoice
         { codeQuote :: CodeQuote
-        , tag :: String
+        , tag :: ConstructorId
         , args :: [TypeAnnotation]
         }
         deriving (Eq, Show)

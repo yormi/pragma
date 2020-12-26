@@ -1,8 +1,10 @@
-module Type
+module Type.Model
     ( Type(..)
     , FunctionType(..)
     , TypeVariable
     ) where
+
+import AST.Identifier (TypeId)
 
 
 data Type
@@ -13,6 +15,8 @@ data Type
     | String
     | Function FunctionType
     | Variable TypeVariable
+    | Placeholder TypeVariable
+    | Custom TypeId
     deriving (Eq, Show)
 
 

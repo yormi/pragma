@@ -13,11 +13,12 @@ import AST.Expression
     , Definition(..)
     , QuotedExpression
     , Expression(..)
-    , Identifier
     , Pattern(..)
     , Value(..)
     )
 import qualified AST.Expression as Expression
+import AST.Identifier (DataId)
+import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
 import qualified Utils.String as String
 
@@ -29,7 +30,7 @@ print e =
             printValue v
 
         Reference r ->
-            r
+            Identifier.formatReferenceId r
 
         If condition whenTrue whenFalse ->
             "if " ++ print condition ++ " then" ++ "\n"
@@ -66,7 +67,7 @@ print e =
                 ++ " -> " ++ print body
 
         Application { Expression.functionName, args } ->
-            functionName ++ " " ++ printArgs args
+            Identifier.formatReferenceId functionName ++ " " ++ printArgs args
 
 
 printCase :: Case -> String
@@ -85,7 +86,7 @@ printPattern p =
             printValue v
 
         IdentifierPattern id ->
-            id
+            Identifier.formatDataId id
 
         TuplePattern a b ->
             "( " ++ printPattern a ++ ", " ++ printPattern b ++ " )"
@@ -95,7 +96,7 @@ printDefinition :: Definition -> String
 printDefinition def =
     case def of
         SimpleDefinition name expr ->
-            name ++ " =\n"
+            Identifier.formatDataId name ++ " =\n"
                 ++ (Utils.indent <| print expr)
 
 
@@ -103,12 +104,14 @@ printArgs :: NonEmpty QuotedExpression -> String
 printArgs =
     NonEmpty.toList
         >> map print
+        >> map Utils.parenthesizeIfHasSpace
         >> String.unwords
 
 
-printParams :: [Identifier] -> String
+printParams :: [DataId] -> String
 printParams =
-    String.mergeWords
+    map Identifier.formatDataId
+        >> String.mergeWords
 
 
 printValue :: Value -> String

@@ -10,15 +10,15 @@ b =
     2
 
 
-foo : (Int -> Int -> Bool) -> Int -> Int
+foo : (Int -> Int -> Bool) -> Int -> Color
 foo f b =
     let
         c = \x -> x
     in
     if identity True then
-        b
+        identity Red
     else
-        identity 3
+        identity (RGB 1 2 3)
 
 
 identity : something -> something

@@ -1,5 +1,6 @@
 module Printer.AST.TypeAnnotation (print) where
 
+import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation(..))
 import qualified Printer.Utils as Utils
 
@@ -35,5 +36,8 @@ print type_ =
             in
             formattedT1 ++ " -> " ++ print t2
 
+        Custom identifier ->
+            Identifier.formatTypeId identifier
+
         Variable identifier ->
-            identifier
+            Identifier.formatTypeVariableId identifier

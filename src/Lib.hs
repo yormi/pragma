@@ -52,7 +52,7 @@ compile :: String -> String -> Compiler GeneratedCode
 compile filePath fileContent = do
     parsedModule <- parse filePath fileContent
     typeCheck parsedModule
-    generateCode parsedModule
+    -- generateCode parsedModule
     return ""
 
 
@@ -86,18 +86,24 @@ typeCheck parsedModule@(M.Module topLevels) = do
         |> map
             (\(topLevel, constraints, solution) ->
                 (topLevel
-                , [ constraints
+                ,
+                    (constraints
                         |> map ConstraintPrinter.print
+                        |> List.intersperse ""
                         |> String.mergeLines
-                    , ""
-                    , "Solution :"
-                    , TypeSolutionPrinter.print solution
-                    , ""
-                    , ""
-                    , "---------------"
-                    , ""
-                    ]
-                    |> String.mergeLines
+                    )
+                        ++
+                            ([ ""
+                            , ""
+                            , "-----------------------------------------------"
+                            , ""
+                            , "Solution :"
+                            , TypeSolutionPrinter.print solution
+                            , ""
+                            , ""
+                            ]
+                                |> String.mergeLines
+                            )
                 )
             )
         |> traverse

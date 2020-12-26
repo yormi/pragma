@@ -3,8 +3,9 @@ module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
+import AST.Identifier (DataId, ReferenceId)
 import qualified AST.Expression as E
-import qualified Type as T
+import qualified Type.Model as T
 
 
 data Constraint
@@ -17,7 +18,7 @@ data Constraint
         }
     | Application
         { codeQuote :: CodeQuote
-        , functionName :: E.Identifier
+        , functionName :: ReferenceId
         , args :: NonEmpty E.QuotedExpression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
@@ -30,7 +31,8 @@ data Constraint
         , body :: T.Type
         }
     | Generalized
-        { actualType :: T.Type
+        { identifier :: DataId
+        , actualType :: T.Type
         , returnType :: T.TypeVariable
         }
     deriving (Eq, Show)

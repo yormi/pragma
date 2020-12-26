@@ -17,13 +17,21 @@ expressionParser =
         , ifThenElse
         , letIn
         , application
-        , Parser.identifier
-            |> map Reference
-            |> exprParser
+        , reference
         , map Value Value.valueParser
             |> exprParser
         , lambda
         ]
+
+
+-- REFERENCE
+
+
+reference :: Parser QuotedExpression
+reference =
+    Parser.referenceIdentifier
+        |> map Reference
+        |> exprParser
 
 
 -- APPLICATION
@@ -32,7 +40,7 @@ expressionParser =
 application :: Parser QuotedExpression
 application =
     (do
-        functionName <- Parser.identifier
+        functionName <- Parser.referenceIdentifier
         args <-
             Parser.atLeastOne <| do
                 Parser.sameLineOrIndented
@@ -49,8 +57,7 @@ argument =
     Parser.oneOf
         [ map Value Value.valueParser
             |> exprParser
-        , map Reference Parser.identifier
-            |> exprParser
+        , reference
         , parenthesisedExpression
         ]
 
@@ -70,7 +77,7 @@ lambda :: Parser QuotedExpression
 lambda =
     (do
         Parser.reservedOperator "\\"
-        params <- Parser.atLeastOne Parser.identifier
+        params <- Parser.atLeastOne Parser.dataIdentifier
         Parser.reservedOperator "->"
         expr <- expressionParser
         return <| Lambda params expr
@@ -119,7 +126,7 @@ letIn =
 
 definition :: Parser Definition
 definition = do
-    id <- Parser.identifier
+    id <- Parser.dataIdentifier
     Parser.reservedOperator "="
     expr <- Parser.withPositionReference expressionParser
     return <| SimpleDefinition id expr
@@ -162,7 +169,7 @@ patternParser :: Parser Pattern
 patternParser =
     Parser.oneOf
          [ map ValuePattern Value.valueParser
-         , map IdentifierPattern Parser.identifier
+         , map IdentifierPattern Parser.dataIdentifier
          , map (const WildCardPattern) <| Parser.reservedOperator "_"
          ]
 

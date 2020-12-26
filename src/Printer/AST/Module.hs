@@ -4,6 +4,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import AST.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified Printer.AST.Expression as ExpressionPrinter
+import qualified AST.Identifier as Identifier
 import qualified Printer.AST.TypeAnnotation as TypeAnnotation
 import qualified Printer.Utils as Utils
 import qualified Utils.List as List
@@ -32,18 +33,22 @@ printTopLevel element =
                 typeLine =
                     typeAnnotation
                         |> TypeAnnotation.print
-                        |> (\t -> functionName ++ " : " ++ t ++ "\n")
+                        |>
+                            (\t ->
+                                Identifier.formatDataId functionName
+                                    ++ " : " ++ t ++ "\n"
+                            )
 
 
             in
             typeLine
-                ++ functionName ++ " "
-                ++ String.mergeWords params
+                ++ Identifier.formatDataId functionName ++ " "
+                ++ (map Identifier.formatDataId params |> String.mergeWords)
                 ++ " =\n"
                 ++ (Utils.indent <| ExpressionPrinter.print body)
 
         SumType { typeName, dataChoices } ->
-            ["type " ++ typeName
+            ["type " ++ Identifier.formatTypeId typeName
             , Utils.indent <| "= " ++ printDataChoice (NonEmpty.head dataChoices)
             ]
             ++
@@ -58,9 +63,10 @@ printTopLevel element =
 printDataChoice :: DataChoice -> String
 printDataChoice (DataChoice _ tag args) =
     if List.isEmpty args then
-        tag
+        Identifier.formatConstructorId tag
     else
-        tag ++ " "
+        Identifier.formatConstructorId tag
+            ++ " "
             ++ (args
                     |> map TypeAnnotation.print
                     |> String.mergeWords

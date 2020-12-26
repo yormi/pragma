@@ -5,7 +5,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
-import qualified Type as T
+import qualified Type.Model as T
 import Type.Constraint.Gatherer.Model (Gatherer)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Model as Constraint
@@ -19,7 +19,7 @@ gather expression =
 
 
         E.Reference identifier ->
-            Gatherer.lookupDataReference identifier
+            Gatherer.lookupReference identifier
 
 
         E.If { E.condition, E.whenTrue, E.whenFalse } -> do
@@ -54,7 +54,7 @@ gather expression =
                             type_ <- gather expr
                             returnType <- Gatherer.freshVariable
 
-                            Constraint.Generalized type_ returnType
+                            Constraint.Generalized id type_ returnType
                                 |> Gatherer.addConstraint
 
                             return (id, T.Variable returnType)
@@ -63,7 +63,7 @@ gather expression =
                 definitions
                     |> traverse toReference
                     |> map NonEmpty.toList
-            Gatherer.withDataReferences references (gather body)
+            Gatherer.withData references (gather body)
 
 
         --E.CaseOf { E.element, E.cases } ->
@@ -75,7 +75,7 @@ gather expression =
                 traverse (const Gatherer.freshVariable) paramList
                     |> map (map T.Variable)
             let paramWithTypes = List.zip paramList variables
-            bodyType <- Gatherer.withDataReferences paramWithTypes (gather body)
+            bodyType <- Gatherer.withData paramWithTypes (gather body)
 
             variables
                 |> List.foldl
@@ -88,7 +88,7 @@ gather expression =
 
 
         E.Application { E.functionName, E.args } -> do
-            referenceType <- Gatherer.lookupDataReference functionName
+            referenceType <- Gatherer.lookupReference functionName
             argsType <- traverse gather args
             returnType <- Gatherer.freshVariable
 

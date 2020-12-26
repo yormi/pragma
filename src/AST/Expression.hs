@@ -4,7 +4,6 @@ module AST.Expression
     , Definition(..)
     , QuotedExpression(..)
     , Expression(..)
-    , Identifier
     , Pattern(..)
     , Value(..)
     ) where
@@ -13,9 +12,7 @@ module AST.Expression
 import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
-
-
-type Identifier = String
+import AST.Identifier (DataId, ReferenceId)
 
 
 data QuotedExpression =
@@ -28,7 +25,7 @@ data QuotedExpression =
 
 data Expression
     = Value Value
-    | Reference Identifier
+    | Reference ReferenceId
     | If
         { condition :: QuotedExpression
         , whenTrue :: QuotedExpression
@@ -43,18 +40,18 @@ data Expression
         , cases :: NonEmpty Case
         }
     | Lambda
-        { params :: NonEmpty Identifier
+        { params :: NonEmpty DataId
         , body :: QuotedExpression
         }
     | Application
-        { functionName :: Identifier
+        { functionName :: ReferenceId
         , args :: NonEmpty QuotedExpression
         }
     deriving (Eq, Show)
 
 
 data Definition
-    = SimpleDefinition Identifier QuotedExpression
+    = SimpleDefinition DataId QuotedExpression
     deriving (Eq, Show)
 
 
@@ -66,7 +63,7 @@ data Case
 data Pattern
     = WildCardPattern
     | ValuePattern Value
-    | IdentifierPattern Identifier
+    | IdentifierPattern DataId
     | TuplePattern Pattern Pattern
     deriving (Eq, Show)
 

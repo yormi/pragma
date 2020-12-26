@@ -7,7 +7,7 @@ module Type.Constraint.Solver.Solve
 import qualified Data.List.NonEmpty as NonEmpty
 
 import AST.CodeQuote (CodeQuote)
-import qualified Type as T
+import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
 import Type.Constraint.Solver.Model (Solver, SolvingError(..), Solution)
@@ -104,17 +104,18 @@ solveConstraint constraint =
                     precisedActualType
                 )
 
-        Generalized { actualType, returnType } ->
+        Generalized { identifier, actualType, returnType } ->
             let
-                generalize t = do
+                unconstrainedTypeVariable t = do
                     precised <- Solver.mostPrecised t
                     case precised of
                         T.Variable typeVariable -> do
                             return [typeVariable]
 
                         T.Function (T.FunctionType arg returningType) -> do
-                            argVariables <- generalize arg
-                            returnVariables <- generalize returningType
+                            argVariables <- unconstrainedTypeVariable arg
+                            returnVariables <-
+                                unconstrainedTypeVariable returningType
 
                             let typeVariables =
                                     argVariables ++ returnVariables
@@ -124,9 +125,9 @@ solveConstraint constraint =
                         _ ->
                             return []
             in do
-            genericVariables <- generalize actualType
+            genericVariables <- unconstrainedTypeVariable actualType
             Solver.updateSolution returnType
-                (Solver.NamedType genericVariables actualType)
+                (Solver.NamedType identifier genericVariables actualType)
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type

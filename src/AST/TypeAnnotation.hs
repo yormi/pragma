@@ -1,11 +1,12 @@
 module AST.TypeAnnotation
-    ( Identifier
-    , TypeAnnotation(..)
+    ( TypeAnnotation(..)
     , extractTypeVariables
     ) where
 
 import Control.Monad.Writer (Writer)
 import qualified Control.Monad.Writer as Writer
+
+import AST.Identifier (TypeId, TypeVariableId)
 import qualified Utils.List as List
 
 
@@ -19,17 +20,15 @@ data TypeAnnotation
         { arg :: TypeAnnotation
         , returnType :: TypeAnnotation
         }
-    | Variable String
+    | Custom TypeId
+    | Variable TypeVariableId
     deriving (Eq, Show)
 
 
-type Identifier = String
-
-
-extractTypeVariables :: TypeAnnotation -> [Identifier]
+extractTypeVariables :: TypeAnnotation -> [TypeVariableId]
 extractTypeVariables typeAnnotation =
     let
-        collectTypeVariable :: TypeAnnotation -> Writer [Identifier] ()
+        collectTypeVariable :: TypeAnnotation -> Writer [TypeVariableId] ()
         collectTypeVariable annotation =
             case annotation of
                 Variable identifier ->

@@ -4,6 +4,8 @@ module Parser.Parser
     , atLeastOne
     , between
     , charLiteral
+    , constructorIdentifier
+    , dataIdentifier
     , endOfFile
     , fail
     , identifier
@@ -13,17 +15,21 @@ module Parser.Parser
     , numberLiteral
     , position
     , oneOf
+    , referenceIdentifier
     , reserved
     , reservedOperator
     , runParser
     , sameLineOrIndented
     , stringLiteral
     , topLevel
+    , typeIdentifier
+    , typeVariableIdentifier
     , unconsumeOnFailure
     , withPositionReference
     ) where
 
 
+import qualified Control.Monad as Monad
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parser
@@ -32,16 +38,29 @@ import qualified Text.Parsec.Token as Token
 
 
 import AST.CodeQuote (CodeQuote, Position(..))
+import qualified AST.CodeQuote as CodeQuote
+import AST.Identifier
+    ( ConstructorId
+    , DataId
+    , ReferenceId
+    , TypeId
+    , TypeVariableId
+    )
+import qualified AST.Identifier as Identifier
 import qualified Utils.Either as Either
 import qualified Utils.Maybe as Maybe
 
 
 type Parser a = Indent.IndentParserT String () (Either ParserError) a
 
--- type ParserError = Parser.ParseError
 data ParserError
     = RawError Parser.ParseError
     | SumTypeConstructorMustStartWithUpper CodeQuote
+    | DataNameMustStartWithLowerCase CodeQuote
+    | TypeNameMustStartWithUpperCase CodeQuote
+    | TypeVariableMustStartWithLowerCase CodeQuote
+    | TypeSignatureNameMismatch CodeQuote DataId DataId
+    | FunctionMustHaveTypeSignature CodeQuote
     deriving (Eq, Show)
 
 
@@ -88,6 +107,69 @@ languageDefinition = Token.LanguageDef
 lexer :: Monad m => Token.GenTokenParser String () m
 lexer =
     Token.makeTokenParser languageDefinition
+
+
+constructorIdentifier :: Parser ConstructorId
+constructorIdentifier = do
+    from <- position
+    id <- identifier
+    to <- position
+    let codeQuote = CodeQuote.fromPositions from to
+    case Identifier.constructorId id of
+        Just constructorId ->
+            return constructorId
+
+        Nothing ->
+            fail <| SumTypeConstructorMustStartWithUpper codeQuote
+
+
+dataIdentifier :: Parser DataId
+dataIdentifier = do
+    from <- position
+    id <- identifier
+    to <- position
+    let codeQuote = CodeQuote.fromPositions from to
+    case Identifier.dataId id of
+        Just dataId ->
+            return dataId
+
+        Nothing ->
+            fail <| DataNameMustStartWithLowerCase codeQuote
+
+
+
+referenceIdentifier :: Parser ReferenceId
+referenceIdentifier = do
+    identifier
+        |> map Identifier.referenceId
+
+
+typeIdentifier :: Parser TypeId
+typeIdentifier = do
+    from <- position
+    id <- identifier
+    to <- position
+    let codeQuote = CodeQuote.fromPositions from to
+    case Identifier.typeId id of
+        Just typeId ->
+            return typeId
+
+        Nothing ->
+            Monad.fail <| show <| TypeNameMustStartWithUpperCase codeQuote
+
+
+typeVariableIdentifier :: Parser TypeVariableId
+typeVariableIdentifier = do
+    from <- position
+    id <- identifier
+    to <- position
+    let codeQuote = CodeQuote.fromPositions from to
+    case Identifier.typeVariableId id of
+        Just variableId ->
+            return variableId
+
+        Nothing ->
+            Monad.fail <| show <| TypeVariableMustStartWithLowerCase codeQuote
 
 
 identifier :: Parser String

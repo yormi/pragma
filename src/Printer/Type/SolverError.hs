@@ -2,9 +2,10 @@ module Printer.Type.SolverError (print) where
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.CodeQuote as CodeQuote
-import qualified Printer
+import qualified AST.Identifier as Identifier
+import qualified Printer.Type.Model as TypePrinter
 import qualified Printer.Console as Console
-import qualified Type as T
+import qualified Type.Model as T
 import Type.Constraint.Solver.Model (SolvingError)
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
@@ -34,11 +35,11 @@ print sourceCode e =
                 "The type of the condition between the 'if' and the 'then' must be a Bool."
                 [ "\tExpected:"
                 , ""
-                , "\t\t" ++ (Console.green <| Printer.printType T.Bool)
+                , "\t\t" ++ (Console.green <| TypePrinter.print T.Bool)
                 , ""
                 , "\tActual:"
                 , ""
-                , "\t\t" ++ (Console.red <| Printer.printType type_)
+                , "\t\t" ++ (Console.red <| TypePrinter.print type_)
                 ]
 
 
@@ -55,7 +56,7 @@ print sourceCode e =
                 , ""
                 , "\t\t" ++
                     (whenTrue
-                        |> Printer.printType
+                        |> TypePrinter.print
                         |> Console.red
                     )
                 , ""
@@ -63,7 +64,7 @@ print sourceCode e =
                 , ""
                 , "\t\t" ++
                     (whenFalse
-                        |> Printer.printType
+                        |> TypePrinter.print
                         |> Console.red
                     )
                 ]
@@ -78,8 +79,9 @@ print sourceCode e =
             formatError
                 sourceCode
                 codeQuote
-                (functionName ++ " must be a function if you want to pass arguments to it.")
-                [ "\tActual :\t" ++ Printer.printType functionType ]
+                (Identifier.formatReferenceId functionName
+                    ++ " must be a function if you want to pass arguments to it.")
+                [ "\tActual :\t" ++ TypePrinter.print functionType ]
 
 
         Solver.BadApplication
@@ -93,12 +95,12 @@ print sourceCode e =
                 sourceCode
                 codeQuote
                 ("Arguments type must match with the type of "
-                    ++ functionName ++
-                    " signature."
+                    ++ Identifier.formatReferenceId functionName
+                    ++ " signature."
                 )
                 [ "\tSignature Type:"
                 , ""
-                , "\t\t" ++ Console.green (Printer.printType referenceType)
+                , "\t\t" ++ Console.green (TypePrinter.print referenceType)
                 , ""
                 , "\tType according to the arguments:"
                 , ""
@@ -118,7 +120,7 @@ print sourceCode e =
                 "The function signature and the function definition types must be the same."
                 [ "\tSignature Type:"
                 , ""
-                , "\t\t" ++ Console.green (Printer.printType signatureType)
+                , "\t\t" ++ Console.green (TypePrinter.print signatureType)
                 , ""
                 , "\tDefinition Type:"
                 , ""
@@ -143,7 +145,7 @@ printComparedFunction reference toPrint =
                     colorPrint
                         expectedArg
                         actualArg
-                        (Printer.printTypeAsParam actualArg)
+                        (TypePrinter.printAsParam actualArg)
                         ++ " -> "
                         ++ f a b
 
@@ -151,7 +153,7 @@ printComparedFunction reference toPrint =
                     colorPrint
                         expectedType
                         actualType
-                        (Printer.printTypeAsParam actualType)
+                        (TypePrinter.printAsParam actualType)
     in
     f reference toPrint
 

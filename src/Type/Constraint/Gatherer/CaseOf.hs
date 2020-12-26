@@ -6,7 +6,7 @@ import Data.List.NonEmpty (NonEmpty)
 --import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
-import qualified Type as T
+import qualified Type.Model as T
 import Type.Constraint.Gatherer.Model (Gatherer)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 --import qualified Utils.List as List

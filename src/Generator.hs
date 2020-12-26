@@ -3,6 +3,8 @@ module Generator (generate) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Expression as E
+import AST.Identifier (DataId)
+import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Utils.List as List
@@ -26,17 +28,20 @@ generateTopLevel topLevel =
             }
             ->
             [ "//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
-                ++  generateConst functionName (generateFunction params body)
+                ++  generateConst
+                    (Identifier.formatDataId functionName)
+                    (generateFunction params body)
                 |> String.mergeLines
 
         M.SumType { typeName, dataChoices } ->
             [ "//  Not sur how to encode this yet" ]
-                ++  generateConst typeName
+                ++  generateConst (Identifier.formatTypeId typeName)
                     [ "// "
                         ++
                             ( dataChoices
                                 |> NonEmpty.toList
                                 |> map M.tag
+                                |> map Identifier.formatConstructorId
                                 |> String.mergeWords
                             )
                     ]
@@ -50,7 +55,7 @@ generateExpression quotedExpression =
             [generateValue value]
 
         E.Reference identifier ->
-            [identifier]
+            [Identifier.formatReferenceId identifier]
 
         E.If { condition , whenTrue , whenFalse } ->
             [ "(() => {" ]
@@ -87,7 +92,7 @@ generateExpression quotedExpression =
             generateFunction (NonEmpty.toList params) body
 
         E.Application { functionName , args } ->
-            [functionName
+            [Identifier.formatReferenceId functionName
                 ++
                     (args
                         |> NonEmpty.toList
@@ -109,8 +114,9 @@ generateLet definitions body =
         generateLetDefinition def =
             case def of
                 E.SimpleDefinition identifier definitionBody ->
-                    generateConst identifier
-                            (generateExpression definitionBody)
+                    generateConst
+                        (Identifier.formatDataId identifier)
+                        (generateExpression definitionBody)
     in
     [ "(() => {" ]
         ++
@@ -129,19 +135,22 @@ generateLet definitions body =
 
 
 
-generateFunction :: [E.Identifier] -> E.QuotedExpression -> [String]
+generateFunction :: [DataId] -> E.QuotedExpression -> [String]
 generateFunction params body =
     if List.isEmpty params then
         generateExpression body
     else
         let
+            formattedParams =
+                map Identifier.formatDataId params
+
             paramLine =
-                case params of
+                case formattedParams of
                     p : [] ->
                         p ++ " => "
 
                     _ ->
-                        List.intercalate " => " params ++ " => "
+                        List.intercalate " => " formattedParams ++ " => "
         in
         case E.expression body of
             E.Value v ->
@@ -151,7 +160,7 @@ generateFunction params body =
 
             E.Reference identifier ->
                 paramLine
-                    ++ identifier
+                    ++ (Identifier.formatReferenceId identifier)
                     |> List.singleton
 
             _ ->

@@ -27,12 +27,19 @@ EOF
           --test "main"
     ;;
 
+  loc )
+    cloc src
+    ;;
+
   *)
     cat << EOF
 Usage: $(pwd)
   god install
+
   god start
   god test
+
+  god loc
 EOF
     ;;
 esac

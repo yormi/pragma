@@ -1,4 +1,4 @@
-module Printer.Utils (indent, parenthesized) where
+module Printer.Utils (indent, parenthesized, parenthesizeIfHasSpace) where
 
 import qualified Utils.String as String
 
@@ -26,6 +26,15 @@ indent =
                             |> map concatIndent
                             |> String.mergeLines
            )
+
+
+parenthesizeIfHasSpace :: String -> String
+parenthesizeIfHasSpace str =
+    if String.isContainingChar ' ' str then
+        parenthesized str
+
+    else
+        str
 
 
 parenthesized :: String -> String

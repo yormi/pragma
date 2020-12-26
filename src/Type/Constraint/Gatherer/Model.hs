@@ -3,47 +3,36 @@ module Type.Constraint.Gatherer.Model
     , ConstraintError(..)
     , Gatherer
     , addConstraint
-    , gatherConstraints
     , eval
     , fail
     , freshVariable
-    , lookupDataReference
-    , lookupTypeVariable
+    , gatherConstraints
+    , lookupReference
+    , checkIfTypeDefined
     , run
-    , withDataReferences
-    , withTypeVariable
+    , withContext
+    , withConstructors
+    , withData
     ) where
-
-import qualified Data.List as List
 
 import Control.Monad.Trans.RWS.CPS (RWST)
 import qualified Control.Monad.Trans.RWS.CPS as RWST
+import qualified Data.List as List
 
-import qualified AST.Expression as E
-import qualified AST.TypeAnnotation as TypeAnnotation
-import qualified Type as T
+import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeId)
+import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
-import Type.Constraint.Gatherer.DataScope (DataScope)
-import qualified Type.Constraint.Gatherer.DataScope as DataScope
-import Type.Constraint.Gatherer.TypeScope (TypeScope)
-import qualified Type.Constraint.Gatherer.TypeScope as TypeScope
+import Type.Constraint.Gatherer.Context.Model (Context)
+import qualified Type.Constraint.Gatherer.Context.Model as Context
 
 
 type Gatherer a =
     RWST
-        Scopes
+        Context
         [Constraint]
         NextTypeVariable
         (Either ConstraintError)
         a
-
-
-data Scopes
-    = Scopes
-        { typeScope :: TypeScope
-        , dataScope :: DataScope
-        }
-
 
 
 type NextTypeVariable = TypeVariable
@@ -54,15 +43,17 @@ type TypeVariable = Int
 
 data ConstraintError
     = TODO String
-    | UnboundVariable E.Identifier
+    | VariableNotDefined ReferenceId
+    | TypeNameAlreadyExists
+    | TypeNotDefined TypeId
     | NotAFunction T.Type
     | TooManyParameters
         { functionType :: T.Type
-        , params :: [E.Identifier]
+        , params :: [DataId]
         }
     | TooManyArguments
         { functionType :: T.Type
-        , arguments :: [E.Identifier]
+        , arguments :: [DataId]
         }
     | ShouldNotHappen String
     deriving (Eq, Show)
@@ -81,16 +72,10 @@ eval =
 run :: Gatherer a -> Either ConstraintError (a, [Constraint])
 run gatherer =
     let
-        initialScopes =
-            Scopes TypeScope.initial DataScope.initial
-
         firstTypeVariable =
             0
     in
-    RWST.evalRWST
-        gatherer
-        initialScopes
-        firstTypeVariable
+    RWST.evalRWST gatherer Context.initialContext firstTypeVariable
 
 
 fail :: ConstraintError -> Gatherer a
@@ -98,56 +83,81 @@ fail =
     lift << Left
 
 
-lookupDataReference :: E.Identifier -> Gatherer T.Type
-lookupDataReference identifier = do
-    scopes <- RWST.ask
-    let dataEnv = dataScope scopes
-    case DataScope.lookup identifier dataEnv of
+withContext :: Context -> Gatherer a -> Gatherer a
+withContext context =
+    RWST.local (const context)
+
+
+lookupReference :: ReferenceId -> Gatherer T.Type
+lookupReference identifier = do
+    context <- RWST.ask
+    case Context.lookupReference identifier context of
         Just type_ ->
             return type_
 
         Nothing ->
-            fail <| UnboundVariable identifier
+            fail <| VariableNotDefined identifier
+
+
+checkIfTypeDefined :: TypeId -> Gatherer ()
+checkIfTypeDefined identifier = do
+    context <- RWST.ask
+    if Context.isTypeDefined identifier context then
+        return ()
+
+    else
+        fail <| TypeNotDefined identifier
 
 
 -- TODO Fail on shadowing
-withDataReferences :: [(E.Identifier, T.Type)] -> Gatherer a -> Gatherer a
-withDataReferences newReferences =
+withData :: [(DataId, T.Type)] -> Gatherer a -> Gatherer a
+withData newReferences =
     RWST.local <|
-        \scopes ->
+        \context ->
             List.foldl
-                (\resultingScope (name, typeVariable) ->
-                    DataScope.extend name typeVariable resultingScope
+                (\resultingContext (name, type_) ->
+                    Context.addData name type_ resultingContext
                 )
-                (dataScope scopes)
+                context
                 newReferences
-                |> \newDataScope -> scopes { dataScope = newDataScope }
+
+
+withConstructors :: [(ConstructorId, T.Type)] -> Gatherer a -> Gatherer a
+withConstructors newReferences =
+    RWST.local <|
+        \context ->
+            List.foldl
+                (\resultingContext (name, type_) ->
+                    Context.addConstructor name type_ resultingContext
+                )
+                context
+                newReferences
 
 
 --- TYPE SCOPE ---
 
 
-withTypeVariable
-    :: [(TypeAnnotation.Identifier, T.TypeVariable)] -> Gatherer a -> Gatherer a
-withTypeVariable typeVariables =
-    RWST.local <|
-        \scopes ->
-            List.foldl
-                (\resultingScope (name, typeVariable) ->
-                    TypeScope.extend name typeVariable resultingScope
-                )
-                (typeScope scopes)
-                typeVariables
-                |> \ts -> scopes { typeScope = ts }
+--withTypeVariable
+--    :: [(TypeAnnotation.Identifier, T.TypeVariable)] -> Gatherer a -> Gatherer a
+-- withTypeVariable typeVariables =
+--     RWST.local <|
+--         \scopes ->
+--             List.foldl
+--                 (\resultingScope (name, typeVariable) ->
+--                     TypeContext.extend name typeVariable resultingScope
+--                 )
+--                 (type_ scopes)
+--                 typeVariables
+--                 |> \ts -> scopes { type_ = ts }
 
 
-lookupTypeVariable
-    :: TypeAnnotation.Identifier -> Gatherer (Maybe T.TypeVariable)
-lookupTypeVariable identifier = do
-    scopes <- RWST.ask
-    typeScope scopes
-        |> TypeScope.lookup identifier
-        |> return
+-- lookupTypeVariable
+--     :: TypeAnnotation.Identifier -> Gatherer (Maybe T.TypeVariable)
+-- lookupTypeVariable identifier = do
+--     scopes <- RWST.ask
+--     type_ scopes
+--         |> TypeContext.lookup identifier
+--         |> return
 
 
 --- TYPE VARIABLE ---

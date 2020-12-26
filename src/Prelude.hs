@@ -1,6 +1,8 @@
 module Prelude
     ( module X
     , identity
+    , toFloat
+    , toInt
     ) where
 
 
@@ -42,6 +44,8 @@ import Relude.Functor as X
     , void
     )
 
+import Relude.Numeric (fromIntegral)
+
 import Control.Applicative as X
     ( Applicative
     , pure
@@ -82,3 +86,13 @@ import Prelude.String as X
 identity :: a -> a
 identity x =
     x
+
+
+toFloat :: Int -> Float
+toFloat  =
+    fromIntegral
+
+
+toInt :: Float -> Int
+toInt =
+    round
