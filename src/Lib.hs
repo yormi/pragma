@@ -52,8 +52,7 @@ compile :: String -> String -> Compiler GeneratedCode
 compile filePath fileContent = do
     parsedModule <- parse filePath fileContent
     typeCheck parsedModule
-    -- generateCode parsedModule
-    return ""
+    generateCode parsedModule
 
 
 parse :: String -> String -> Compiler M.Module

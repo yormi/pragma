@@ -1,9 +1,20 @@
 module Utils.Maybe
-    ( values
+    ( toList
+    , values
     , withDefault
     ) where
 
 import qualified Data.Maybe as Maybe
+
+
+toList :: Maybe a -> [a]
+toList maybe =
+    case maybe of
+        Just x ->
+            [x]
+
+        Nothing ->
+            []
 
 
 values :: [Maybe a] -> [a]

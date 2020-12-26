@@ -8,6 +8,7 @@ import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Utils.List as List
+import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
 
 
@@ -19,7 +20,7 @@ generate (M.Module topLevels) =
 
 generateTopLevel :: M.TopLevel -> String
 generateTopLevel topLevel =
-    case topLevel of
+    (case topLevel of
         M.Function
             { typeAnnotation
             , functionName
@@ -28,24 +29,74 @@ generateTopLevel topLevel =
             }
             ->
             [ "//  " ++ TypeAnnotationPrinter.print typeAnnotation ]
-                ++  generateConst
+                ++  formatConst
                     (Identifier.formatDataId functionName)
                     (generateFunction params body)
-                |> String.mergeLines
 
         M.SumType { typeName, dataChoices } ->
-            [ "//  Not sur how to encode this yet" ]
-                ++  generateConst (Identifier.formatTypeId typeName)
-                    [ "// "
-                        ++
-                            ( dataChoices
-                                |> NonEmpty.toList
-                                |> map M.tag
-                                |> map Identifier.formatConstructorId
-                                |> String.mergeWords
-                            )
-                    ]
+            [ "//  " ++ Identifier.formatTypeId typeName ]
+                ++
+                    ( dataChoices
+                        |> NonEmpty.toList
+                        |> bind generateConstructor
+                    )
+    )
                 |> String.mergeLines
+
+
+generateConstructor :: M.DataChoice -> [String]
+generateConstructor (M.DataChoice { tag, args }) =
+    let
+        argNames =
+            List.indexedMap
+                (\index _ -> "_" ++ show index)
+                args
+
+        paramLine =
+            if List.isEmpty args then
+                Nothing
+
+            else
+                Just <| formatParamLine argNames
+
+        object =
+            [ "({"
+            , indent
+                "tag: "
+                    ++ formatString
+                        (Identifier.formatConstructorId tag)
+                    ++ ","
+            ]
+                ++ contents
+                ++ [ "})" ]
+
+        contents =
+            if List.isEmpty argNames then
+                []
+            else
+                [ indent <|
+                    "contents: " ++ formatList argNames
+                ]
+    in
+    formatConst
+        (Identifier.formatConstructorId tag)
+        (Maybe.toList paramLine ++ indentLines object)
+
+
+formatList :: [String] -> String
+formatList elements =
+    if List.isEmpty elements then
+        "[]"
+
+    else
+        "[ "
+            ++ List.intercalate ", " elements
+            ++ " ]"
+
+
+formatString :: String -> String
+formatString str =
+    "\"" ++ str ++ "\""
 
 
 generateExpression :: E.QuotedExpression -> [String]
@@ -68,13 +119,13 @@ generateExpression quotedExpression =
                     )
                         ++
                             (generateExpression whenTrue
-                                |> generateReturn
+                                |> formatReturn
                                 |> indentLines
                             )
                         ++ [ "} else {" ]
                         ++
                             ( generateExpression whenFalse
-                                |> generateReturn
+                                |> formatReturn
                                 |> indentLines
                             )
                         ++ [ "}" ]
@@ -114,7 +165,7 @@ generateLet definitions body =
         generateLetDefinition def =
             case def of
                 E.SimpleDefinition identifier definitionBody ->
-                    generateConst
+                    formatConst
                         (Identifier.formatDataId identifier)
                         (generateExpression definitionBody)
     in
@@ -145,12 +196,7 @@ generateFunction params body =
                 map Identifier.formatDataId params
 
             paramLine =
-                case formattedParams of
-                    p : [] ->
-                        p ++ " => "
-
-                    _ ->
-                        List.intercalate " => " formattedParams ++ " => "
+                formatParamLine formattedParams
         in
         case E.expression body of
             E.Value v ->
@@ -174,8 +220,21 @@ generateFunction params body =
                     ++ [ "}" ]
 
 
-generateReturn :: [String] -> [String]
-generateReturn lines =
+formatParamLine :: [String] -> String
+formatParamLine params =
+    case params of
+        [] ->
+            ""
+
+        p : [] ->
+            p ++ " => "
+
+        _ ->
+            List.intercalate " => " params ++ " => "
+
+
+formatReturn :: [String] -> [String]
+formatReturn lines =
     case lines of
         line : [] ->
             if List.contains ' ' line then
@@ -190,8 +249,8 @@ generateReturn lines =
                 ++ [ ")" ]
 
 
-generateConst :: String -> [String] -> [String]
-generateConst name lines =
+formatConst :: String -> [String] -> [String]
+formatConst name lines =
     if List.length lines == 1 then
         [ "const " ++ name ++ " = " ++ join lines ]
 
@@ -233,4 +292,4 @@ generateValue value =
             show n
 
         E.String str ->
-            str
+            formatString str
