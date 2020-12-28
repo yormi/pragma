@@ -4,6 +4,7 @@ import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
 import Type.Model (Type)
 import qualified Type.Model as Type
+import qualified Utils.String as String
 
 
 print :: Type -> String
@@ -43,8 +44,14 @@ print type_ =
         Type.Placeholder n ->
             "p" <> show n
 
-        Type.Custom typeId ->
+        Type.Custom typeVariables typeId ->
             Identifier.formatTypeId typeId
+                ++ " "
+                ++
+                    (typeVariables
+                        |> map print
+                        |> String.mergeWords
+                    )
 
 
 printAsParam :: Type -> String

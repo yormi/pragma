@@ -22,7 +22,7 @@ gather topLevel =
             , M.body
             }
             -> do
-            type_ <- TypeAnnotation.gather typeAnnotation
+            let (typeVariables, type_) = TypeAnnotation.gather typeAnnotation
             paramsWithTypes_ <- paramsWithTypes type_ params
 
             bodyType <-
@@ -38,10 +38,10 @@ gather topLevel =
                 |> Gatherer.addConstraint
 
             returnType <- Gatherer.freshVariable
-            Constraint.Generalized functionName type_ returnType
+            Constraint.Definition functionName type_ returnType
                 |> Gatherer.addConstraint
 
-        M.SumType _ _ _ ->
+        M.SumType {} ->
             return ()
 
 

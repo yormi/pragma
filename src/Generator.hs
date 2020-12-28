@@ -121,7 +121,7 @@ generateExpression quotedExpression =
         E.LetIn { definitions , body } ->
             generateLet (NonEmpty.toList definitions) body
 
-        E.CaseOf { element , cases } ->
+        E.CaseOf {} ->
             ["TODO :\t" ++ show (E.expression quotedExpression)]
 
         E.Lambda { params , body } ->

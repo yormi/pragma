@@ -1,10 +1,19 @@
 module Type.Model
-    ( Type(..)
+    ( Kind(..)
+    , Type(..)
     , FunctionType(..)
-    , TypeVariable
+    , TypePlaceholder(..)
     ) where
 
-import AST.Identifier (TypeId)
+import AST.Identifier (TypeId, TypeVariableId)
+
+
+data Kind
+    = Kind
+        { typeVariables :: [TypeVariableId]
+        , typeId :: TypeId
+        }
+    deriving (Eq, Show)
 
 
 data Type
@@ -14,9 +23,9 @@ data Type
     | Char
     | String
     | Function FunctionType
-    | Variable TypeVariable
-    | Placeholder TypeVariable
-    | Custom TypeId
+    | Variable TypeVariableId
+    | Placeholder TypePlaceholder
+    | Custom [Type] TypeId
     deriving (Eq, Show)
 
 
@@ -24,4 +33,6 @@ data FunctionType = FunctionType Type Type
     deriving (Eq, Show)
 
 
-type TypeVariable = Int
+newtype TypePlaceholder
+    = TypePlaceholder Int
+    deriving (Eq, Ord, Show)

@@ -15,7 +15,7 @@ import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 
 
-solve :: T.TypeVariable -> [Constraint] -> Either SolvingError Solution
+solve :: T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
 solve nextAvailableTypeVariable constraints =
     traverse solveConstraint constraints
         |> Solver.processSolution nextAvailableTypeVariable
@@ -68,7 +68,7 @@ solveConstraint constraint =
                 functionType =
                     buildFunction
                         (NonEmpty.toList argTypes)
-                        (T.Variable returnType)
+                        (T.Placeholder returnType)
             in do
             referenceType <- Solver.mostPrecised functionReference
             case referenceType of
@@ -104,7 +104,7 @@ solveConstraint constraint =
                     precisedActualType
                 )
 
-        Generalized { identifier, actualType, returnType } ->
+        Definition { dataId, actualType, returnType } ->
             let
                 unconstrainedTypeVariable t = do
                     precised <- Solver.mostPrecised t
@@ -127,7 +127,7 @@ solveConstraint constraint =
             in do
             genericVariables <- unconstrainedTypeVariable actualType
             Solver.updateSolution returnType
-                (Solver.NamedType identifier genericVariables actualType)
+                (Solver.NamedType dataId genericVariables actualType)
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type
@@ -150,17 +150,17 @@ solveSimple a b error = do
             solveFunction f g error
 
         -- TODO - Make sure this is correct
-        (T.Variable variableA, T.Variable variableB) -> do
-            if variableA == variableB then
+        (T.Placeholder pA, T.Placeholder pB) -> do
+            if pA == pB then
                 return ()
             else
                 Solver.fail error
 
-        (T.Variable variableA, _) -> do
-            Solver.updateSolution variableA (Solver.InstanceType b)
+        (T.Placeholder pA, _) -> do
+            Solver.updateSolution pA (Solver.InstanceType b)
 
-        (_, T.Variable variableB) -> do
-            Solver.updateSolution variableB (Solver.InstanceType a)
+        (_, T.Placeholder pB) -> do
+            Solver.updateSolution pB (Solver.InstanceType a)
 
         _ ->
             if precisedA == precisedB then

@@ -8,8 +8,9 @@ import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
 import AST.Expression (QuotedExpression)
-import AST.Identifier (ConstructorId, DataId, TypeId)
+import AST.Identifier (ConstructorId, DataId, TypeId, TypeVariableId)
 import AST.TypeAnnotation (TypeAnnotation)
+import Utils.OrderedSet (OrderedSet)
 
 
 data Module =
@@ -28,6 +29,7 @@ data TopLevel
     | SumType
         { codeQuote :: CodeQuote
         , typeName :: TypeId
+        , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
         , dataChoices :: NonEmpty DataChoice
         }
         deriving (Eq, Show)

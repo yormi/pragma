@@ -51,7 +51,7 @@ print constraint =
                 4
                 (tab ++ "Returns:")
                 (printSimpleConstraintTypes
-                    (T.Variable returnType)
+                    (T.Placeholder returnType)
                     (Constraint.type_ whenTrue)
                 )
             ]
@@ -64,7 +64,7 @@ print constraint =
                         (\type_ a ->
                             T.Function (T.FunctionType a type_)
                         )
-                        (T.Variable returnType)
+                        (T.Placeholder returnType)
                         (NonEmpty.reverse argTypes)
             in
             [ "Application"
@@ -97,17 +97,17 @@ print constraint =
             ]
             |> String.mergeLines
 
-        Generalized { identifier, actualType, returnType } ->
+        Definition { dataId, actualType, returnType } ->
             [ "Generic"
             , indentAlign
                 4
                 (tab ++ "Name:")
-                (Identifier.formatDataId identifier)
+                (Identifier.formatDataId dataId)
             , indentAlign
                 4
                 (tab ++ "Type:")
                 (printSimpleConstraintTypes
-                    (T.Variable returnType)
+                    (T.Placeholder returnType)
                     actualType
                 )
             ]

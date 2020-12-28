@@ -47,8 +47,15 @@ printTopLevel element =
                 ++ " =\n"
                 ++ (Utils.indent <| ExpressionPrinter.print body)
 
-        SumType { typeName, dataChoices } ->
-            ["type " ++ Identifier.formatTypeId typeName
+        SumType { typeName, typeVariables, dataChoices } ->
+            ["type "
+                ++ Identifier.formatTypeId typeName
+                ++ " "
+                ++
+                    (typeVariables
+                        |> map Identifier.formatTypeVariableId
+                        |> String.mergeWords
+                    )
             , Utils.indent <| "= " ++ printDataChoice (NonEmpty.head dataChoices)
             ]
             ++

@@ -3,9 +3,10 @@ module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
-import AST.Identifier (DataId, ReferenceId)
+import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeVariableId)
 import qualified AST.Expression as E
 import qualified Type.Model as T
+import Utils.OrderedSet (OrderedSet)
 
 
 data Constraint
@@ -14,7 +15,7 @@ data Constraint
         , condition :: QuotedType
         , whenTrue :: QuotedType
         , whenFalse :: QuotedType
-        , returnType :: T.TypeVariable
+        , returnType :: T.TypePlaceholder
         }
     | Application
         { codeQuote :: CodeQuote
@@ -22,7 +23,7 @@ data Constraint
         , args :: NonEmpty E.QuotedExpression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
-        , returnType :: T.TypeVariable
+        , returnType :: T.TypePlaceholder
         }
     | Function
         { codeQuote :: CodeQuote
@@ -30,10 +31,27 @@ data Constraint
         , params :: [T.Type]
         , body :: T.Type
         }
-    | Generalized
-        { identifier :: DataId
+    | Definition
+        { dataId :: DataId
         , actualType :: T.Type
-        , returnType :: T.TypeVariable
+        , returnType :: T.TypePlaceholder
+        }
+    | TopLevelFunction
+        { codeQuote :: CodeQuote
+        , dataId :: DataId
+        , typeVariables :: OrderedSet TypeVariableId
+        , actualType :: T.Type
+        , returnType :: T.TypePlaceholder
+
+        , signatureType :: T.Type
+        , params :: [T.Type]
+        , body :: T.Type
+        }
+    | Constructor
+        { constructorId :: ConstructorId
+        , typeVariables :: OrderedSet TypeVariableId
+        , actualType :: T.Type
+        , returnType :: T.TypePlaceholder
         }
     deriving (Eq, Show)
 

@@ -32,6 +32,8 @@ sumType = do
     Parser.reserved "type"
     typeName <- Parser.typeIdentifier
 
+    typeVariables <- Parser.many Parser.typeVariableIdentifier
+
     Parser.reservedOperator "="
     firstChoice <- dataChoice
 
@@ -44,7 +46,7 @@ sumType = do
     let codeQuote = CodeQuote.fromPositions from to
     let dataChoices =
             NonEmpty.build firstChoice otherChoices
-    return <| SumType codeQuote typeName dataChoices
+    return <| SumType codeQuote typeName typeVariables dataChoices
 
 
 dataChoice :: Parser DataChoice
@@ -129,8 +131,19 @@ simpleTypeParser =
             t <- typeAnnotationParser
             Parser.reservedOperator ")"
             return t
-        , Parser.unconsumeOnFailure <| map (T.Custom) <| Parser.typeIdentifier
-        , map (T.Variable) <| Parser.typeVariableIdentifier
+
+        , Parser.unconsumeOnFailure <|
+            Parser.withPositionReference <| do
+                id <- Parser.typeIdentifier
+                args <-
+                    Parser.many <| do
+                        Parser.sameLine
+                        simpleTypeParser
+                T.Custom id args
+                    |> return
+
+        , Parser.unconsumeOnFailure <| map (T.Variable) <|
+            Parser.typeVariableIdentifier
         ]
 
 

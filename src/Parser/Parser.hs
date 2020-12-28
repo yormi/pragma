@@ -19,6 +19,7 @@ module Parser.Parser
     , reserved
     , reservedOperator
     , runParser
+    , sameLine
     , sameLineOrIndented
     , stringLiteral
     , topLevel
@@ -279,6 +280,11 @@ withPositionReference =
 indented :: Parser ()
 indented =
     Indent.indented
+
+
+sameLine :: Parser ()
+sameLine =
+    Indent.same
 
 
 sameLineOrIndented :: Parser ()

@@ -2,91 +2,89 @@ module Type.Constraint.Gatherer.TypeAnnotation
     (gather
     ) where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.TypeAnnotation as Annotation
 import AST.Identifier (TypeVariableId)
 import qualified Type.Model as T
-import Type.Constraint.Gatherer.Model (Gatherer)
-import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Utils.List as List
 
 
 type TypeContext =
-    Map TypeVariableId T.TypeVariable
+    Set TypeVariableId
 
 
 initialContext :: TypeContext
 initialContext =
-    Map.empty
+    Set.empty
 
 
-gather :: TypeAnnotation -> Gatherer T.Type
-gather typeAnnotation = do
-    scope <- typeVariableContext typeAnnotation
-    typeAnnotationToType scope typeAnnotation
+gather :: TypeAnnotation -> (TypeContext, T.Type)
+gather typeAnnotation =
+    let
+        context =
+            typeVariableContext typeAnnotation
+
+        type_ =
+            typeAnnotationToType context typeAnnotation
+    in
+    (context, type_)
 
 
-typeVariableContext :: TypeAnnotation -> Gatherer TypeContext
+typeVariableContext :: TypeAnnotation -> TypeContext
 typeVariableContext typeAnnotation =
     let
         variableIdentifiers =
             Annotation.extractTypeVariables typeAnnotation
-    in do
-    freshTypes <- traverse (const Gatherer.freshVariable) variableIdentifiers
-    let variablesWithType = List.zip variableIdentifiers freshTypes
-
+    in
     List.foldl
-        (\resultingScope (name, typeVariable) ->
-            Map.insert name typeVariable resultingScope
+        (\resultingContext typeVariableId ->
+            Set.insert typeVariableId resultingContext
         )
         initialContext
-        variablesWithType
-        |> return
+        variableIdentifiers
 
 
-typeAnnotationToType :: TypeContext -> TypeAnnotation -> Gatherer T.Type
-typeAnnotationToType scope annotation =
+typeAnnotationToType :: TypeContext -> TypeAnnotation -> T.Type
+typeAnnotationToType context annotation =
     case annotation of
         Annotation.Bool ->
-            return T.Bool
+            T.Bool
 
         Annotation.Int ->
-            return T.Int
+            T.Int
 
         Annotation.Float ->
-            return T.Float
+            T.Float
 
         Annotation.Char ->
-            return T.Char
+            T.Char
 
         Annotation.String ->
-            return T.String
+            T.String
 
-        Annotation.Function { arg , returnType } -> do
-            argType <- typeAnnotationToType scope arg
-            returning <- typeAnnotationToType scope returnType
+        Annotation.Function { arg , returnType } ->
+            let
+                argType =
+                    typeAnnotationToType context arg
 
+                returning =
+                    typeAnnotationToType context returnType
+
+            in
             T.FunctionType argType returning
                 |> T.Function
-                |> return
 
 
-        Annotation.Custom identifier ->
-            return <| T.Custom identifier
+        Annotation.Custom { typeName, args } ->
+            let
+                argTypes =
+                    map (typeAnnotationToType context) args
+            in
+            T.Custom argTypes typeName
 
 
         Annotation.Variable identifier ->
-            let
-                variable =
-                    Map.lookup identifier scope
-            in
-            case variable of
-                Just v ->
-                    return <| T.Variable v
-
-                Nothing ->
-                    Gatherer.ShouldNotHappen "The type variable should be in the type scope. It is not"
-                        |> Gatherer.fail
+            T.Variable identifier

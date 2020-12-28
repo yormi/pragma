@@ -15,7 +15,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
-import AST.Identifier (DataId, ReferenceId)
+import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeVariableId)
 import qualified Type.Model as T
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
@@ -25,7 +25,12 @@ data SolutionType
     = InstanceType T.Type
     | NamedType
         { identifier :: DataId
-        , unconstrainedTypeVariables :: [T.TypeVariable]
+        , unconstrainedTypeVariables :: [TypeVariableId]
+        , type_ :: T.Type
+        }
+    | ConstructorType
+        { constructorId :: ConstructorId
+        , unconstrainedTypeVariables :: [TypeVariableId]
         , type_ :: T.Type
         }
     deriving (Eq, Show)
@@ -38,15 +43,15 @@ type Solver a =
 data State =
     State
         { solution :: Solution
-        , nextTypeVariable :: T.TypeVariable
+        , nextTypeVariable :: T.TypePlaceholder
         }
 
 
 type Solution
-    = Map T.TypeVariable SolutionType
+    = Map T.TypePlaceholder SolutionType
 
 
-initialState :: T.TypeVariable -> State
+initialState :: T.TypePlaceholder -> State
 initialState nextAvailableTypeVariable =
     State
         { solution = Map.empty
@@ -94,9 +99,9 @@ fail e =
 mostPrecised :: T.Type -> Solver T.Type
 mostPrecised type_ =
     case type_ of
-        T.Variable v -> do
+        T.Placeholder p -> do
             state <- State.get
-            let morePrecise = Map.lookup v (solution state)
+            let morePrecise = Map.lookup p (solution state)
 
             case morePrecise of
                 Just (NamedType _ genericTypes t) ->
@@ -121,10 +126,10 @@ mostPrecised type_ =
             return type_
 
 
-instantiate :: [T.TypeVariable] -> T.Type -> Solver T.Type
-instantiate genericTypes generalizedType =
+instantiate :: [TypeVariableId] -> T.Type -> Solver T.Type
+instantiate typeVariables generalizedType =
     let
-        replaceType replacements type_ =
+        replaceVariables replacements type_ =
             case type_ of
                 T.Variable variable ->
                     Map.lookup variable replacements
@@ -133,10 +138,10 @@ instantiate genericTypes generalizedType =
                 T.Function (T.FunctionType arg returning) ->
                     let
                         replacedArg =
-                            replaceType replacements arg
+                            replaceVariables replacements arg
 
                         replaceReturning =
-                            replaceType replacements returning
+                            replaceVariables replacements returning
                     in
                     T.FunctionType replacedArg replaceReturning
                         |> T.Function
@@ -145,34 +150,37 @@ instantiate genericTypes generalizedType =
                     type_
 
     in do
-    instances <- traverse (const freshVariable) genericTypes
+    instances <- traverse (const freshVariable) typeVariables
     let replacements =
             instances
-                |> List.zip genericTypes
+                |> List.zip typeVariables
                 |> Map.fromList
-    replaceType replacements generalizedType
+    replaceVariables replacements generalizedType
         |> return
 
 
 freshVariable :: Solver T.Type
 freshVariable = do
     state <- State.get
-    let next = nextTypeVariable state
-    State.put <| state { nextTypeVariable = next + 1 }
-    return <| T.Variable next
+    let (T.TypePlaceholder next) = nextTypeVariable state
+    State.put <| state { nextTypeVariable = T.TypePlaceholder <| next + 1 }
+    next
+        |> T.TypePlaceholder
+        |> T.Placeholder
+        |> return
 
 
-updateSolution :: T.TypeVariable -> SolutionType -> Solver ()
-updateSolution typeVariable concludedType = do
+updateSolution :: T.TypePlaceholder -> SolutionType -> Solver ()
+updateSolution placeholder concludedType = do
     state <- State.get
     let typeSolution = solution state
 
-    case Map.lookup typeVariable typeSolution of
+    case Map.lookup placeholder typeSolution of
         Nothing ->
-            addToSolution typeVariable concludedType
+            addToSolution placeholder concludedType
 
-        Just (InstanceType (T.Variable newTypeVariable)) ->
-            updateSolution newTypeVariable concludedType
+        Just (InstanceType (T.Placeholder newPlaceholder)) ->
+            updateSolution newPlaceholder concludedType
 
         Just a ->
             if a == concludedType then
@@ -181,18 +189,18 @@ updateSolution typeVariable concludedType = do
                 fail <| TypeVariableCannotSatisfyBothConstraint a concludedType
 
 
-addToSolution :: T.TypeVariable -> SolutionType -> Solver ()
-addToSolution v t =
+addToSolution :: T.TypePlaceholder -> SolutionType -> Solver ()
+addToSolution placeholder t =
     State.modify
         (\state ->
             solution state
-                |> Map.insert v t
+                |> Map.insert placeholder t
                 |> (\newSolution -> state { solution = newSolution })
         )
 
 
 
-processSolution :: T.TypeVariable -> Solver a -> Either SolvingError Solution
+processSolution :: T.TypePlaceholder -> Solver a -> Either SolvingError Solution
 processSolution nextAvailableTypeVariable =
     flip State.execStateT (initialState nextAvailableTypeVariable)
         >> map solution

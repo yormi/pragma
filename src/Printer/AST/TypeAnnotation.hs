@@ -3,6 +3,7 @@ module Printer.AST.TypeAnnotation (print) where
 import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation(..))
 import qualified Printer.Utils as Utils
+import qualified Utils.String as String
 
 
 print :: TypeAnnotation -> String
@@ -36,8 +37,14 @@ print type_ =
             in
             formattedT1 ++ " -> " ++ print t2
 
-        Custom identifier ->
-            Identifier.formatTypeId identifier
+        Custom { typeName, args } ->
+            Identifier.formatTypeId typeName
+                ++ " "
+                ++
+                    (args
+                        |> map print
+                        |> String.mergeWords
+                    )
 
         Variable identifier ->
             Identifier.formatTypeVariableId identifier

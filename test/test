@@ -1,28 +1,10 @@
-b : Int
-b =
-    2
-
-
-foo : (Int -> Int -> Bool) -> Int -> Color
-foo f b =
-    let
-        c = \x -> x
-    in
-    if identity True then
-        identity Red
-    else
-        identity (RGB 1 2 3)
-
-
-identity : something -> something
-identity x =
-    x
-
-
-type Color
-    = Red
+type Color a
+    = Red a
     | Blue
     | Green
     | RGB Int Int Int
 
 
+foo : a -> Color a
+foo x =
+    Red x

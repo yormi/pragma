@@ -8,7 +8,6 @@ module Type.Constraint.Gatherer.Model
     , freshVariable
     , gatherConstraints
     , lookupReference
-    , checkIfTypeDefined
     , run
     , withContext
     , withConstructors
@@ -35,10 +34,7 @@ type Gatherer a =
         a
 
 
-type NextTypeVariable = TypeVariable
-
-
-type TypeVariable = Int
+type NextTypeVariable = T.TypePlaceholder
 
 
 data ConstraintError
@@ -59,23 +55,24 @@ data ConstraintError
     deriving (Eq, Show)
 
 
-gatherConstraints :: Gatherer a -> Either ConstraintError [Constraint]
-gatherConstraints =
-    run >> map snd
+gatherConstraints
+    :: Context -> Gatherer a -> Either ConstraintError [Constraint]
+gatherConstraints context =
+    run context >> map snd
 
 
-eval :: Gatherer a -> Either ConstraintError a
-eval =
-    run >> map fst
+eval :: Context -> Gatherer a -> Either ConstraintError a
+eval context =
+    run context >> map fst
 
 
-run :: Gatherer a -> Either ConstraintError (a, [Constraint])
-run gatherer =
+run :: Context -> Gatherer a -> Either ConstraintError (a, [Constraint])
+run context gatherer =
     let
         firstTypeVariable =
-            0
+            T.TypePlaceholder 0
     in
-    RWST.evalRWST gatherer Context.initialContext firstTypeVariable
+    RWST.evalRWST gatherer context firstTypeVariable
 
 
 fail :: ConstraintError -> Gatherer a
@@ -97,16 +94,6 @@ lookupReference identifier = do
 
         Nothing ->
             fail <| VariableNotDefined identifier
-
-
-checkIfTypeDefined :: TypeId -> Gatherer ()
-checkIfTypeDefined identifier = do
-    context <- RWST.ask
-    if Context.isTypeDefined identifier context then
-        return ()
-
-    else
-        fail <| TypeNotDefined identifier
 
 
 -- TODO Fail on shadowing
@@ -163,11 +150,12 @@ withConstructors newReferences =
 --- TYPE VARIABLE ---
 
 
-freshVariable :: Gatherer T.TypeVariable
+freshVariable :: Gatherer T.TypePlaceholder
 freshVariable = do
-    nextTypeVariable <- RWST.get
-    RWST.put <| nextTypeVariable + 1
-    return nextTypeVariable
+    (T.TypePlaceholder nextTypeVariable) <- RWST.get
+    let next = T.TypePlaceholder <| nextTypeVariable + 1
+    RWST.put next
+    return next
 
 
 --- CONSTRAINT ---

@@ -10,7 +10,6 @@ import qualified Printer.CompilerError as CompilerErrorPrinter
 import qualified Utils.Either as Either
 
 
-
 run :: IO ()
 run = do
     dir <- Directory.getCurrentDirectory
@@ -35,6 +34,8 @@ run = do
 
 compile :: String -> String -> Compiler CompilationStep.GeneratedCode
 compile filePath fileContent = do
+    -- CompilationStep.parse filePath fileContent
     parsedModule <- CompilationStep.parse filePath fileContent
     CompilationStep.typeCheck parsedModule
-    CompilationStep.generateCode parsedModule
+    -- CompilationStep.generateCode parsedModule
+    return ""

@@ -20,7 +20,10 @@ data TypeAnnotation
         { arg :: TypeAnnotation
         , returnType :: TypeAnnotation
         }
-    | Custom TypeId
+    | Custom
+        { typeName :: TypeId
+        , args :: [TypeAnnotation]
+        }
     | Variable TypeVariableId
     deriving (Eq, Show)
 
@@ -37,6 +40,10 @@ extractTypeVariables typeAnnotation =
                 Function { arg , returnType } -> do
                     collectTypeVariable arg
                     collectTypeVariable returnType
+
+                Custom { args } ->
+                    traverse collectTypeVariable args
+                        |> void
 
                 _ ->
                     return ()
