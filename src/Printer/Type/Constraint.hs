@@ -5,30 +5,16 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified AST.Identifier as Identifier
 import qualified Printer.Type.Model as TypePrinter
+import Printer.Utils (tab, indentAlign)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
 import qualified Type.Constraint.Model as Constraint
 import Utils.String as String
 
 
-tabLength :: Int
-tabLength =
+alignTabNumber :: Int
+alignTabNumber =
     6
-
-
-tab :: String
-tab =
-    List.replicate tabLength ' '
-
-
-indentAlign :: Int -> String -> String -> String
-indentAlign numberOfIndents beginning end =
-    let
-        column =
-            numberOfIndents * tabLength
-    in
-    String.padRight column beginning
-        ++ end
 
 
 print :: Constraint -> String
@@ -37,18 +23,18 @@ print constraint =
         IfThenElse { condition, whenTrue, whenFalse, returnType } ->
             [ "If Then Else"
             , indentAlign
-                4
+                alignTabNumber
                 (tab ++ "Condition:")
                 (printSimpleConstraintTypes
                     (Constraint.type_ condition)
                     T.Bool
                 )
             , indentAlign
-                4
+                alignTabNumber
                 (tab ++ "Alternatives:")
                 (printSimpleConstraint whenTrue whenFalse)
             , indentAlign
-                4
+                alignTabNumber
                 (tab ++ "Returns:")
                 (printSimpleConstraintTypes
                     (T.Placeholder returnType)
@@ -68,10 +54,10 @@ print constraint =
                         (NonEmpty.reverse argTypes)
             in
             [ "Application"
-            , indentAlign 4
+            , indentAlign alignTabNumber
                 (tab ++ "Reference:")
                 (TypePrinter.print functionReference)
-            , indentAlign 4
+            , indentAlign alignTabNumber
                 (tab ++ "Actual:")
                 (TypePrinter.print application)
             ]
@@ -88,10 +74,10 @@ print constraint =
                         (List.reverse params)
             in
             [ "Function Definition"
-            , indentAlign 4
+            , indentAlign alignTabNumber
                 (tab ++ "Signature:")
                 (TypePrinter.print signatureType)
-            , indentAlign 4
+            , indentAlign alignTabNumber
                 (tab ++ "Actual:")
                 (TypePrinter.print calculated)
             ]
@@ -100,11 +86,11 @@ print constraint =
         Definition { dataId, actualType, returnType } ->
             [ "Generic"
             , indentAlign
-                4
+                alignTabNumber
                 (tab ++ "Name:")
                 (Identifier.formatDataId dataId)
             , indentAlign
-                4
+                alignTabNumber
                 (tab ++ "Type:")
                 (printSimpleConstraintTypes
                     (T.Placeholder returnType)

@@ -9,6 +9,23 @@ import qualified CompilationStep
 import qualified Printer.CompilerError as CompilerErrorPrinter
 import qualified Utils.Either as Either
 
+printPreferences :: CompilationStep.PrintPreferences
+printPreferences =
+    CompilationStep.PrintPreferences
+        { parseResult = True
+        , contextResult = True
+        , gatherResult = False
+        , solveResult = False
+        , generateResult = False
+        }
+
+
+compile :: String -> String -> Compiler CompilationStep.GeneratedCode
+compile filePath fileContent = do
+    parsedModule <- CompilationStep.parse printPreferences filePath fileContent
+    CompilationStep.typeCheck printPreferences parsedModule
+    CompilationStep.generateCode printPreferences parsedModule
+
 
 run :: IO ()
 run = do
@@ -30,12 +47,3 @@ run = do
                 >> void
             )
             (const <| return ())
-
-
-compile :: String -> String -> Compiler CompilationStep.GeneratedCode
-compile filePath fileContent = do
-    -- CompilationStep.parse filePath fileContent
-    parsedModule <- CompilationStep.parse filePath fileContent
-    CompilationStep.typeCheck parsedModule
-    -- CompilationStep.generateCode parsedModule
-    return ""

@@ -1,5 +1,6 @@
 module Type.Constraint.Gatherer.TypeAnnotation
-    (gather
+    ( gather
+    , toType
     ) where
 
 import Data.Set (Set)
@@ -28,7 +29,7 @@ gather typeAnnotation =
             typeVariableContext typeAnnotation
 
         type_ =
-            typeAnnotationToType context typeAnnotation
+            toType typeAnnotation
     in
     (context, type_)
 
@@ -47,8 +48,8 @@ typeVariableContext typeAnnotation =
         variableIdentifiers
 
 
-typeAnnotationToType :: TypeContext -> TypeAnnotation -> T.Type
-typeAnnotationToType context annotation =
+toType :: TypeAnnotation -> T.Type
+toType annotation =
     case annotation of
         Annotation.Bool ->
             T.Bool
@@ -68,10 +69,10 @@ typeAnnotationToType context annotation =
         Annotation.Function { arg , returnType } ->
             let
                 argType =
-                    typeAnnotationToType context arg
+                    toType arg
 
                 returning =
-                    typeAnnotationToType context returnType
+                    toType returnType
 
             in
             T.FunctionType argType returning
@@ -81,7 +82,7 @@ typeAnnotationToType context annotation =
         Annotation.Custom { typeName, args } ->
             let
                 argTypes =
-                    map (typeAnnotationToType context) args
+                    map toType args
             in
             T.Custom argTypes typeName
 

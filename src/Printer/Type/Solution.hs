@@ -22,7 +22,10 @@ print solution =
         solutions =
             solution
                 |> Map.toList
-                |> map (Tuple.mapFirst (\n -> "a" ++ show n))
+                |> map
+                    (Tuple.mapFirst
+                        (\(Type.TypePlaceholder n) -> "p" ++ show n)
+                    )
                 |> map
                     (\(variable, type_) ->
                         variable

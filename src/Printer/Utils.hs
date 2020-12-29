@@ -1,6 +1,34 @@
-module Printer.Utils (indent, parenthesized, parenthesizeIfHasSpace) where
+module Printer.Utils
+    ( indent
+    , parenthesized
+    , parenthesizeIfHasSpace
+    , tab
+    , tabLength
+    , indentAlign
+    ) where
 
+import qualified Utils.List as List
 import qualified Utils.String as String
+
+
+tabLength :: Int
+tabLength =
+    4
+
+
+tab :: String
+tab =
+    List.replicate tabLength ' '
+
+
+indentAlign :: Int -> String -> String -> String
+indentAlign numberOfIndents beginning end =
+    let
+        column =
+            numberOfIndents * tabLength
+    in
+    String.padRight column beginning
+        ++ end
 
 
 indent :: String -> String

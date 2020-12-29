@@ -1,11 +1,13 @@
 module CompilationStep
     ( GeneratedCode
+    , PrintPreferences(..)
     , generateCode
     , parse
     , print
     , typeCheck
     ) where
 
+import qualified Control.Monad as Monad
 import qualified Data.List as List
 import qualified Text.Layout.Table as Table
 
@@ -17,8 +19,10 @@ import qualified Parser.Parser as Parser
 import qualified Parser.Module as Module
 import qualified Printer.AST.Module as ModulePrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter
+import qualified Printer.Type.Context as ContextPrinter
 import qualified Printer.Type.Solution as TypeSolutionPrinter
-import qualified Type.Constraint.Gatherer.Context.Model as Context
+import qualified Type.Constraint.Context.Model as Context
+import Type.Constraint.Context.Model (Context)
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Gatherer.Module as Module
@@ -32,8 +36,18 @@ import qualified Utils.String as String
 type GeneratedCode = String
 
 
-parse :: String -> String -> Compiler M.Module
-parse filePath fileContent =
+data PrintPreferences
+    = PrintPreferences
+        { parseResult :: Bool
+        , contextResult :: Bool
+        , gatherResult :: Bool
+        , solveResult :: Bool
+        , generateResult :: Bool
+        }
+
+
+parse :: PrintPreferences -> String -> String -> Compiler M.Module
+parse printPreferences filePath fileContent =
     let
         parser =
             Module.moduleParser
@@ -45,46 +59,44 @@ parse filePath fileContent =
             |> Either.mapLeft ParsingError
             |> Compiler.fromEither
 
-    tablePrint "Parsed"
+    tablePrint
+       (parseResult printPreferences)
+       "Parsed"
         (ModulePrinter.print parsedModule)
         fileContent
 
     return parsedModule
 
 
-typeCheck :: M.Module -> Compiler ()
-typeCheck parsedModule@(M.Module topLevels) = do
+typeCheck :: PrintPreferences -> M.Module -> Compiler ()
+typeCheck printPreferences parsedModule@(M.Module topLevels) = do
+    printSectionHeader "ANALYZE CONTEXT"
+    context <-
+        Context.context topLevels
+            |> Either.mapLeft ContextError
+            |> Compiler.fromEither
+
+    tablePrint
+        (contextResult printPreferences)
+        "Context"
+        (ContextPrinter.print context)
+        (ModulePrinter.print parsedModule)
+
     printSectionHeader "TYPE CHECK"
-    constraintResults <- constraintGathering parsedModule
+    constraintResults <- constraintGathering context parsedModule
     solverResult <- solveConstraints constraintResults
 
     List.zip3 topLevels constraintResults solverResult
         |> map
             (\(topLevel, constraints, solution) ->
                 (topLevel
-                ,
-                    (constraints
-                        |> map ConstraintPrinter.print
-                        |> List.intersperse ""
-                        |> String.mergeLines
-                    )
-                        ++
-                            ([ ""
-                            , ""
-                            , "-----------------------------------------------"
-                            , ""
-                            , "Solution :"
-                            , TypeSolutionPrinter.print solution
-                            , ""
-                            , ""
-                            ]
-                                |> String.mergeLines
-                            )
+                , formatTypeCheckResult constraints solution
                 )
             )
         |> traverse
             (\(topLevel, solution) ->
                 tablePrint
+                    (gatherResult printPreferences)
                     "Constraints"
                     solution
                     (ModulePrinter.printTopLevel topLevel)
@@ -92,16 +104,32 @@ typeCheck parsedModule@(M.Module topLevels) = do
         |> void
 
 
-constraintGathering :: M.Module -> Compiler [[Constraint]]
-constraintGathering (M.Module topLevels) = do
-    context <-
-        Context.context topLevels
-            |> Either.mapLeft ContextError
-            |> Compiler.fromEither
+formatTypeCheckResult :: [Constraint] -> ConstraintSolver.Solution -> String
+formatTypeCheckResult constraints solution =
+    (constraints
+        |> map ConstraintPrinter.print
+        |> List.intersperse ""
+        |> String.mergeLines
+    )
+        ++
+            ([ ""
+            , ""
+            , "-----------------------------------------------"
+            , ""
+            , "Solution :"
+            , TypeSolutionPrinter.print solution
+            , ""
+            , ""
+            ]
+                |> String.mergeLines
+            )
+
+
+constraintGathering :: Context -> M.Module -> Compiler [[Constraint]]
+constraintGathering context (M.Module topLevels) = do
     map
         (Module.gather
             >> Gatherer.gatherConstraints context
-
             >> Either.mapLeft ConstraintGatheringError
         )
         topLevels
@@ -118,13 +146,15 @@ solveConstraints constraintResults =
         |> Compiler.fromEithers
 
 
-generateCode :: M.Module -> Compiler GeneratedCode
-generateCode parsedModule = do
+generateCode :: PrintPreferences -> M.Module -> Compiler GeneratedCode
+generateCode printPreferences parsedModule = do
     printSectionHeader "GENERATING CODE"
 
     let generatedCode = Generator.generate parsedModule
 
-    tablePrint "Generated NodeJS"
+    tablePrint
+        (generateResult printPreferences)
+        "Generated NodeJS"
         generatedCode
         (ModulePrinter.print parsedModule)
 
@@ -134,8 +164,8 @@ generateCode parsedModule = do
 --- PRINT ---
 
 
-tablePrint :: String -> String -> String -> Compiler ()
-tablePrint columnName leftColumn rightColumn =
+tablePrint :: Bool -> String -> String -> String -> Compiler ()
+tablePrint shouldPrint columnName leftColumn rightColumn =
     Table.tableString
         [ Table.fixedCol 80 Table.left
         , Table.column
@@ -152,6 +182,7 @@ tablePrint columnName leftColumn rightColumn =
             ]
         ]
         |> print
+        |> Monad.when shouldPrint
 
 
 printSectionHeader :: String -> Compiler ()

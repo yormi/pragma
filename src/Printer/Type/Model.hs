@@ -1,8 +1,8 @@
-module Printer.Type.Model (print, printAsParam) where
+module Printer.Type.Model (print, printAsParam, printKind) where
 
 import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
-import Type.Model (Type)
+import Type.Model (Kind(..), Type)
 import qualified Type.Model as Type
 import qualified Utils.String as String
 
@@ -38,11 +38,11 @@ print type_ =
             in
             formattedT1 ++ " -> " ++ print t2
 
-        Type.Variable n ->
-            "v" <> show n
+        Type.Variable v ->
+            Identifier.formatTypeVariableId v
 
-        Type.Placeholder n ->
-            "p" <> show n
+        Type.Placeholder (Type.TypePlaceholder p) ->
+            "p" <> show p
 
         Type.Custom typeVariables typeId ->
             Identifier.formatTypeId typeId
@@ -62,3 +62,14 @@ printAsParam type_ =
 
         _ ->
             print type_
+
+
+printKind :: Kind -> String
+printKind (Kind { typeVariables,  typeId }) =
+    Identifier.formatTypeId typeId
+        ++ " "
+        ++
+            (typeVariables
+                |> map Identifier.formatTypeVariableId
+                |> String.mergeWords
+            )

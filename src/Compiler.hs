@@ -11,7 +11,7 @@ import Control.Monad.Except (ExceptT)
 import qualified Control.Monad.Except as Except
 
 import qualified Parser.Parser as Parser
-import qualified Type.Constraint.Gatherer.Context.Model as Context
+import qualified Type.Constraint.Context.Model as Context
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Solver.Solve as ConstraintSolver
 import qualified Utils.Either as Either

@@ -8,3 +8,8 @@ type Color a
 foo : a -> Color a
 foo x =
     Red x
+
+
+bar : Color Int
+bar =
+    foo 3

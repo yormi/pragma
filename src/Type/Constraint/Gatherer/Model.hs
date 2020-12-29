@@ -10,19 +10,19 @@ module Type.Constraint.Gatherer.Model
     , lookupReference
     , run
     , withContext
-    , withConstructors
     , withData
     ) where
 
+import qualified Control.Monad as Monad
 import Control.Monad.Trans.RWS.CPS (RWST)
 import qualified Control.Monad.Trans.RWS.CPS as RWST
-import qualified Data.List as List
 
-import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeId)
+import AST.Identifier (DataId, ReferenceId, TypeId)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
-import Type.Constraint.Gatherer.Context.Model (Context)
-import qualified Type.Constraint.Gatherer.Context.Model as Context
+import Type.Constraint.Context.Model (Context)
+import qualified Type.Constraint.Context.Model as Context
+import qualified Utils.Either as Either
 
 
 type Gatherer a =
@@ -39,6 +39,7 @@ type NextTypeVariable = T.TypePlaceholder
 
 data ConstraintError
     = TODO String
+    | DataNameAlreadyExistsInScope
     | VariableNotDefined ReferenceId
     | TypeNameAlreadyExists
     | TypeNotDefined TypeId
@@ -96,29 +97,23 @@ lookupReference identifier = do
             fail <| VariableNotDefined identifier
 
 
--- TODO Fail on shadowing
 withData :: [(DataId, T.Type)] -> Gatherer a -> Gatherer a
-withData newReferences =
-    RWST.local <|
-        \context ->
-            List.foldl
+withData newReferences gatherer = do
+    context <- RWST.ask
+    let newContext =
+            Monad.foldM
                 (\resultingContext (name, type_) ->
                     Context.addData name type_ resultingContext
+                        |> Either.mapLeft (const DataNameAlreadyExistsInScope)
                 )
                 context
                 newReferences
+    case newContext of
+        Right c ->
+            RWST.local (const c) gatherer
 
-
-withConstructors :: [(ConstructorId, T.Type)] -> Gatherer a -> Gatherer a
-withConstructors newReferences =
-    RWST.local <|
-        \context ->
-            List.foldl
-                (\resultingContext (name, type_) ->
-                    Context.addConstructor name type_ resultingContext
-                )
-                context
-                newReferences
+        Left e ->
+            fail e
 
 
 --- TYPE SCOPE ---
