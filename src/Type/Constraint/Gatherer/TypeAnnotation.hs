@@ -84,7 +84,7 @@ toType annotation =
                 argTypes =
                     map toType args
             in
-            T.Custom argTypes typeName
+            T.Custom typeName argTypes
 
 
         Annotation.Variable identifier ->

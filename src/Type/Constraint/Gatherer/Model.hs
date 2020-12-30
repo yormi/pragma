@@ -5,7 +5,7 @@ module Type.Constraint.Gatherer.Model
     , addConstraint
     , eval
     , fail
-    , freshVariable
+    , nextPlaceholder
     , gatherConstraints
     , lookupReference
     , run
@@ -16,22 +16,38 @@ module Type.Constraint.Gatherer.Model
 import qualified Control.Monad as Monad
 import Control.Monad.Trans.RWS.CPS (RWST)
 import qualified Control.Monad.Trans.RWS.CPS as RWST
+import Data.Map (Map)
+import qualified Data.Map as Map
 
-import AST.Identifier (DataId, ReferenceId, TypeId)
+import AST.Identifier (DataId, ReferenceId)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
 import Type.Constraint.Context.Model (Context)
+import qualified Type.Constraint.Context.Data as DataContext
+import qualified Type.Constraint.Context.Constructor as ConstructorContext
 import qualified Type.Constraint.Context.Model as Context
-import qualified Utils.Either as Either
+import qualified Type.Constraint.Model as Constraint
+import Type.Constraint.Reference (Reference)
+import qualified Type.Constraint.Reference as Reference
+import qualified Utils.List as List
 
 
 type Gatherer a =
     RWST
-        Context
+        ReferencesInScope
         [Constraint]
         NextTypeVariable
         (Either ConstraintError)
         a
+
+
+type ReferencesInScope =
+    Map Reference T.Type
+
+
+baseReferences :: ReferencesInScope
+baseReferences =
+    Map.empty
 
 
 type NextTypeVariable = T.TypePlaceholder
@@ -39,18 +55,11 @@ type NextTypeVariable = T.TypePlaceholder
 
 data ConstraintError
     = TODO String
-    | DataNameAlreadyExistsInScope
-    | VariableNotDefined ReferenceId
-    | TypeNameAlreadyExists
-    | TypeNotDefined TypeId
-    | NotAFunction T.Type
+    | DataNameAlreadyDefined
+    | VariableNotDefined Reference
     | TooManyParameters
         { functionType :: T.Type
         , params :: [DataId]
-        }
-    | TooManyArguments
-        { functionType :: T.Type
-        , arguments :: [DataId]
         }
     | ShouldNotHappen String
     deriving (Eq, Show)
@@ -67,34 +76,104 @@ eval context =
     run context >> map fst
 
 
-run :: Context -> Gatherer a -> Either ConstraintError (a, [Constraint])
-run context gatherer =
-    let
-        firstTypeVariable =
-            T.TypePlaceholder 0
-    in
-    RWST.evalRWST gatherer context firstTypeVariable
-
-
 fail :: ConstraintError -> Gatherer a
 fail =
     lift << Left
 
 
+run :: Context -> Gatherer a -> Either ConstraintError (a, [Constraint])
+run context gatherer =
+    let
+        firstTypeVariable =
+            T.TypePlaceholder 0
+
+
+        references =
+            Map.empty
+    in do
+    RWST.evalRWST
+        (withContext context gatherer)
+        references
+        firstTypeVariable
+
+
 withContext :: Context -> Gatherer a -> Gatherer a
-withContext context =
-    RWST.local (const context)
+withContext context gatherer =
+    let
+        dataReferenceIds =
+            context
+                |> Context.data_
+                |> DataContext.asMap
+                |> Map.keys
+                |> map Reference.fromDataId
+
+        constructorReferenceIds =
+            context
+                |> Context.constructor
+                |> ConstructorContext.asMap
+                |> Map.keys
+                |> map Reference.fromConstructorId
+    in do
+    data_ <-
+        context
+            |> Context.data_
+            |> DataContext.asMap
+            |> Map.toList
+            |> traverse
+                (\(dataId, type_) ->
+                    let
+                        reference =
+                            Reference.fromDataId dataId
+                    in do
+                    p <- nextPlaceholder
+                    Constraint.Reference reference type_ p
+                        |> addConstraint
+
+                    return (reference, p)
+                )
+
+    constructors <-
+        context
+            |> Context.constructor
+            |> ConstructorContext.asMap
+            |> Map.toList
+            |> traverse
+                (\(constructorId, type_) ->
+                    let
+                        reference =
+                            Reference.fromConstructorId constructorId
+                    in do
+                    p <- nextPlaceholder
+                    Constraint.Reference reference type_ p
+                        |> addConstraint
+
+                    return (reference, p)
+                )
+
+
+    let referenceContext =
+            data_ ++ constructors
+                |> List.foldl
+                    (\result (reference, placeholder) ->
+                        Map.insert reference (T.Placeholder placeholder) result
+                    )
+                    baseReferences
+    RWST.local (Map.union referenceContext) gatherer
 
 
 lookupReference :: ReferenceId -> Gatherer T.Type
-lookupReference identifier = do
+lookupReference referenceId =
+    let
+        reference =
+            Reference.fromReferenceId referenceId
+    in do
     context <- RWST.ask
-    case Context.lookupReference identifier context of
+    case Map.lookup reference context of
         Just type_ ->
             return type_
 
         Nothing ->
-            fail <| VariableNotDefined identifier
+            fail <| VariableNotDefined reference
 
 
 withData :: [(DataId, T.Type)] -> Gatherer a -> Gatherer a
@@ -103,8 +182,16 @@ withData newReferences gatherer = do
     let newContext =
             Monad.foldM
                 (\resultingContext (name, type_) ->
-                    Context.addData name type_ resultingContext
-                        |> Either.mapLeft (const DataNameAlreadyExistsInScope)
+                    let
+                        reference =
+                            Reference.fromDataId name
+                    in
+                    if Map.member reference resultingContext then
+                        Left DataNameAlreadyDefined
+
+                    else
+                        Map.insert reference type_ resultingContext
+                            |> Right
                 )
                 context
                 newReferences
@@ -116,37 +203,11 @@ withData newReferences gatherer = do
             fail e
 
 
---- TYPE SCOPE ---
-
-
---withTypeVariable
---    :: [(TypeAnnotation.Identifier, T.TypeVariable)] -> Gatherer a -> Gatherer a
--- withTypeVariable typeVariables =
---     RWST.local <|
---         \scopes ->
---             List.foldl
---                 (\resultingScope (name, typeVariable) ->
---                     TypeContext.extend name typeVariable resultingScope
---                 )
---                 (type_ scopes)
---                 typeVariables
---                 |> \ts -> scopes { type_ = ts }
-
-
--- lookupTypeVariable
---     :: TypeAnnotation.Identifier -> Gatherer (Maybe T.TypeVariable)
--- lookupTypeVariable identifier = do
---     scopes <- RWST.ask
---     type_ scopes
---         |> TypeContext.lookup identifier
---         |> return
-
-
 --- TYPE VARIABLE ---
 
 
-freshVariable :: Gatherer T.TypePlaceholder
-freshVariable = do
+nextPlaceholder :: Gatherer T.TypePlaceholder
+nextPlaceholder = do
     (T.TypePlaceholder nextTypeVariable) <- RWST.get
     let next = T.TypePlaceholder <| nextTypeVariable + 1
     RWST.put next

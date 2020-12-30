@@ -27,7 +27,7 @@ gather expression =
             whenTrueType <- gather whenTrue
             whenFalseType <- gather whenFalse
 
-            ifType <- Gatherer.freshVariable
+            ifType <- Gatherer.nextPlaceholder
 
             let quote = (E.codeQuote :: E.QuotedExpression -> CodeQuote)
 
@@ -39,7 +39,7 @@ gather expression =
                     Constraint.QuotedType (quote whenTrue) whenTrueType
                 , Constraint.whenFalse =
                     Constraint.QuotedType (quote whenFalse) whenFalseType
-                , Constraint.returnType = ifType
+                , Constraint.placeholder = ifType
                 }
                 |> Gatherer.addConstraint
 
@@ -52,12 +52,12 @@ gather expression =
                     case definition of
                         E.SimpleDefinition id expr -> do
                             type_ <- gather expr
-                            returnType <- Gatherer.freshVariable
+                            placeholder <- Gatherer.nextPlaceholder
 
-                            Constraint.Definition id type_ returnType
+                            Constraint.Definition id type_ placeholder
                                 |> Gatherer.addConstraint
 
-                            return (id, T.Placeholder returnType)
+                            return (id, T.Placeholder placeholder)
             in do
             references <-
                 definitions
@@ -72,7 +72,7 @@ gather expression =
         E.Lambda { E.params, E.body } -> do
             let paramList = NonEmpty.toList params
             variables <-
-                traverse (const Gatherer.freshVariable) paramList
+                traverse (const Gatherer.nextPlaceholder) paramList
                     |> map (map T.Placeholder)
             let paramWithTypes = List.zip paramList variables
             bodyType <- Gatherer.withData paramWithTypes (gather body)
@@ -90,7 +90,7 @@ gather expression =
         E.Application { E.functionName, E.args } -> do
             referenceType <- Gatherer.lookupReference functionName
             argsType <- traverse gather args
-            returnType <- Gatherer.freshVariable
+            placeholder <- Gatherer.nextPlaceholder
 
             Constraint.Application
                 { Constraint.codeQuote = E.codeQuote expression
@@ -98,11 +98,11 @@ gather expression =
                 , Constraint.args = args
                 , Constraint.functionReference = referenceType
                 , Constraint.argTypes = argsType
-                , Constraint.returnType = returnType
+                , Constraint.placeholder = placeholder
                 }
                 |> Gatherer.addConstraint
 
-            return <| T.Placeholder returnType
+            return <| T.Placeholder placeholder
 
         _ ->
             Gatherer.fail <| Gatherer.TODO "Gather Expression"

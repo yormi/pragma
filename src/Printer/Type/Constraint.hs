@@ -9,6 +9,7 @@ import Printer.Utils (tab, indentAlign)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
 import qualified Type.Constraint.Model as Constraint
+import qualified Type.Constraint.Reference as Reference
 import Utils.String as String
 
 
@@ -20,13 +21,13 @@ alignTabNumber =
 print :: Constraint -> String
 print constraint =
     case constraint of
-        IfThenElse { condition, whenTrue, whenFalse, returnType } ->
+        IfThenElse { condition, whenTrue, whenFalse, placeholder } ->
             [ "If Then Else"
             , indentAlign
                 alignTabNumber
                 (tab ++ "Condition:")
                 (printSimpleConstraintTypes
-                    (Constraint.type_ condition)
+                    (Constraint.quotedType condition)
                     T.Bool
                 )
             , indentAlign
@@ -37,20 +38,20 @@ print constraint =
                 alignTabNumber
                 (tab ++ "Returns:")
                 (printSimpleConstraintTypes
-                    (T.Placeholder returnType)
-                    (Constraint.type_ whenTrue)
+                    (T.Placeholder placeholder)
+                    (Constraint.quotedType whenTrue)
                 )
             ]
             |> String.mergeLines
 
-        Application { functionReference, argTypes, returnType } ->
+        Application { functionReference, argTypes, placeholder } ->
             let
                 application =
                     List.foldl
                         (\type_ a ->
                             T.Function (T.FunctionType a type_)
                         )
-                        (T.Placeholder returnType)
+                        (T.Placeholder placeholder)
                         (NonEmpty.reverse argTypes)
             in
             [ "Application"
@@ -83,7 +84,7 @@ print constraint =
             ]
             |> String.mergeLines
 
-        Definition { dataId, actualType, returnType } ->
+        Definition { dataId, type_, placeholder } ->
             [ "Generic"
             , indentAlign
                 alignTabNumber
@@ -93,8 +94,24 @@ print constraint =
                 alignTabNumber
                 (tab ++ "Type:")
                 (printSimpleConstraintTypes
-                    (T.Placeholder returnType)
-                    actualType
+                    (T.Placeholder placeholder)
+                    type_
+                )
+            ]
+            |> String.mergeLines
+
+        Reference { reference, type_, placeholder } ->
+            [ "Reference"
+            , indentAlign
+                alignTabNumber
+                (tab ++ "Name:")
+                (Reference.asString reference)
+            , indentAlign
+                alignTabNumber
+                (tab ++ "Type:")
+                (printSimpleConstraintTypes
+                    (T.Placeholder placeholder)
+                    type_
                 )
             ]
             |> String.mergeLines
@@ -103,8 +120,8 @@ print constraint =
 printSimpleConstraint :: Constraint.QuotedType -> Constraint.QuotedType -> String
 printSimpleConstraint a b =
     printSimpleConstraintTypes
-        (Constraint.type_ a)
-        (Constraint.type_ b)
+        (Constraint.quotedType a)
+        (Constraint.quotedType b)
 
 
 printSimpleConstraintTypes :: T.Type -> T.Type -> String

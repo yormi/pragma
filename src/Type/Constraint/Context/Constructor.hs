@@ -46,13 +46,14 @@ lookup id (Context c)=
 context :: Type.Context -> [M.TopLevel] -> Context
 context typeContext topLevels =
     List.foldl
-        ( \context topLevel ->
+        ( \resultingContext topLevel ->
             case topLevel of
-                M.Function { M.functionName, M.typeAnnotation } ->
-                    context
-
                 M.SumType { M.typeName, M.typeVariables, M.dataChoices } -> do
-                    sumType typeName typeVariables dataChoices context
+                    sumType typeName typeVariables dataChoices resultingContext
+
+                M.Function {} ->
+                    resultingContext
+
         )
         initialContext
         topLevels
@@ -64,10 +65,10 @@ sumType
     -> NonEmpty M.DataChoice
     -> Context
     -> Context
-sumType typeId typeVariableIds dataChoices (Context context) =
+sumType typeId typeVariableIds dataChoices (Context c) =
     let
         resultingType =
-            T.Custom (map T.Variable typeVariableIds) typeId
+            T.Custom typeId (map T.Variable typeVariableIds)
     in
     dataChoices
         |> NonEmpty.toList
@@ -79,7 +80,7 @@ sumType typeId typeVariableIds dataChoices (Context context) =
                 in
                 Map.insert tag type_ resultingContext
             )
-            context
+            c
         |> Context
 
 

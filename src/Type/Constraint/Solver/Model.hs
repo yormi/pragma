@@ -13,9 +13,12 @@ import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeVariableId)
+import Type.Constraint.Reference (Reference)
 import qualified Type.Model as T
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
@@ -25,12 +28,14 @@ data SolutionType
     = InstanceType T.Type
     | NamedType
         { identifier :: DataId
-        , unconstrainedTypeVariables :: [TypeVariableId]
         , type_ :: T.Type
         }
     | ConstructorType
         { constructorId :: ConstructorId
-        , unconstrainedTypeVariables :: [TypeVariableId]
+        , type_ :: T.Type
+        }
+    | ReferenceType
+        { reference :: Reference
         , type_ :: T.Type
         }
     deriving (Eq, Show)
@@ -104,14 +109,26 @@ mostPrecised type_ =
             let morePrecise = Map.lookup p (solution state)
 
             case morePrecise of
-                Just (NamedType _ genericTypes t) ->
-                    instantiate genericTypes t
+                Just (NamedType _ namedType) -> do
+                    precised <- mostPrecised namedType
+                    instantiate precised
 
-                Just (InstanceType t) ->
-                    mostPrecised t
+                Just (InstanceType instancedType) ->
+                    mostPrecised instancedType
+
+                Just (ReferenceType _ referenceType) -> do
+                    precised <- mostPrecised referenceType
+                    instantiate precised
 
                 Nothing ->
                     return type_
+
+
+        T.Custom typeId args -> do
+            precisedArgs <-
+                traverse mostPrecised args
+            T.Custom typeId precisedArgs
+                |> return
 
 
         T.Function (T.FunctionType arg returnType) -> do
@@ -126,8 +143,28 @@ mostPrecised type_ =
             return type_
 
 
-instantiate :: [TypeVariableId] -> T.Type -> Solver T.Type
-instantiate typeVariables generalizedType =
+typeVariables :: T.Type -> Set TypeVariableId
+typeVariables type_ =
+    case type_ of
+        T.Variable variable ->
+            Set.singleton variable
+
+        T.Function (T.FunctionType arg returning) ->
+            let
+                argVariables =
+                    typeVariables arg
+
+                returningVariables =
+                    typeVariables returning
+            in
+            Set.union argVariables returningVariables
+
+        _ ->
+            Set.empty
+
+
+instantiate :: T.Type -> Solver T.Type
+instantiate generalizedType =
     let
         replaceVariables replacements type_ =
             case type_ of
@@ -135,25 +172,35 @@ instantiate typeVariables generalizedType =
                     Map.lookup variable replacements
                         |> Maybe.withDefault type_
 
+                T.Custom typeId typeParams ->
+                    let
+                        replacedParams =
+                            map (replaceVariables replacements) typeParams
+                    in
+                    T.Custom typeId replacedParams
+
                 T.Function (T.FunctionType arg returning) ->
                     let
                         replacedArg =
                             replaceVariables replacements arg
 
-                        replaceReturning =
+                        replacedReturning =
                             replaceVariables replacements returning
                     in
-                    T.FunctionType replacedArg replaceReturning
+                    T.FunctionType replacedArg replacedReturning
                         |> T.Function
 
                 _ ->
                     type_
 
+        variables =
+            typeVariables generalizedType
+                |> Set.toList
     in do
-    instances <- traverse (const freshVariable) typeVariables
+    instances <- traverse (const freshVariable) variables
     let replacements =
             instances
-                |> List.zip typeVariables
+                |> List.zip variables
                 |> Map.fromList
     replaceVariables replacements generalizedType
         |> return
@@ -197,7 +244,6 @@ addToSolution placeholder t =
                 |> Map.insert placeholder t
                 |> (\newSolution -> state { solution = newSolution })
         )
-
 
 
 processSolution :: T.TypePlaceholder -> Solver a -> Either SolvingError Solution

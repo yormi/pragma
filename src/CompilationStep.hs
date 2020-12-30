@@ -5,10 +5,10 @@ module CompilationStep
     , parse
     , print
     , typeCheck
+    , validateTypeAnnotation
     ) where
 
 import qualified Control.Monad as Monad
-import qualified Data.List as List
 import qualified Text.Layout.Table as Table
 
 import qualified AST.Module as M
@@ -29,7 +29,9 @@ import qualified Type.Constraint.Gatherer.Module as Module
 import Type.Constraint.Solver.Model (Solution)
 import qualified Type.Constraint.Solver.Solve as ConstraintSolver
 import Type.Model as T
+import qualified Type.ValidateAnnotation as ValidateAnnotation
 import qualified Utils.Either as Either
+import qualified Utils.List as List
 import qualified Utils.String as String
 
 
@@ -68,19 +70,18 @@ parse printPreferences filePath fileContent =
     return parsedModule
 
 
+validateTypeAnnotation :: M.Module -> Compiler ()
+validateTypeAnnotation parsedModule = do
+    printSectionHeader "VALIDATE TYPE"
+    ValidateAnnotation.validate parsedModule
+        |> map (Either.mapLeft TypeValidationError)
+        |> Compiler.fromEithers
+        |> void
+
+
 typeCheck :: PrintPreferences -> M.Module -> Compiler ()
 typeCheck printPreferences parsedModule@(M.Module topLevels) = do
-    printSectionHeader "ANALYZE CONTEXT"
-    context <-
-        Context.context topLevels
-            |> Either.mapLeft ContextError
-            |> Compiler.fromEither
-
-    tablePrint
-        (contextResult printPreferences)
-        "Context"
-        (ContextPrinter.print context)
-        (ModulePrinter.print parsedModule)
+    context <- analyzeContext printPreferences parsedModule
 
     printSectionHeader "TYPE CHECK"
     constraintResults <- constraintGathering context parsedModule
@@ -123,6 +124,23 @@ formatTypeCheckResult constraints solution =
             ]
                 |> String.mergeLines
             )
+
+
+analyzeContext :: PrintPreferences -> M.Module -> Compiler Context
+analyzeContext printPreferences parsedModule@(M.Module topLevels)= do
+    printSectionHeader "ANALYZE CONTEXT"
+    context <-
+        Context.context topLevels
+            |> Either.mapLeft ContextError
+            |> Compiler.fromEither
+
+    tablePrint
+        (contextResult printPreferences)
+        "Context"
+        (ContextPrinter.print context)
+        (ModulePrinter.print parsedModule)
+
+    return context
 
 
 constraintGathering :: Context -> M.Module -> Compiler [[Constraint]]

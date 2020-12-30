@@ -44,7 +44,7 @@ print type_ =
         Type.Placeholder (Type.TypePlaceholder p) ->
             "p" <> show p
 
-        Type.Custom typeVariables typeId ->
+        Type.Custom typeId typeVariables ->
             Identifier.formatTypeId typeId
                 ++ " "
                 ++

@@ -14,7 +14,7 @@ printPreferences =
     CompilationStep.PrintPreferences
         { parseResult = True
         , contextResult = True
-        , gatherResult = False
+        , gatherResult = True
         , solveResult = False
         , generateResult = False
         }
@@ -23,6 +23,7 @@ printPreferences =
 compile :: String -> String -> Compiler CompilationStep.GeneratedCode
 compile filePath fileContent = do
     parsedModule <- CompilationStep.parse printPreferences filePath fileContent
+    CompilationStep.validateTypeAnnotation parsedModule
     CompilationStep.typeCheck printPreferences parsedModule
     CompilationStep.generateCode printPreferences parsedModule
 

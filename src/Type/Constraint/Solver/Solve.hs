@@ -25,17 +25,17 @@ solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
         IfThenElse
-            { codeQuote, condition, whenTrue, whenFalse, returnType }
+            { codeQuote, condition, whenTrue, whenFalse, placeholder }
             -> do
             precisedCondition <-
-                Solver.mostPrecised (Constraint.type_ condition)
+                Solver.mostPrecised (Constraint.quotedType condition)
             precisedWhenTrue <-
-                Solver.mostPrecised (Constraint.type_ whenTrue)
+                Solver.mostPrecised (Constraint.quotedType whenTrue)
             precisedWhenFalse <-
-                Solver.mostPrecised (Constraint.type_ whenFalse)
+                Solver.mostPrecised (Constraint.quotedType whenFalse)
 
             solveSimple
-                (Constraint.type_ condition)
+                (Constraint.quotedType condition)
                 T.Bool
                 (IfConditionMustBeABool
                     ((Constraint.codeQuote :: QuotedType -> CodeQuote)
@@ -44,17 +44,17 @@ solveConstraint constraint =
                     precisedCondition
                 )
             solveSimple
-                (Constraint.type_ whenTrue)
-                (Constraint.type_ whenFalse)
+                (Constraint.quotedType whenTrue)
+                (Constraint.quotedType whenFalse)
                 (BothIfAlternativesMustHaveSameType
                     codeQuote
                     precisedWhenTrue
                     precisedWhenFalse
                 )
 
-            Constraint.type_ whenFalse
+            Constraint.quotedType whenFalse
                 |> Solver.InstanceType
-                |> Solver.updateSolution returnType
+                |> Solver.updateSolution placeholder
 
 
         Application
@@ -62,13 +62,13 @@ solveConstraint constraint =
             , functionName
             , functionReference
             , argTypes
-            , returnType
+            , placeholder
             } ->
             let
                 functionType =
                     buildFunction
                         (NonEmpty.toList argTypes)
-                        (T.Placeholder returnType)
+                        (T.Placeholder placeholder)
             in do
             referenceType <- Solver.mostPrecised functionReference
             case referenceType of
@@ -104,30 +104,15 @@ solveConstraint constraint =
                     precisedActualType
                 )
 
-        Definition { dataId, actualType, returnType } ->
-            let
-                unconstrainedTypeVariable t = do
-                    precised <- Solver.mostPrecised t
-                    case precised of
-                        T.Variable typeVariable -> do
-                            return [typeVariable]
 
-                        T.Function (T.FunctionType arg returningType) -> do
-                            argVariables <- unconstrainedTypeVariable arg
-                            returnVariables <-
-                                unconstrainedTypeVariable returningType
+        Definition { dataId, type_, placeholder } ->
+            Solver.NamedType dataId type_
+                |> Solver.updateSolution placeholder
 
-                            let typeVariables =
-                                    argVariables ++ returnVariables
-                                        |> List.unique
-                            return typeVariables
 
-                        _ ->
-                            return []
-            in do
-            genericVariables <- unconstrainedTypeVariable actualType
-            Solver.updateSolution returnType
-                (Solver.NamedType dataId genericVariables actualType)
+        Reference { reference, type_, placeholder } ->
+            Solver.ReferenceType reference type_
+                |> Solver.updateSolution placeholder
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type
@@ -148,6 +133,11 @@ solveSimple a b error = do
     case (precisedA, precisedB) of
         (T.Function f, T.Function g) ->
             solveFunction f g error
+
+        (T.Custom _ argsA, T.Custom _ argsB) ->
+            List.zip argsA argsB
+                |> traverse (\(argA, argB) -> solveSimple argA argB error)
+                |> void
 
         -- TODO - Make sure this is correct
         (T.Placeholder pA, T.Placeholder pB) -> do

@@ -6,6 +6,7 @@ module Type.Model
     ) where
 
 import AST.Identifier (TypeId, TypeVariableId)
+import Utils.OrderedSet (OrderedSet)
 
 
 data Kind
@@ -25,7 +26,7 @@ data Type
     | Function FunctionType
     | Variable TypeVariableId
     | Placeholder TypePlaceholder
-    | Custom [Type] TypeId
+    | Custom TypeId (OrderedSet Type)
     deriving (Eq, Show)
 
 

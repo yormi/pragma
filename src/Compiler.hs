@@ -14,6 +14,7 @@ import qualified Parser.Parser as Parser
 import qualified Type.Constraint.Context.Model as Context
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Solver.Solve as ConstraintSolver
+import qualified Type.ValidateAnnotation as ValidateAnnotation
 import qualified Utils.Either as Either
 import qualified Utils.List as List
 
@@ -23,7 +24,8 @@ type Compiler a =
 
 
 data CompilerError
-    = ParsingError Parser.ParserError
+    = TypeValidationError ValidateAnnotation.Error
+    | ParsingError Parser.ParserError
     | ContextError Context.Error
     | ConstraintGatheringError Gatherer.ConstraintError
     | ConstraintSolvingError ConstraintSolver.SolvingError
@@ -35,19 +37,28 @@ run =
     Except.runExceptT
 
 
+fail :: [CompilerError] -> Compiler a
+fail =
+    Except.throwError
+
+
 fromEither :: Either CompilerError a -> Compiler a
 fromEither =
-    Either.fold (List.singleton >> Except.throwError) return
+    Either.fold (List.singleton >> fail) return
 
 
-fromEithers :: [Either CompilerError a] -> Compiler [a]
+fromEithers :: Show a => [Either CompilerError a] -> Compiler [a]
 fromEithers subSteps =
-    case Either.lefts subSteps of
-        [] ->
-            return <| Either.rights subSteps
+    let
+        lefts =
+            Either.lefts subSteps
+    in
+    if List.isEmpty lefts then
+        Either.rights subSteps
+            |> return
 
-        lefts ->
-            Except.throwError lefts
+    else
+        fail lefts
 
 
 liftIO :: IO a -> Compiler a

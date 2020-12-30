@@ -7,6 +7,7 @@ import qualified Printer.Type.Model as TypePrinter
 import qualified Type.Model as Type
 import Type.Constraint.Solver.Model (Solution)
 import qualified Type.Constraint.Solver.Model as Solver
+import qualified Type.Constraint.Reference as Reference
 import qualified Utils.List as List
 import qualified Utils.Tuple as Tuple
 
@@ -43,14 +44,23 @@ printSolutionType solution =
         Solver.InstanceType type_ ->
             TypePrinter.print type_
 
-        Solver.NamedType identifier genericVariables type_ ->
-            let
-                formattedGenericVariable :: String
-                formattedGenericVariable =
-                    genericVariables
-                        |> map Type.Variable
-                        |> map TypePrinter.print
-                        |> List.intercalate ", "
-            in
-            "∀ " ++ formattedGenericVariable ++ " | " ++ TypePrinter.print type_
+        Solver.NamedType identifier type_ ->
+            TypePrinter.print type_
                 ++ " ..... " ++ Identifier.formatDataId identifier
+
+        Solver.ReferenceType reference type_ ->
+            TypePrinter.print type_
+                ++ " ..... " ++ Reference.asString reference
+
+        -- Solver.NamedType identifier genericVariables type_ ->
+        --     let
+        --         formattedGenericVariable :: String
+        --         formattedGenericVariable =
+        --             genericVariables
+        --                 |> Set.toList
+        --                 |> map Type.Variable
+        --                 |> map TypePrinter.print
+        --                 |> List.intercalate ", "
+        --     in
+        --     "∀ " ++ formattedGenericVariable ++ " | " ++ TypePrinter.print type_
+        --         ++ " ..... " ++ Identifier.formatDataId identifier

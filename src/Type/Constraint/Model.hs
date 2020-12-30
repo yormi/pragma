@@ -3,10 +3,10 @@ module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
-import AST.Identifier (ConstructorId, DataId, ReferenceId, TypeVariableId)
+import AST.Identifier (DataId, ReferenceId)
 import qualified AST.Expression as E
 import qualified Type.Model as T
-import Utils.OrderedSet (OrderedSet)
+import Type.Constraint.Reference (Reference)
 
 
 data Constraint
@@ -15,7 +15,7 @@ data Constraint
         , condition :: QuotedType
         , whenTrue :: QuotedType
         , whenFalse :: QuotedType
-        , returnType :: T.TypePlaceholder
+        , placeholder :: T.TypePlaceholder
         }
     | Application
         { codeQuote :: CodeQuote
@@ -23,7 +23,7 @@ data Constraint
         , args :: NonEmpty E.QuotedExpression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
-        , returnType :: T.TypePlaceholder
+        , placeholder :: T.TypePlaceholder
         }
     | Function
         { codeQuote :: CodeQuote
@@ -33,25 +33,13 @@ data Constraint
         }
     | Definition
         { dataId :: DataId
-        , actualType :: T.Type
-        , returnType :: T.TypePlaceholder
+        , type_ :: T.Type
+        , placeholder :: T.TypePlaceholder
         }
-    | TopLevelFunction
-        { codeQuote :: CodeQuote
-        , dataId :: DataId
-        , typeVariables :: OrderedSet TypeVariableId
-        , actualType :: T.Type
-        , returnType :: T.TypePlaceholder
-
-        , signatureType :: T.Type
-        , params :: [T.Type]
-        , body :: T.Type
-        }
-    | Constructor
-        { constructorId :: ConstructorId
-        , typeVariables :: OrderedSet TypeVariableId
-        , actualType :: T.Type
-        , returnType :: T.TypePlaceholder
+    | Reference
+        { reference :: Reference
+        , type_ :: T.Type
+        , placeholder :: T.TypePlaceholder
         }
     deriving (Eq, Show)
 
@@ -59,6 +47,6 @@ data Constraint
 data QuotedType =
     QuotedType
         { codeQuote :: CodeQuote
-        , type_ :: T.Type
+        , quotedType :: T.Type
         }
     deriving (Eq, Show)
