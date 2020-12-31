@@ -43,7 +43,7 @@ data PrintPreferences
         { parseResult :: Bool
         , contextResult :: Bool
         , gatherResult :: Bool
-        , solveResult :: Bool
+        , typeCheckResult :: Bool
         , generateResult :: Bool
         }
 
@@ -82,48 +82,10 @@ validateTypeAnnotation parsedModule = do
 typeCheck :: PrintPreferences -> M.Module -> Compiler ()
 typeCheck printPreferences parsedModule@(M.Module topLevels) = do
     context <- analyzeContext printPreferences parsedModule
-
-    printSectionHeader "TYPE CHECK"
-    constraintResults <- constraintGathering context parsedModule
-    solverResult <- solveConstraints constraintResults
-
-    List.zip3 topLevels constraintResults solverResult
-        |> map
-            (\(topLevel, constraints, solution) ->
-                (topLevel
-                , formatTypeCheckResult constraints solution
-                )
-            )
-        |> traverse
-            (\(topLevel, solution) ->
-                tablePrint
-                    (gatherResult printPreferences)
-                    "Constraints"
-                    solution
-                    (ModulePrinter.printTopLevel topLevel)
-            )
+    constraintResults <-
+        constraintGathering printPreferences context parsedModule
+    solveConstraints printPreferences topLevels constraintResults
         |> void
-
-
-formatTypeCheckResult :: [Constraint] -> ConstraintSolver.Solution -> String
-formatTypeCheckResult constraints solution =
-    (constraints
-        |> map ConstraintPrinter.print
-        |> List.intersperse ""
-        |> String.mergeLines
-    )
-        ++
-            ([ ""
-            , ""
-            , "-----------------------------------------------"
-            , ""
-            , "Solution :"
-            , TypeSolutionPrinter.print solution
-            , ""
-            , ""
-            ]
-                |> String.mergeLines
-            )
 
 
 analyzeContext :: PrintPreferences -> M.Module -> Compiler Context
@@ -143,25 +105,87 @@ analyzeContext printPreferences parsedModule@(M.Module topLevels)= do
     return context
 
 
-constraintGathering :: Context -> M.Module -> Compiler [[Constraint]]
-constraintGathering context (M.Module topLevels) = do
-    map
-        (Module.gather
-            >> Gatherer.gatherConstraints context
-            >> Either.mapLeft ConstraintGatheringError
-        )
-        topLevels
-        |> Compiler.fromEithers
-
-
-solveConstraints :: [[Constraint]] -> Compiler [Solution]
-solveConstraints constraintResults =
-    constraintResults
-        |> map
-            ( ConstraintSolver.solve (T.TypePlaceholder 100)
-                >> Either.mapLeft ConstraintSolvingError
+constraintGathering
+    :: PrintPreferences -> Context -> M.Module -> Compiler [[Constraint]]
+constraintGathering printPreferences context (M.Module topLevels) = do
+    printSectionHeader "GATHER CONSTRAINT"
+    constraintResults <-
+        map
+            (Module.gather
+                >> Gatherer.gatherConstraints context
+                >> Either.mapLeft ConstraintGatheringError
             )
-        |> Compiler.fromEithers
+            topLevels
+            |> Compiler.fromEithers
+
+    List.zip topLevels constraintResults
+        |> traverse
+            (\(topLevel, constraints) ->
+                tablePrint
+                    (gatherResult printPreferences)
+                    "Constraints"
+                    (formatConstraints constraints)
+                    (ModulePrinter.printTopLevel topLevel)
+            )
+        |> void
+
+    return constraintResults
+
+
+solveConstraints
+    :: PrintPreferences -> [M.TopLevel] -> [[Constraint]] -> Compiler [Solution]
+solveConstraints printPreferences topLevels constraintResults = do
+    printSectionHeader "TYPE CHECK"
+    solverResult <-
+        constraintResults
+            |> map
+                ( ConstraintSolver.solve (T.TypePlaceholder 100)
+                    >> Either.mapLeft ConstraintSolvingError
+                )
+            |> Compiler.fromEithers
+
+    List.zip3 topLevels constraintResults solverResult
+        |> map
+            (\(topLevel, constraints, solution) ->
+                (topLevel
+                , formatTypeCheckResult constraints solution
+                )
+            )
+        |> traverse
+            (\(topLevel, solution) ->
+                tablePrint
+                    (typeCheckResult printPreferences)
+                    "Type Check Results"
+                    solution
+                    (ModulePrinter.printTopLevel topLevel)
+            )
+        |> void
+
+    return solverResult
+
+
+formatTypeCheckResult :: [Constraint] -> ConstraintSolver.Solution -> String
+formatTypeCheckResult constraints solution =
+    formatConstraints constraints
+        ++
+            ([ ""
+            , ""
+            , "-----------------------------------------------"
+            , ""
+            , "Solution :"
+            , TypeSolutionPrinter.print solution
+            , ""
+            , ""
+            ]
+                |> String.mergeLines
+            )
+
+
+formatConstraints :: [Constraint] -> String
+formatConstraints =
+    map ConstraintPrinter.print
+        >> List.intersperse ""
+        >> String.mergeLines
 
 
 generateCode :: PrintPreferences -> M.Module -> Compiler GeneratedCode

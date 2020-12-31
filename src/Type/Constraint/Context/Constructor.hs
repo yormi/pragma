@@ -5,7 +5,6 @@ module Type.Constraint.Context.Constructor
     , lookup
     ) where
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
@@ -16,7 +15,6 @@ import qualified AST.Module as M
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified Type.Model as T
 import qualified Type.Constraint.Gatherer.TypeAnnotation as TypeAnnotation
-import qualified Type.Constraint.Context.Type as Type
 import qualified Utils.List as List
 import Utils.OrderedSet (OrderedSet)
 
@@ -43,8 +41,8 @@ lookup id (Context c)=
     Map.lookup id c
 
 
-context :: Type.Context -> [M.TopLevel] -> Context
-context typeContext topLevels =
+context :: [M.TopLevel] -> Context
+context topLevels =
     List.foldl
         ( \resultingContext topLevel ->
             case topLevel of
@@ -76,7 +74,7 @@ sumType typeId typeVariableIds dataChoices (Context c) =
             (\resultingContext (M.DataChoice { tag, args }) ->
                 let
                     type_ =
-                        constructorType typeVariableIds args resultingType
+                        constructorType args resultingType
                 in
                 Map.insert tag type_ resultingContext
             )
@@ -84,12 +82,8 @@ sumType typeId typeVariableIds dataChoices (Context c) =
         |> Context
 
 
-constructorType
-    :: OrderedSet TypeVariableId
-    -> [TypeAnnotation]
-    -> T.Type
-    -> T.Type
-constructorType typeVariableIds args resultingType =
+constructorType :: [TypeAnnotation] -> T.Type -> T.Type
+constructorType args resultingType =
     let
         argsToConstructorType :: [T.Type] -> T.Type
         argsToConstructorType argTypes =

@@ -8,7 +8,6 @@ module Type.Constraint.Context.Data
     ) where
 
 import qualified Control.Monad as Monad
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import AST.Identifier (DataId)

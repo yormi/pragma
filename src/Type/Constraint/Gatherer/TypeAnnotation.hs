@@ -3,7 +3,6 @@ module Type.Constraint.Gatherer.TypeAnnotation
     , toType
     ) where
 
-import Data.Set (Set)
 import qualified Data.Set as Set
 
 import AST.TypeAnnotation (TypeAnnotation)

@@ -3,7 +3,6 @@ module Printer.Type.Constraint (print) where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
-import qualified AST.Identifier as Identifier
 import qualified Printer.Type.Model as TypePrinter
 import Printer.Utils (tab, indentAlign)
 import qualified Type.Model as T
@@ -81,22 +80,6 @@ print constraint =
             , indentAlign alignTabNumber
                 (tab ++ "Actual:")
                 (TypePrinter.print calculated)
-            ]
-            |> String.mergeLines
-
-        Definition { dataId, type_, placeholder } ->
-            [ "Generic"
-            , indentAlign
-                alignTabNumber
-                (tab ++ "Name:")
-                (Identifier.formatDataId dataId)
-            , indentAlign
-                alignTabNumber
-                (tab ++ "Type:")
-                (printSimpleConstraintTypes
-                    (T.Placeholder placeholder)
-                    type_
-                )
             ]
             |> String.mergeLines
 

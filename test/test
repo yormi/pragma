@@ -7,9 +7,8 @@ type Color a
 
 foo : a -> Color a
 foo x =
-    Red x
+    if x then
+        Red x
 
-
-bar : Color Int
-bar =
-    foo 3
+    else
+        Blue

@@ -6,7 +6,6 @@ module Type.Constraint.Context.Type
     ) where
 
 import qualified Control.Monad as Monad
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)

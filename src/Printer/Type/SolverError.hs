@@ -11,6 +11,8 @@ import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 import qualified Utils.String as String
 
+import qualified Printer.Type.Solution as SolutionPrinter
+
 
 print :: String -> SolvingError -> String
 print sourceCode e =
@@ -112,8 +114,11 @@ print sourceCode e =
             { codeQuote
             , signatureType
             , definitionType
+            , solutionSoFar
             }
             ->
+            SolutionPrinter.print solutionSoFar
+            ++
             formatError
                 sourceCode
                 codeQuote

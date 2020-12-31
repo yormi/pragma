@@ -9,16 +9,19 @@ module Prelude
 import Relude as X
     ( Bool(..)
     , Eq(..)
+    , Either(..)
     , Float
     , Double
+    , FilePath
     , Generic
     , Int
     , Integer
     , IO
+    , Map
     , Maybe(..)
+    , Set
     , Show
     , String
-    , FilePath
     , (+)
     , (-)
     , (++)
@@ -59,10 +62,6 @@ import Control.Monad as X
 
 import Control.Monad.Trans.Class as X
     ( lift
-    )
-
-import Data.Either as X
-    ( Either(..)
     )
 
 import Data.Ord as X (Ord(..))

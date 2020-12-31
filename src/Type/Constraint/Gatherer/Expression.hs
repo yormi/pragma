@@ -2,6 +2,7 @@ module Type.Constraint.Gatherer.Expression (gather) where
 
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
@@ -9,6 +10,7 @@ import qualified Type.Model as T
 import Type.Constraint.Gatherer.Model (Gatherer)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Model as Constraint
+import qualified Type.Constraint.Reference as Reference
 
 
 gather :: E.QuotedExpression -> Gatherer T.Type
@@ -54,15 +56,17 @@ gather expression =
                             type_ <- gather expr
                             placeholder <- Gatherer.nextPlaceholder
 
-                            Constraint.Definition id type_ placeholder
+                            let reference = Reference.fromDataId id
+                            Constraint.Reference reference type_ placeholder
                                 |> Gatherer.addConstraint
 
-                            return (id, T.Placeholder placeholder)
+                            return (reference, T.Placeholder placeholder)
             in do
             references <-
                 definitions
                     |> traverse toReference
                     |> map NonEmpty.toList
+                    |> map Map.fromList
             Gatherer.withData references (gather body)
 
 
@@ -70,11 +74,15 @@ gather expression =
 
 
         E.Lambda { E.params, E.body } -> do
-            let paramList = NonEmpty.toList params
+            let paramList =
+                    NonEmpty.toList params
+                        |> map Reference.fromDataId
             variables <-
                 traverse (const Gatherer.nextPlaceholder) paramList
                     |> map (map T.Placeholder)
-            let paramWithTypes = List.zip paramList variables
+            let paramWithTypes =
+                    List.zip paramList variables
+                        |> Map.fromList
             bodyType <- Gatherer.withData paramWithTypes (gather body)
 
             variables

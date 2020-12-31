@@ -38,7 +38,7 @@ context topLevels = do
         Type.context topLevels
             |> Either.mapLeft TypeError
 
-    let constructorContext = Constructor.context typeContext topLevels
+    let constructorContext = Constructor.context topLevels
 
     dataContext <-
         Data.context topLevels

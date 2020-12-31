@@ -14,3 +14,6 @@ print sourceCode error =
 
         ConstraintSolvingError e ->
             SolverErrorPrinter.print sourceCode e
+
+        e ->
+            show e

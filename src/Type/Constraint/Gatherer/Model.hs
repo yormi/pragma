@@ -16,10 +16,9 @@ module Type.Constraint.Gatherer.Model
 import qualified Control.Monad as Monad
 import Control.Monad.Trans.RWS.CPS (RWST)
 import qualified Control.Monad.Trans.RWS.CPS as RWST
-import Data.Map (Map)
 import qualified Data.Map as Map
 
-import AST.Identifier (DataId, ReferenceId)
+import AST.Identifier (ReferenceId)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
 import Type.Constraint.Context.Model (Context)
@@ -59,7 +58,7 @@ data ConstraintError
     | VariableNotDefined Reference
     | TooManyParameters
         { functionType :: T.Type
-        , params :: [DataId]
+        , params :: [Reference]
         }
     | ShouldNotHappen String
     deriving (Eq, Show)
@@ -98,22 +97,7 @@ run context gatherer =
 
 
 withContext :: Context -> Gatherer a -> Gatherer a
-withContext context gatherer =
-    let
-        dataReferenceIds =
-            context
-                |> Context.data_
-                |> DataContext.asMap
-                |> Map.keys
-                |> map Reference.fromDataId
-
-        constructorReferenceIds =
-            context
-                |> Context.constructor
-                |> ConstructorContext.asMap
-                |> Map.keys
-                |> map Reference.fromConstructorId
-    in do
+withContext context gatherer = do
     data_ <-
         context
             |> Context.data_
@@ -176,16 +160,12 @@ lookupReference referenceId =
             fail <| VariableNotDefined reference
 
 
-withData :: [(DataId, T.Type)] -> Gatherer a -> Gatherer a
+withData :: Map Reference T.Type -> Gatherer a -> Gatherer a
 withData newReferences gatherer = do
     context <- RWST.ask
     let newContext =
             Monad.foldM
-                (\resultingContext (name, type_) ->
-                    let
-                        reference =
-                            Reference.fromDataId name
-                    in
+                (\resultingContext (reference, type_) ->
                     if Map.member reference resultingContext then
                         Left DataNameAlreadyDefined
 
@@ -194,7 +174,7 @@ withData newReferences gatherer = do
                             |> Right
                 )
                 context
-                newReferences
+                (Map.toList newReferences)
     case newContext of
         Right c ->
             RWST.local (const c) gatherer

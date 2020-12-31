@@ -14,5 +14,6 @@ data Error
 
 
 validate :: M.Module -> [Either Error ()]
-validate (M.Module topLevels) =
+validate (M.Module _) =
     []
+    -- Validate that custom type defined the variables used by constructors!

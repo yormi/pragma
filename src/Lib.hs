@@ -12,10 +12,10 @@ import qualified Utils.Either as Either
 printPreferences :: CompilationStep.PrintPreferences
 printPreferences =
     CompilationStep.PrintPreferences
-        { parseResult = True
-        , contextResult = True
+        { parseResult = False
+        , contextResult = False
         , gatherResult = True
-        , solveResult = False
+        , typeCheckResult = True
         , generateResult = False
         }
 

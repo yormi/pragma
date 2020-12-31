@@ -2,7 +2,6 @@ module Printer.Type.Solution (print) where
 
 import qualified Data.Map as Map
 
-import qualified AST.Identifier as Identifier
 import qualified Printer.Type.Model as TypePrinter
 import qualified Type.Model as Type
 import Type.Constraint.Solver.Model (Solution)
@@ -43,10 +42,6 @@ printSolutionType solution =
     case solution of
         Solver.InstanceType type_ ->
             TypePrinter.print type_
-
-        Solver.NamedType identifier type_ ->
-            TypePrinter.print type_
-                ++ " ..... " ++ Identifier.formatDataId identifier
 
         Solver.ReferenceType reference type_ ->
             TypePrinter.print type_
