@@ -3,6 +3,7 @@ module Printer.Type.Solution (print) where
 import qualified Data.Map as Map
 
 import qualified Printer.Type.Model as TypePrinter
+import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Type.Model as Type
 import Type.Constraint.Solver.Model (Solution)
 import qualified Type.Constraint.Solver.Model as Solver
@@ -43,8 +44,8 @@ printSolutionType solution =
         Solver.InstanceType type_ ->
             TypePrinter.print type_
 
-        Solver.ReferenceType reference type_ ->
-            TypePrinter.print type_
+        Solver.ReferenceType reference annotation ->
+            TypeAnnotationPrinter.print annotation
                 ++ " ..... " ++ Reference.asString reference
 
         -- Solver.NamedType identifier genericVariables type_ ->

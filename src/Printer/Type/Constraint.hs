@@ -3,6 +3,7 @@ module Printer.Type.Constraint (print) where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
+import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Printer.Type.Model as TypePrinter
 import Printer.Utils (tab, indentAlign)
 import qualified Type.Model as T
@@ -66,25 +67,43 @@ print constraint =
         Function { signatureType, params, body } ->
             let
                 calculated =
-                    List.foldl
-                        (\type_ p ->
-                            T.Function (T.FunctionType p type_)
-                        )
-                        body
-                        (List.reverse params)
+                    List.reverse params
+                        |> map T.Placeholder
+                        |> List.foldl
+                            (\type_ p ->
+                                T.Function (T.FunctionType p type_)
+                            )
+                            body
             in
             [ "Function Definition"
             , indentAlign alignTabNumber
-                (tab ++ "Signature:")
-                (TypePrinter.print signatureType)
+                (tab ++ "Type Annotation:")
+                (TypeAnnotationPrinter.print signatureType)
             , indentAlign alignTabNumber
                 (tab ++ "Actual:")
                 (TypePrinter.print calculated)
             ]
             |> String.mergeLines
 
-        Reference { reference, type_, placeholder } ->
-            [ "Reference"
+        TopLevelDefinition { reference, typeAnnotation, placeholder } ->
+            [ "Top-Level Definition"
+            , indentAlign
+                alignTabNumber
+                (tab ++ "Name:")
+                (Reference.asString reference)
+            , indentAlign
+                alignTabNumber
+                (tab ++ "Type Annotation:")
+                (TypeAnnotationPrinter.print typeAnnotation)
+            , indentAlign
+                alignTabNumber
+                (tab ++ "Placeholder:")
+                (TypePrinter.print (T.Placeholder placeholder))
+            ]
+            |> String.mergeLines
+
+        LetDefinition { reference, type_, placeholder } ->
+            [ "Let Definition"
             , indentAlign
                 alignTabNumber
                 (tab ++ "Name:")

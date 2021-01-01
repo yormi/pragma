@@ -13,6 +13,7 @@ import qualified Data.List as List
 
 import Data.List as X
     ( any
+    , all
     , concat
     , filter
     , foldl

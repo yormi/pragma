@@ -38,8 +38,8 @@ print type_ =
             in
             formattedT1 ++ " -> " ++ print t2
 
-        Type.Variable v ->
-            Identifier.formatTypeVariableId v
+        -- Type.Variable v ->
+        --     Identifier.formatTypeVariableId v
 
         Type.Placeholder (Type.TypePlaceholder p) ->
             "p" <> show p

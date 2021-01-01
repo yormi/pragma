@@ -13,12 +13,8 @@ import qualified Type.Constraint.Model as Constraint
 import Type.Constraint.Solver.Model (Solver, SolvingError(..), Solution)
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Type.Constraint.Solver.Solution as Solution
+import qualified Type.Constraint.Solver.TypeAnnotation as TypeAnnotation
 import qualified Utils.List as List
-
-import qualified Printer.Type.Constraint as ConstraintPrinter
-import qualified Printer.Type.Solution as SolutionPrinter
-import qualified Printer.Type.Model as TypePrinter
-import qualified Utils.String as String
 
 
 solve :: T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
@@ -59,14 +55,6 @@ solveConstraint constraint =
                     precisedWhenTrue
                     precisedWhenFalse
                 )
-                |> trace
-                    ( [ ""
-                    , "whenTrue  " ++ TypePrinter.print precisedWhenTrue
-                    , "whenFalse  " ++ TypePrinter.print precisedWhenFalse
-                    , ""
-                    ]
-                            |> String.mergeLines
-                    )
 
             Constraint.quotedType whenFalse
                 |> Solver.InstanceType
@@ -105,51 +93,35 @@ solveConstraint constraint =
 
 
         Function
-            { codeQuote, signatureType, instancedVariables, params, body } ->
+            { codeQuote, signatureType, params, body } ->
             let
-                instancedDefinition =
-                    buildFunction params body
-                        |> T.replaceVariables instancedVariables
+                definition =
+                    buildFunction (map T.Placeholder params) body
 
-                instancedSignature =
-                    T.replaceVariables instancedVariables signatureType
             in do
-            precisedDefinition <- Solution.mostPrecised instancedDefinition
-            precisedSignature <- Solution.mostPrecised instancedSignature
-
+            precisedDefinition <- Solution.mostPrecised definition
             solution <- Solver.deducedSoFar
-            solveSimple
-                signatureType
-                precisedDefinition
-                (FunctionDefinitionMustMatchType
+
+            if TypeAnnotation.isTypeMatching signatureType precisedDefinition then
+                return ()
+            else
+                FunctionDefinitionMustMatchType
                     codeQuote
                     signatureType
                     precisedDefinition
                     solution
-                )
-                |> trace
-                    ( [ "constraint : " ++ ConstraintPrinter.print constraint
-                    , "signature : " ++ TypePrinter.print instancedSignature
-                    --, "signature : " ++ TypePrinter.print precisedSignatureType
-                    , "def : " ++ TypePrinter.print instancedDefinition
-                    , "def : " ++ TypePrinter.print precisedDefinition
-                    ]
-                        |> String.mergeLines
-                    )
+                    |> Solver.fail
 
 
-        Reference { reference, type_, placeholder } -> do
-            precised <- Solution.mostPrecised type_
-            Solver.ReferenceType reference precised
+        TopLevelDefinition { reference, typeAnnotation, placeholder } -> do
+            Solver.ReferenceType reference typeAnnotation
                 |> Solver.updateSolution placeholder
-                |> trace
-                    ([ "constraint : " ++ ConstraintPrinter.print constraint
-                    , "type : " ++ show type_
-                    , "precised : " ++ TypePrinter.print precised
-                    , ""
-                    ]
-                        |> String.mergeLines
-                    )
+
+
+        LetDefinition { reference, type_, placeholder } -> do
+            typeAnnotation <- TypeAnnotation.fromType type_
+            Solver.ReferenceType reference typeAnnotation
+                |> Solver.updateSolution placeholder
 
 
 buildFunction :: [T.Type] -> T.Type -> T.Type
@@ -172,36 +144,19 @@ solveSimple a b error = do
             solveFunction f g error
 
         (T.Custom _ argsA, T.Custom _ argsB) -> do
-            a <- traverse Solution.mostPrecised argsA
-            b <- traverse Solution.mostPrecised argsB
             List.zip argsA argsB
                 |> traverse (\(argA, argB) -> solveSimple argA argB error)
-                |> trace
-                    ( "Custom "
-                        ++ String.mergeLines (map TypePrinter.print a)
-                        ++ "  vs  "
-                        ++ String.mergeLines (map TypePrinter.print b)
-                    )
                 |> void
 
 
-        -- TODO - Make sure this is correct
         (T.Placeholder pA, T.Placeholder pB) -> do
             if pA == pB then
                 return ()
             else do
-                -- For matching instanced function parameters against signature
                 p <- Solver.nextPlaceholder
                 Solver.updateSolution pA (Solver.InstanceType p)
                 Solver.updateSolution pB (Solver.InstanceType p)
                 return ()
-                -- Solver.fail error
-
-        (T.Variable _, T.Placeholder _) -> do
-            return ()
-
-        (T.Placeholder _, T.Variable _) -> do
-            return ()
 
         (T.Placeholder pA, _) -> do
             Solver.updateSolution pA (Solver.InstanceType b)

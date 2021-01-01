@@ -3,7 +3,8 @@ module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 import Data.List.NonEmpty (NonEmpty)
 
 import AST.CodeQuote (CodeQuote)
-import AST.Identifier (ReferenceId, TypeVariableId)
+import AST.Identifier (ReferenceId)
+import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.Expression as E
 import qualified Type.Model as T
 import Type.Constraint.Reference (Reference)
@@ -27,12 +28,16 @@ data Constraint
         }
     | Function
         { codeQuote :: CodeQuote
-        , signatureType :: T.Type
-        , instancedVariables :: Map TypeVariableId T.Type
-        , params :: [T.Type]
+        , signatureType :: TypeAnnotation
+        , params :: [T.TypePlaceholder]
         , body :: T.Type
         }
-    | Reference
+    | TopLevelDefinition
+        { reference :: Reference
+        , typeAnnotation :: TypeAnnotation
+        , placeholder :: T.TypePlaceholder
+        }
+    | LetDefinition
         { reference :: Reference
         , type_ :: T.Type
         , placeholder :: T.TypePlaceholder

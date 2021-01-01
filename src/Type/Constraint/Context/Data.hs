@@ -1,7 +1,8 @@
 module Type.Constraint.Context.Data
     ( Error(..)
     , Context
-    , addData
+    , DataTypeInfo(..)
+    , addLetDefinition
     , asMap
     , context
     , lookup
@@ -13,17 +14,22 @@ import qualified Data.Map as Map
 import AST.Identifier (DataId)
 import qualified AST.Module as M
 import AST.TypeAnnotation (TypeAnnotation)
-import qualified Type.Constraint.Gatherer.TypeAnnotation as TypeAnnotation
 import qualified Type.Model as T
+
+
+data Context
+    = Context (Map DataId DataTypeInfo)
+    deriving (Eq, Show)
+
+
+data DataTypeInfo
+    = TopLevel TypeAnnotation
+    | LetDefinition T.TypePlaceholder
+    deriving (Eq, Show)
 
 
 data Error
     = DataNameAlreadyExistsInScope
-    deriving (Eq, Show)
-
-
-data Context
-    = Context (Map DataId T.Type)
     deriving (Eq, Show)
 
 
@@ -48,29 +54,33 @@ context topLevels =
 
 
 function :: DataId -> TypeAnnotation -> Context -> Either Error Context
-function functionName typeAnnotation =
-    let
-        signatureType =
-            TypeAnnotation.toType typeAnnotation
-    in
-    addData functionName signatureType
+function dataId typeAnnotation =
+    TopLevel typeAnnotation
+        |> addData dataId
 
 
-addData :: DataId -> T.Type -> Context -> Either Error Context
-addData dataId type_ (Context c) =
+addLetDefinition
+    :: DataId -> T.TypePlaceholder -> Context -> Either Error Context
+addLetDefinition dataId placeholder =
+    LetDefinition placeholder
+        |> addData dataId
+
+
+addData :: DataId -> DataTypeInfo -> Context -> Either Error Context
+addData dataId typeInfo (Context c) =
     if Map.member dataId c then
         Left DataNameAlreadyExistsInScope
     else
-        Map.insert dataId type_ c
+        Map.insert dataId typeInfo c
             |> Context
             |> Right
 
 
-lookup :: DataId -> Context -> Maybe T.Type
+lookup :: DataId -> Context -> Maybe DataTypeInfo
 lookup dataId (Context c) =
     Map.lookup dataId c
 
 
-asMap :: Context -> Map DataId T.Type
+asMap :: Context -> Map DataId DataTypeInfo
 asMap (Context c) =
     c

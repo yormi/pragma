@@ -5,13 +5,14 @@ import qualified AST.CodeQuote as CodeQuote
 import qualified AST.Identifier as Identifier
 import qualified Printer.Type.Model as TypePrinter
 import qualified Printer.Console as Console
+import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
+import qualified Printer.Type.Solution as SolutionPrinter
 import qualified Type.Model as T
 import Type.Constraint.Solver.Model (SolvingError)
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 import qualified Utils.String as String
 
-import qualified Printer.Type.Solution as SolutionPrinter
 
 
 print :: String -> SolvingError -> String
@@ -125,11 +126,11 @@ print sourceCode e =
                 "The function signature and the function definition types must be the same."
                 [ "\tSignature Type:"
                 , ""
-                , "\t\t" ++ Console.green (TypePrinter.print signatureType)
+                , "\t\t" ++ Console.green (TypeAnnotationPrinter.print signatureType)
                 , ""
                 , "\tDefinition Type:"
                 , ""
-                , "\t\t" ++ printComparedFunction signatureType definitionType
+                , "\t\t" ++ Console.red (TypePrinter.print definitionType)
                 ]
 
 

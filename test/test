@@ -11,4 +11,4 @@ foo x =
         Red x
 
     else
-        Blue
+        RGB 1 2 3

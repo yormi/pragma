@@ -13,14 +13,13 @@ import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ConstructorId, TypeId, TypeVariableId)
 import qualified AST.Module as M
 import AST.TypeAnnotation (TypeAnnotation)
-import qualified Type.Model as T
-import qualified Type.Constraint.Gatherer.TypeAnnotation as TypeAnnotation
+import qualified AST.TypeAnnotation as TA
 import qualified Utils.List as List
 import Utils.OrderedSet (OrderedSet)
 
 
 newtype Context
-    = Context (Map ConstructorId T.Type)
+    = Context (Map ConstructorId TypeAnnotation)
         deriving (Eq, Show)
 
 data Error
@@ -36,7 +35,7 @@ initialContext =
     Context Map.empty
 
 
-lookup :: ConstructorId -> Context -> Maybe T.Type
+lookup :: ConstructorId -> Context -> Maybe TypeAnnotation
 lookup id (Context c)=
     Map.lookup id c
 
@@ -65,43 +64,38 @@ sumType
     -> Context
 sumType typeId typeVariableIds dataChoices (Context c) =
     let
-        resultingType =
-            T.Custom typeId (map T.Variable typeVariableIds)
+        finalAnnotation =
+            TA.Custom typeId (map TA.Variable typeVariableIds)
     in
     dataChoices
         |> NonEmpty.toList
         |> List.foldl
             (\resultingContext (M.DataChoice { tag, args }) ->
                 let
-                    type_ =
-                        constructorType args resultingType
+                    typeAnnotation =
+                        constructorAnnotation args finalAnnotation
                 in
-                Map.insert tag type_ resultingContext
+                Map.insert tag typeAnnotation resultingContext
             )
             c
         |> Context
 
 
-constructorType :: [TypeAnnotation] -> T.Type -> T.Type
-constructorType args resultingType =
+constructorAnnotation :: [TypeAnnotation] -> TypeAnnotation -> TypeAnnotation
+constructorAnnotation args finalAnnotation =
     let
-        argsToConstructorType :: [T.Type] -> T.Type
-        argsToConstructorType argTypes =
-            case argTypes of
+        functionFromArgs argAnnotations =
+            case argAnnotations of
                 [] ->
-                    resultingType
+                    finalAnnotation
 
-                argType : rest ->
-                    argsToConstructorType rest
-                        |> T.FunctionType argType
-                        |> T.Function
+                argAnnotation : rest ->
+                    functionFromArgs rest
+                        |> TA.Function argAnnotation
     in
-    args
-        |> map TypeAnnotation.gather
-        |> map (\(_, type_) -> type_)
-        |> argsToConstructorType
+    functionFromArgs args
 
 
-asMap :: Context -> Map ConstructorId T.Type
+asMap :: Context -> Map ConstructorId TypeAnnotation
 asMap (Context c) =
     c

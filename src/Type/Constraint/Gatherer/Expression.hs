@@ -57,7 +57,7 @@ gather expression =
                             placeholder <- Gatherer.nextPlaceholder
 
                             let reference = Reference.fromDataId id
-                            Constraint.Reference reference type_ placeholder
+                            Constraint.LetDefinition reference type_ placeholder
                                 |> Gatherer.addConstraint
 
                             return (reference, T.Placeholder placeholder)

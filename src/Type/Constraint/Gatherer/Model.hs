@@ -104,14 +104,22 @@ withContext context gatherer = do
             |> DataContext.asMap
             |> Map.toList
             |> traverse
-                (\(dataId, type_) ->
+                (\(dataId, typeInfo) ->
                     let
                         reference =
                             Reference.fromDataId dataId
                     in do
                     p <- nextPlaceholder
-                    Constraint.Reference reference type_ p
-                        |> addConstraint
+                    case typeInfo of
+                        DataContext.TopLevel typeAnnotation ->
+                            Constraint.TopLevelDefinition
+                                reference
+                                typeAnnotation
+                                p
+                                |> addConstraint
+
+                        DataContext.LetDefinition _ ->
+                            return ()
 
                     return (reference, p)
                 )
@@ -122,13 +130,13 @@ withContext context gatherer = do
             |> ConstructorContext.asMap
             |> Map.toList
             |> traverse
-                (\(constructorId, type_) ->
+                (\(constructorId, typeAnnotation) ->
                     let
                         reference =
                             Reference.fromConstructorId constructorId
                     in do
                     p <- nextPlaceholder
-                    Constraint.Reference reference type_ p
+                    Constraint.TopLevelDefinition reference typeAnnotation p
                         |> addConstraint
 
                     return (reference, p)

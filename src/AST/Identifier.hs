@@ -7,14 +7,17 @@ module AST.Identifier
     , constructorId
     , dataId
     , referenceId
+    , typeId
+    , typeVariableId
+
+    , generateTypeVariableId
+
     , dataOrConstructor
     , formatConstructorId
     , formatDataId
     , formatReferenceId
     , formatTypeId
     , formatTypeVariableId
-    , typeId
-    , typeVariableId
     )
     where
 
@@ -108,6 +111,11 @@ typeVariableId str =
                 else
                     Nothing
             )
+
+
+generateTypeVariableId :: Int -> TypeVariableId
+generateTypeVariableId n =
+    TypeVariableId <| "a" ++ show n
 
 
 --- FORMAT ---

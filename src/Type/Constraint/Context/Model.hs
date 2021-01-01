@@ -1,7 +1,7 @@
 module Type.Constraint.Context.Model
     ( Context(..)
     , Error(..)
-    , addData
+    , addLetDefinition
     , context
     , lookupReference
     ) where
@@ -48,18 +48,19 @@ context topLevels = do
         |> return
 
 
-addData :: DataId -> T.Type -> Context -> Either Error Context
-addData dataId type_ mainContext =
+addLetDefinition
+    :: DataId -> T.TypePlaceholder -> Context -> Either Error Context
+addLetDefinition dataId placeholder mainContext =
     let
         dataContext =
             data_ mainContext
     in
-        Data.addData dataId type_ dataContext
+        Data.addLetDefinition dataId placeholder dataContext
             |> map (\d -> mainContext { data_ = d })
             |> Either.mapLeft DataError
 
 
-lookupReference :: ReferenceId -> Context -> Maybe T.Type
+lookupReference :: ReferenceId -> Context -> Maybe Data.DataTypeInfo
 lookupReference identifier mainContext =
     let
         specializedId =
@@ -71,3 +72,4 @@ lookupReference identifier mainContext =
 
         Left constructorId ->
             Constructor.lookup constructorId (constructor mainContext)
+                |> map Data.TopLevel

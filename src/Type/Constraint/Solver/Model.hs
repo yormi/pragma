@@ -6,6 +6,7 @@ module Type.Constraint.Solver.Model
     , deducedSoFar
     , fail
     , nextPlaceholder
+    , nextVariable
     , processSolution
     , updateSolution
     ) where
@@ -15,7 +16,9 @@ import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 
 import AST.CodeQuote (CodeQuote)
-import AST.Identifier (ReferenceId)
+import AST.Identifier (ReferenceId, TypeVariableId)
+import qualified AST.Identifier as Identifier
+import AST.TypeAnnotation (TypeAnnotation)
 import Type.Constraint.Reference (Reference)
 import qualified Type.Model as T
 
@@ -24,7 +27,7 @@ data SolutionType
     = InstanceType T.Type
     | ReferenceType
         { reference :: Reference
-        , type_ :: T.Type
+        , type_ :: TypeAnnotation
         }
     deriving (Eq, Show)
 
@@ -36,7 +39,8 @@ type Solver a =
 data State =
     State
         { solution :: Solution
-        , nextTypeVariable :: T.TypePlaceholder
+        , nextTypePlaceholder :: T.TypePlaceholder
+        , nextTypeVariable :: Int
         }
 
 
@@ -48,7 +52,8 @@ initialState :: T.TypePlaceholder -> State
 initialState nextAvailableTypeVariable =
     State
         { solution = Map.empty
-        , nextTypeVariable = nextAvailableTypeVariable
+        , nextTypePlaceholder = nextAvailableTypeVariable
+        , nextTypeVariable = 0
         }
 
 
@@ -76,7 +81,7 @@ data SolvingError
         }
     | FunctionDefinitionMustMatchType
         { codeQuote :: CodeQuote
-        , signatureType :: T.Type
+        , signatureType :: TypeAnnotation
         , definitionType :: T.Type
         , solutionSoFar :: Solution
         }
@@ -99,12 +104,22 @@ fail e =
 nextPlaceholder :: Solver T.Type
 nextPlaceholder = do
     state <- State.get
-    let (T.TypePlaceholder next) = nextTypeVariable state
-    State.put <| state { nextTypeVariable = T.TypePlaceholder <| next + 1 }
+    let (T.TypePlaceholder next) = nextTypePlaceholder state
+    State.put <| state { nextTypePlaceholder = T.TypePlaceholder <| next + 1 }
     next
         |> T.TypePlaceholder
         |> T.Placeholder
         |> return
+
+
+nextVariable :: Solver TypeVariableId
+nextVariable = do
+    state <- State.get
+    let next = nextTypeVariable state
+    State.put <| state { nextTypeVariable = next + 1 }
+    Identifier.generateTypeVariableId next
+        |> return
+
 
 updateSolution :: T.TypePlaceholder -> SolutionType -> Solver ()
 updateSolution placeholder concludedType = do

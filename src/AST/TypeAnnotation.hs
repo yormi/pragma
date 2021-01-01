@@ -5,9 +5,9 @@ module AST.TypeAnnotation
 
 import Control.Monad.Writer (Writer)
 import qualified Control.Monad.Writer as Writer
+import qualified Data.Set as Set
 
 import AST.Identifier (TypeId, TypeVariableId)
-import qualified Utils.List as List
 
 
 data TypeAnnotation
@@ -28,7 +28,7 @@ data TypeAnnotation
     deriving (Eq, Show)
 
 
-extractTypeVariables :: TypeAnnotation -> [TypeVariableId]
+extractTypeVariables :: TypeAnnotation -> Set TypeVariableId
 extractTypeVariables typeAnnotation =
     let
         collectTypeVariable :: TypeAnnotation -> Writer [TypeVariableId] ()
@@ -50,4 +50,4 @@ extractTypeVariables typeAnnotation =
     in
     collectTypeVariable typeAnnotation
         |> Writer.execWriter
-        |> List.unique
+        |> Set.fromList
