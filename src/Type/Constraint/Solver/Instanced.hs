@@ -4,7 +4,7 @@ module Type.Constraint.Solver.Instanced
     , fromType
     ) where
 
-import AST.Identifier (TypeId)
+import AST.Identifier (TypeId, TypeVariableId)
 import qualified Type.Model as T
 
 
@@ -22,7 +22,10 @@ data InstancedType
         { typeId :: TypeId
         , args :: [InstancedType]
         }
-    | Instance InstanceId
+    | Unbound
+        { name :: TypeVariableId
+        , placeholder :: T.TypePlaceholder
+        }
     | Placeholder T.TypePlaceholder
     deriving (Eq, Show)
 
@@ -66,3 +69,6 @@ fromType type_ =
 
         T.Placeholder p ->
             Placeholder p
+
+        T.Unbound { name, placeholder } ->
+            Unbound name placeholder

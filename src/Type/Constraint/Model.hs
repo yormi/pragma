@@ -29,7 +29,7 @@ data Constraint
     | Function
         { codeQuote :: CodeQuote
         , signatureType :: TypeAnnotation
-        , params :: [T.TypePlaceholder]
+        , params :: [T.Type]
         , body :: T.Type
         }
     | TopLevelDefinition

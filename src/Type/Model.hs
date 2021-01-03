@@ -24,6 +24,10 @@ data Type
     | Char
     | String
     | Function FunctionType
+    | Unbound
+        { name :: TypeVariableId
+        , placeholder :: TypePlaceholder
+        }
     | Placeholder TypePlaceholder
     | Custom TypeId (OrderedSet Type)
     deriving (Eq, Ord, Show)

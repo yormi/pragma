@@ -1,4 +1,5 @@
 module Type.Constraint.Solver.TypeAnnotation
+    -- ( check
     ( instantiate
     ) where
 
@@ -14,6 +15,45 @@ import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 
 
+-- check :: TypeAnnotation -> InstancedType -> Bool
+-- check annotation type_ =
+--     case (annotation, type_) of
+--         (TA.Bool, Bool) ->
+--             True
+-- 
+--         (TA.Int, Int) ->
+--             True
+-- 
+--         (TA.Float, Float) ->
+--             True
+-- 
+--         (TA.Char, Char) ->
+--             True
+-- 
+--         (TA.String, String) ->
+--             True
+-- 
+--         (TA.Function argA returnA, Function argB returnB) ->
+--             check argA argB
+--                 && check returnA returnB
+-- 
+--         (TA.Custom nameA argsA, Custom nameB argsB) ->
+--             nameA == nameB
+--                 &&
+--                     (List.zip argsA argsB
+--                         |> List.all (\(a, b) -> check a b)
+--                     )
+-- 
+--         (TA.Variable nameA, Unbound nameB _) ->
+--             nameA == nameB
+-- 
+--         (TA.Variable, Float) ->
+--             True
+-- 
+--         _ ->
+--             False
+
+
 instantiate :: TypeAnnotation -> Solver InstancedType
 instantiate annotation =
     let
@@ -21,7 +61,7 @@ instantiate annotation =
             TA.extractTypeVariables annotation
                 |> Set.toList
     in do
-    placeholders <- traverse (const Solver.nextInstance) variables
+    placeholders <- traverse (const Solver.nextPlaceholder) variables
     let variableMapping =
             List.zip variables placeholders
                 |> Map.fromList

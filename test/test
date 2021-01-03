@@ -9,10 +9,10 @@ foo : a -> b -> Int -> Color a
 foo x n c =
     let
         bar =
-            Red
+            Green
 
         baz =
-            bar n
+            bar
     in
     if True then
         Red x

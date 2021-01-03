@@ -120,7 +120,7 @@ solveConstraint constraint =
 
         Function { codeQuote, signatureType, params, body } -> do
             definition <-
-                buildFunction (map T.Placeholder params) body
+                buildFunction params body
             precisedDefinition <- Solution.mostPrecised definition
 
             instancedSignature <-
@@ -144,27 +144,12 @@ solveConstraint constraint =
 
 
         LetDefinition { reference, type_, placeholder, generated } -> do
-            solution <- Solver.deducedSoFar
             (instantiationPlaceholders, precised) <-
                 deducedSoFar type_
                     |> Solver.recordingGeneratedPlaceholder
-                    |> map (pipeTrace
-                        ([ "before    " ++ show reference ++ "    "
-                            ++ show type_
-                        , "deduced   " ++ show reference ++ "    "
-                        ]
-                            |> String.mergeLines
-                        )
-                    )
-            genericType <- Solution.generalize (Set.union instantiationPlaceholders generated) precised
-                    |> map (pipeTrace <|
-                        ([ "solution:"
-                        , SolutionPrinter.print solution
-                        , "generalize   " ++ show reference ++ "    "
-                        ]
-                            |> String.mergeLines
-                        )
-                        )
+            let expressionPlaceholders =
+                    Set.union instantiationPlaceholders generated
+            genericType <- Solution.generalize expressionPlaceholders precised
             Solver.Generic reference genericType
                 |> Solver.updateSolution placeholder
 

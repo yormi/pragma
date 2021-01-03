@@ -68,7 +68,6 @@ print constraint =
             let
                 calculated =
                     List.reverse params
-                        |> map T.Placeholder
                         |> List.foldl
                             (\type_ p ->
                                 T.Function (T.FunctionType p type_)

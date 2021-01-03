@@ -2,7 +2,6 @@ module Printer.Type.Generic (print) where
 
 import qualified AST.Identifier as Identifier
 import Type.Constraint.Solver.Generic (GenericType(..))
-import Type.Constraint.Solver.Instanced (InstanceId(..))
 import qualified Type.Model as T
 import qualified Printer.Utils as Utils
 import qualified Utils.String as String
@@ -48,8 +47,8 @@ print type_ =
                         |> String.mergeWords
                     )
 
-        Instance (InstanceId n) ->
-            "i" ++ show n
+        ParentVariable name (T.TypePlaceholder p) ->
+            Identifier.formatTypeVariableId name ++ show p
 
         Placeholder (T.TypePlaceholder n) ->
             "p" ++ show n

@@ -29,7 +29,7 @@ data GenericType
         { typeName :: TypeId
         , args :: [GenericType]
         }
-    | Instance InstanceId
+    | ParentVariable TypeVariableId T.TypePlaceholder
     | Variable TypeVariableId
     | Placeholder T.TypePlaceholder
     deriving (Eq, Show)

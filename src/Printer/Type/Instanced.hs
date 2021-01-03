@@ -34,8 +34,9 @@ print type_ =
             in
             formattedT1 ++ " -> " ++ print t2
 
-        Instance (InstanceId p) ->
-            "i" <> show p
+        Unbound name (T.TypePlaceholder p) ->
+            Identifier.formatTypeVariableId name
+                ++ show p
 
         Placeholder (T.TypePlaceholder p) ->
             "p" <> show p

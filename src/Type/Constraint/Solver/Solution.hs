@@ -96,8 +96,8 @@ replaceVariables variableMapping annotation =
                 |> return
 
 
-        G.Instance i ->
-            return <| Instance i
+        G.ParentVariable name placeholder ->
+            return <| Unbound name placeholder
 
 
         G.Placeholder p ->
@@ -126,15 +126,10 @@ replaceVariables variableMapping annotation =
 generalize :: Set T.TypePlaceholder -> InstancedType -> Solver G.GenericType
 generalize expressionPlaceholders type_ =
     let
-        toGeneralize t =
-            unboundPaceholders t
-                |> Set.toList
-
         placeholderList =
             Set.toList expressionPlaceholders
     in do
     precised <- mostPrecised type_
-    -- let placeholders = toGeneralize precised
     variables <- traverse (const Solver.nextVariable) placeholderList
     let variableMapping =
             List.zip placeholderList variables
@@ -176,8 +171,8 @@ replacePlaceholders variableMapping type_ =
             G.Custom typeName argsAnnotation
                 |> return
 
-        Instance i ->
-            G.Instance i
+        Unbound name placeholder ->
+            G.ParentVariable name placeholder
                 |> return
 
         Placeholder placeholder ->
@@ -191,26 +186,3 @@ replacePlaceholders variableMapping type_ =
 
                 Nothing ->
                     return <| G.Placeholder placeholder
-                    -- Solver.fail
-                    --     (Solver.ShouldNotHappen "Placeholder must all have been assigned a variable id just before calling this function")
-
-
-unboundPaceholders :: InstancedType -> Set T.TypePlaceholder
-unboundPaceholders type_ =
-    case type_ of
-        Placeholder placeholder ->
-            Set.singleton placeholder
-
-        Function { arg , returnType } -> do
-            Set.unions
-                [ unboundPaceholders arg
-                , unboundPaceholders returnType
-                ]
-
-        Custom { args } ->
-            args
-                |> map unboundPaceholders
-                |> Set.unions
-
-        _ ->
-            Set.empty

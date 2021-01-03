@@ -5,7 +5,7 @@ module Type.Constraint.Solver.Model
     , SolvingError(..)
     , deducedSoFar
     , fail
-    , nextInstance
+    -- , nextInstance
     , nextPlaceholder
     , nextVariable
     , processSolution
@@ -40,7 +40,7 @@ data State =
         { solution :: Solution
         , nextTypePlaceholder :: T.TypePlaceholder
         , nextTypeVariable :: Int
-        , nextInstanceId :: InstanceId
+        -- , nextInstanceId :: InstanceId
         }
 
 
@@ -87,7 +87,7 @@ initialState nextAvailableTypeVariable =
         { solution = Map.empty
         , nextTypePlaceholder = nextAvailableTypeVariable
         , nextTypeVariable = 0
-        , nextInstanceId = InstanceId 0
+        -- , nextInstanceId = InstanceId 0
         }
 
 
@@ -102,15 +102,14 @@ fail e =
     lift <| Left e
 
 
-nextInstance :: Solver InstancedType
-nextInstance = do
-    state <- State.get
-    let (InstanceId next) = nextInstanceId state
-    State.put <| state { nextInstanceId = InstanceId <| next + 1 }
-    InstanceId next
-        |> I.Instance
-        |> return
-
+-- nextInstance :: Solver InstancedType
+-- nextInstance = do
+--     state <- State.get
+--     let (InstanceId next) = nextInstanceId state
+--     State.put <| state { nextInstanceId = InstanceId <| next + 1 }
+--     InstanceId next
+--         |> I.Instance
+--         |> return
 
 nextPlaceholder :: Solver InstancedType
 nextPlaceholder = do
