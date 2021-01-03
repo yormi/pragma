@@ -29,7 +29,7 @@ data TypeAnnotation
 
 
 extractTypeVariables :: TypeAnnotation -> Set TypeVariableId
-extractTypeVariables typeAnnotation =
+extractTypeVariables genericType =
     let
         collectTypeVariable :: TypeAnnotation -> Writer [TypeVariableId] ()
         collectTypeVariable annotation =
@@ -48,6 +48,6 @@ extractTypeVariables typeAnnotation =
                 _ ->
                     return ()
     in
-    collectTypeVariable typeAnnotation
+    collectTypeVariable genericType
         |> Writer.execWriter
         |> Set.fromList

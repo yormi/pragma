@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import AST.CodeQuote (CodeQuote)
 import qualified AST.Expression as E
 import qualified Type.Model as T
+import qualified Type.Constraint.Gatherer.LetIn as LetIn
 import Type.Constraint.Gatherer.Model (Gatherer)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Model as Constraint
@@ -49,25 +50,7 @@ gather expression =
 
 
         E.LetIn { E.definitions, E.body } ->
-            let
-                toReference definition=
-                    case definition of
-                        E.SimpleDefinition id expr -> do
-                            type_ <- gather expr
-                            placeholder <- Gatherer.nextPlaceholder
-
-                            let reference = Reference.fromDataId id
-                            Constraint.LetDefinition reference type_ placeholder
-                                |> Gatherer.addConstraint
-
-                            return (reference, T.Placeholder placeholder)
-            in do
-            references <-
-                definitions
-                    |> traverse toReference
-                    |> map NonEmpty.toList
-                    |> map Map.fromList
-            Gatherer.withData references (gather body)
+            LetIn.gatherer gather definitions body
 
 
         --E.CaseOf { E.element, E.cases } ->

@@ -1,35 +1,34 @@
 module Type.Constraint.Solver.Model
-    ( Solver
+    ( module X
+    , InstancedType(..)
+    , Solver
     , SolvingError(..)
-    , Solution
-    , SolutionType(..)
     , deducedSoFar
     , fail
+    , nextInstance
     , nextPlaceholder
     , nextVariable
     , processSolution
+    , recordingGeneratedPlaceholder
     , updateSolution
     ) where
 
 import Control.Monad.State (StateT)
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ReferenceId, TypeVariableId)
 import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
-import Type.Constraint.Reference (Reference)
+import Type.Constraint.Solver.Instanced (InstanceId(..), InstancedType(..))
+import qualified Type.Constraint.Solver.Instanced as I
+import Type.Constraint.Solver.SolutionModel as X (Solution, SolutionType(..))
 import qualified Type.Model as T
+import qualified Utils.List as List
 
-
-data SolutionType
-    = InstanceType T.Type
-    | ReferenceType
-        { reference :: Reference
-        , type_ :: TypeAnnotation
-        }
-    deriving (Eq, Show)
+import qualified Printer.Type.Solution as SolutionPrinter
 
 
 type Solver a =
@@ -41,11 +40,45 @@ data State =
         { solution :: Solution
         , nextTypePlaceholder :: T.TypePlaceholder
         , nextTypeVariable :: Int
+        , nextInstanceId :: InstanceId
         }
 
 
-type Solution
-    = Map T.TypePlaceholder SolutionType
+data SolvingError
+    = TypeVariableCannotSatisfyBothConstraint SolutionType SolutionType
+    | IfConditionMustBeABool
+        { codeQuote :: CodeQuote
+        , type_ :: InstancedType
+        , solutionSoFar :: Solution
+        }
+    | BothIfAlternativesMustHaveSameType
+        { codeQuote :: CodeQuote
+        , whenTrue :: InstancedType
+        , whenFalse :: InstancedType
+        , solutionSoFar :: Solution
+        }
+    | NotAFunction
+        { codeQuote :: CodeQuote
+        , functionName :: ReferenceId
+        , functionType :: InstancedType
+        , solutionSoFar :: Solution
+        }
+    | BadApplication
+        { codeQuote :: CodeQuote
+        , functionName :: ReferenceId
+        , referenceType :: InstancedType
+        , functionType :: InstancedType
+        , solutionSoFar :: Solution
+        }
+    | FunctionDefinitionMustMatchType
+        { codeQuote :: CodeQuote
+        , signatureType :: TypeAnnotation
+        , definitionType :: InstancedType
+        , solutionSoFar :: Solution
+        }
+    | TODO String
+    | ShouldNotHappen String
+    deriving (Eq, Show)
 
 
 initialState :: T.TypePlaceholder -> State
@@ -54,40 +87,8 @@ initialState nextAvailableTypeVariable =
         { solution = Map.empty
         , nextTypePlaceholder = nextAvailableTypeVariable
         , nextTypeVariable = 0
+        , nextInstanceId = InstanceId 0
         }
-
-
-data SolvingError
-    = TypeVariableCannotSatisfyBothConstraint SolutionType SolutionType
-    | IfConditionMustBeABool
-        { codeQuote :: CodeQuote
-        , type_ :: T.Type
-        }
-    | BothIfAlternativesMustHaveSameType
-        { codeQuote :: CodeQuote
-        , whenTrue :: T.Type
-        , whenFalse :: T.Type
-        }
-    | NotAFunction
-        { codeQuote :: CodeQuote
-        , functionName :: ReferenceId
-        , functionType :: T.Type
-        }
-    | BadApplication
-        { codeQuote :: CodeQuote
-        , functionName :: ReferenceId
-        , referenceType :: T.Type
-        , functionType :: T.Type
-        }
-    | FunctionDefinitionMustMatchType
-        { codeQuote :: CodeQuote
-        , signatureType :: TypeAnnotation
-        , definitionType :: T.Type
-        , solutionSoFar :: Solution
-        }
-    | TODO String
-    | ShouldNotHappen String
-    deriving (Eq, Show)
 
 
 deducedSoFar :: Solver Solution
@@ -101,15 +102,45 @@ fail e =
     lift <| Left e
 
 
-nextPlaceholder :: Solver T.Type
+nextInstance :: Solver InstancedType
+nextInstance = do
+    state <- State.get
+    let (InstanceId next) = nextInstanceId state
+    State.put <| state { nextInstanceId = InstanceId <| next + 1 }
+    InstanceId next
+        |> I.Instance
+        |> return
+
+
+nextPlaceholder :: Solver InstancedType
 nextPlaceholder = do
     state <- State.get
     let (T.TypePlaceholder next) = nextTypePlaceholder state
     State.put <| state { nextTypePlaceholder = T.TypePlaceholder <| next + 1 }
     next
         |> T.TypePlaceholder
-        |> T.Placeholder
+        |> Placeholder
         |> return
+
+
+recordingGeneratedPlaceholder :: Solver a -> Solver (Set T.TypePlaceholder, a)
+recordingGeneratedPlaceholder solver =
+    let
+        readNextPlaceholderNumber = do
+            state <- State.get
+            let (T.TypePlaceholder placeholderNumber) =
+                    nextTypePlaceholder state
+            return placeholderNumber
+    in do
+    fromPlaceholder <- readNextPlaceholderNumber
+    result <- solver
+    nextPlaceholderAfter <- readNextPlaceholderNumber
+
+    let generated =
+            List.range fromPlaceholder nextPlaceholderAfter
+                |> map T.TypePlaceholder
+                |> Set.fromList
+    return (generated, result)
 
 
 nextVariable :: Solver TypeVariableId
@@ -130,7 +161,7 @@ updateSolution placeholder concludedType = do
         Nothing ->
             addToSolution placeholder concludedType
 
-        Just (InstanceType (T.Placeholder newPlaceholder)) ->
+        Just (Instanced (I.Placeholder newPlaceholder)) ->
             updateSolution newPlaceholder concludedType
 
         Just a ->
@@ -141,7 +172,8 @@ updateSolution placeholder concludedType = do
 
 
 addToSolution :: T.TypePlaceholder -> SolutionType -> Solver ()
-addToSolution placeholder t =
+addToSolution placeholder@(T.TypePlaceholder p) t =
+    trace ("\t\tp" ++ show p ++ "\t=\t\t" ++ SolutionPrinter.printSolutionType t) <|
     State.modify
         (\state ->
             solution state

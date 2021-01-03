@@ -1,6 +1,7 @@
 module Printer.Utils
     ( indent
     , parenthesized
+    , parenthesizeIfFunction
     , parenthesizeIfHasSpace
     , tab
     , tabLength
@@ -56,9 +57,18 @@ indent =
            )
 
 
+parenthesizeIfFunction :: String -> String
+parenthesizeIfFunction str =
+    if String.containsString "->" str then
+        parenthesized str
+
+    else
+        str
+
+
 parenthesizeIfHasSpace :: String -> String
 parenthesizeIfHasSpace str =
-    if String.isContainingChar ' ' str then
+    if String.containsChar ' ' str then
         parenthesized str
 
     else

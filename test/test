@@ -5,10 +5,17 @@ type Color a
     | RGB Int Int Int
 
 
-foo : a -> Color a
-foo x =
-    if x then
+foo : a -> b -> Int -> Color a
+foo x n c =
+    let
+        bar =
+            Red
+
+        baz =
+            bar n
+    in
+    if True then
         Red x
 
     else
-        RGB 1 2 3
+        baz

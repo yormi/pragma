@@ -3,12 +3,13 @@ module Printer.Type.SolverError (print) where
 import AST.CodeQuote (CodeQuote)
 import qualified AST.CodeQuote as CodeQuote
 import qualified AST.Identifier as Identifier
-import qualified Printer.Type.Model as TypePrinter
-import qualified Printer.Console as Console
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
+import qualified Printer.Console as Console
+import qualified Printer.Type.Instanced as InstancedTypePrinter
 import qualified Printer.Type.Solution as SolutionPrinter
-import qualified Type.Model as T
+import qualified Printer.Utils as Utils
 import Type.Constraint.Solver.Model (SolvingError)
+import qualified Type.Constraint.Solver.Instanced as I
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Utils.List as List
 import qualified Utils.String as String
@@ -31,18 +32,20 @@ print sourceCode e =
             "TODO --- " ++ show e
 
 
-        Solver.IfConditionMustBeABool { codeQuote, type_ } ->
+        Solver.IfConditionMustBeABool { codeQuote, type_, solutionSoFar } ->
+            SolutionPrinter.print solutionSoFar
+            ++
             formatError
                 sourceCode
                 codeQuote
                 "The type of the condition between the 'if' and the 'then' must be a Bool."
                 [ "\tExpected:"
                 , ""
-                , "\t\t" ++ (Console.green <| TypePrinter.print T.Bool)
+                , "\t\t" ++ (Console.green <| InstancedTypePrinter.print I.Bool)
                 , ""
                 , "\tActual:"
                 , ""
-                , "\t\t" ++ (Console.red <| TypePrinter.print type_)
+                , "\t\t" ++ (Console.red <| InstancedTypePrinter.print type_)
                 ]
 
 
@@ -50,8 +53,11 @@ print sourceCode e =
             { codeQuote
             , whenTrue
             , whenFalse
+            , solutionSoFar
             }
             ->
+            SolutionPrinter.print solutionSoFar
+            ++
             formatError sourceCode
                 codeQuote
                 "The if expressions must return the same type for both alternatives."
@@ -59,7 +65,7 @@ print sourceCode e =
                 , ""
                 , "\t\t" ++
                     (whenTrue
-                        |> TypePrinter.print
+                        |> InstancedTypePrinter.print
                         |> Console.red
                     )
                 , ""
@@ -67,7 +73,7 @@ print sourceCode e =
                 , ""
                 , "\t\t" ++
                     (whenFalse
-                        |> TypePrinter.print
+                        |> InstancedTypePrinter.print
                         |> Console.red
                     )
                 ]
@@ -77,14 +83,17 @@ print sourceCode e =
             { codeQuote
             , functionName
             , functionType
+            , solutionSoFar
             }
             ->
+            SolutionPrinter.print solutionSoFar
+            ++
             formatError
                 sourceCode
                 codeQuote
                 (Identifier.formatReferenceId functionName
                     ++ " must be a function if you want to pass arguments to it.")
-                [ "\tActual :\t" ++ TypePrinter.print functionType ]
+                [ "\tActual :\t" ++ InstancedTypePrinter.print functionType ]
 
 
         Solver.BadApplication
@@ -92,8 +101,11 @@ print sourceCode e =
             , functionName
             , referenceType
             , functionType
+            , solutionSoFar
             }
             ->
+            SolutionPrinter.print solutionSoFar
+            ++
             formatError
                 sourceCode
                 codeQuote
@@ -103,7 +115,7 @@ print sourceCode e =
                 )
                 [ "\tSignature Type:"
                 , ""
-                , "\t\t" ++ Console.green (TypePrinter.print referenceType)
+                , "\t\t" ++ Console.green (InstancedTypePrinter.print referenceType)
                 , ""
                 , "\tType according to the arguments:"
                 , ""
@@ -130,11 +142,11 @@ print sourceCode e =
                 , ""
                 , "\tDefinition Type:"
                 , ""
-                , "\t\t" ++ Console.red (TypePrinter.print definitionType)
+                , "\t\t" ++ Console.red (InstancedTypePrinter.print definitionType)
                 ]
 
 
-printComparedFunction :: T.Type -> T.Type -> String
+printComparedFunction :: I.InstancedType -> I.InstancedType -> String
 printComparedFunction reference toPrint =
     let
         colorPrint expected actual =
@@ -145,13 +157,14 @@ printComparedFunction reference toPrint =
 
         f refType applicationType =
             case (refType, applicationType) of
-                ( T.Function (T.FunctionType expectedArg a)
-                    , T.Function (T.FunctionType actualArg b)
-                    ) ->
+                ( I.Function expectedArg a, I.Function actualArg b) ->
                     colorPrint
                         expectedArg
                         actualArg
-                        (TypePrinter.printAsParam actualArg)
+                        (actualArg
+                            |> InstancedTypePrinter.print
+                            |> Utils.parenthesizeIfFunction
+                        )
                         ++ " -> "
                         ++ f a b
 
@@ -159,7 +172,10 @@ printComparedFunction reference toPrint =
                     colorPrint
                         expectedType
                         actualType
-                        (TypePrinter.printAsParam actualType)
+                        (actualType
+                            |> InstancedTypePrinter.print
+                            |> Utils.parenthesizeIfFunction
+                        )
     in
     f reference toPrint
 

@@ -1,5 +1,6 @@
 module Utils.String
-    ( isContainingChar
+    ( containsChar
+    , containsString
     , isEmpty
     , length
     , mergeLines
@@ -14,9 +15,14 @@ import Data.List as X (length)
 import qualified Data.List as List
 
 
-isContainingChar :: Char -> String -> Bool
-isContainingChar =
+containsChar :: Char -> String -> Bool
+containsChar =
     List.elem
+
+
+containsString :: String -> String -> Bool
+containsString =
+    List.isInfixOf
 
 
 isEmpty :: String -> Bool

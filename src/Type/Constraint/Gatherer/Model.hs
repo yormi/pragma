@@ -6,8 +6,10 @@ module Type.Constraint.Gatherer.Model
     , eval
     , fail
     , nextPlaceholder
+    , recordingGeneratedPlaceholder
     , gatherConstraints
     , lookupReference
+    , referencesInScope
     , run
     , withContext
     , withData
@@ -17,6 +19,7 @@ import qualified Control.Monad as Monad
 import Control.Monad.Trans.RWS.CPS (RWST)
 import qualified Control.Monad.Trans.RWS.CPS as RWST
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import AST.Identifier (ReferenceId)
 import qualified Type.Model as T
@@ -60,6 +63,7 @@ data ConstraintError
         { functionType :: T.Type
         , params :: [Reference]
         }
+    | CyclicDependenciesInLetDefinitions
     | ShouldNotHappen String
     deriving (Eq, Show)
 
@@ -168,6 +172,14 @@ lookupReference referenceId =
             fail <| VariableNotDefined reference
 
 
+referencesInScope :: Gatherer (Set Reference)
+referencesInScope = do
+    context <- RWST.ask
+    Map.keys context
+        |> Set.fromList
+        |> return
+
+
 withData :: Map Reference T.Type -> Gatherer a -> Gatherer a
 withData newReferences gatherer = do
     context <- RWST.ask
@@ -196,10 +208,29 @@ withData newReferences gatherer = do
 
 nextPlaceholder :: Gatherer T.TypePlaceholder
 nextPlaceholder = do
-    (T.TypePlaceholder nextTypeVariable) <- RWST.get
-    let next = T.TypePlaceholder <| nextTypeVariable + 1
+    (T.TypePlaceholder placeholderNumber) <- RWST.get
+    let next = T.TypePlaceholder <| placeholderNumber + 1
     RWST.put next
     return next
+
+
+recordingGeneratedPlaceholder
+    :: Gatherer a -> Gatherer (Set T.TypePlaceholder, a)
+recordingGeneratedPlaceholder gatherer =
+    let
+        readNextPlaceholderNumber = do
+            (T.TypePlaceholder placeholderNumber) <- RWST.get
+            return placeholderNumber
+    in do
+    fromPlaceholder <- readNextPlaceholderNumber
+    result <- gatherer
+    nextPlaceholderAfter <- readNextPlaceholderNumber
+
+    let generated =
+            List.range fromPlaceholder nextPlaceholderAfter
+                |> map T.TypePlaceholder
+                |> Set.fromList
+    return (generated, result)
 
 
 --- CONSTRAINT ---

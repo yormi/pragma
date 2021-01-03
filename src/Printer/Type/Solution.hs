@@ -1,12 +1,12 @@
-module Printer.Type.Solution (print) where
+module Printer.Type.Solution (print, printSolutionType) where
 
 import qualified Data.Map as Map
 
-import qualified Printer.Type.Model as TypePrinter
-import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
+import qualified Printer.Type.Instanced as InstancedTypePrinter
+import qualified Printer.Type.Generic as GenericPrinter
 import qualified Type.Model as Type
-import Type.Constraint.Solver.Model (Solution)
-import qualified Type.Constraint.Solver.Model as Solver
+import Type.Constraint.Solver.SolutionModel (Solution)
+import qualified Type.Constraint.Solver.SolutionModel as Solver
 import qualified Type.Constraint.Reference as Reference
 import qualified Utils.List as List
 import qualified Utils.Tuple as Tuple
@@ -41,11 +41,11 @@ print solution =
 printSolutionType :: Solver.SolutionType -> String
 printSolutionType solution =
     case solution of
-        Solver.InstanceType type_ ->
-            TypePrinter.print type_
+        Solver.Instanced type_ ->
+            InstancedTypePrinter.print type_
 
-        Solver.ReferenceType reference annotation ->
-            TypeAnnotationPrinter.print annotation
+        Solver.Generic reference genericType ->
+            GenericPrinter.print genericType
                 ++ " ..... " ++ Reference.asString reference
 
         -- Solver.NamedType identifier genericVariables type_ ->

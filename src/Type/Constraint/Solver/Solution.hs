@@ -1,50 +1,49 @@
 module Type.Constraint.Solver.Solution
-    ( mostPrecised
+    ( generalize
     , instantiate
+    , mostPrecised
     ) where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import AST.TypeAnnotation (TypeAnnotation)
-import qualified AST.TypeAnnotation as TA
 import AST.Identifier (TypeVariableId)
-import Type.Constraint.Solver.Model (Solver)
+import Type.Constraint.Solver.Model (InstancedType(..), Solver)
+import qualified Type.Constraint.Solver.Generic as G
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Type.Model as T
 import qualified Utils.List as List
 
 
-mostPrecised :: T.Type -> Solver T.Type
+mostPrecised :: InstancedType -> Solver InstancedType
 mostPrecised type_ =
     case type_ of
-        T.Placeholder p -> do
+        Placeholder p -> do
             solution <- Solver.deducedSoFar
             let morePrecise = Map.lookup p solution
 
             case morePrecise of
-                Just (Solver.ReferenceType _ typeAnnotation) -> do
-                    instantiate typeAnnotation
+                Just (Solver.Generic _ genericType) -> do
+                    instantiate genericType
 
-                Just (Solver.InstanceType instancedType) ->
+                Just (Solver.Instanced instancedType) ->
                     mostPrecised instancedType
 
                 _ ->
                     return type_
 
 
-        T.Custom typeId args -> do
+        Custom typeId args -> do
             precisedArgs <-
                 traverse mostPrecised args
-            T.Custom typeId precisedArgs
+            Custom typeId precisedArgs
                 |> return
 
 
-        T.Function (T.FunctionType arg returnType) -> do
+        Function arg returnType -> do
             precisedArg <- mostPrecised arg
             precisedReturnType <- mostPrecised returnType
-            T.FunctionType precisedArg precisedReturnType
-                |> T.Function
+            Function precisedArg precisedReturnType
                 |> return
 
 
@@ -52,11 +51,11 @@ mostPrecised type_ =
             return type_
 
 
-instantiate :: TypeAnnotation -> Solver T.Type
-instantiate typeAnnotation =
+instantiate :: G.GenericType -> Solver InstancedType
+instantiate genericType =
     let
         variables =
-            TA.extractTypeVariables typeAnnotation
+            G.extractTypeVariables genericType
                 |> Set.toList
     in do
     placeholders <- traverse (const Solver.nextPlaceholder) variables
@@ -64,43 +63,53 @@ instantiate typeAnnotation =
             List.zip variables placeholders
                 |> Map.fromList
 
-    toType variableMapping typeAnnotation
+    replaceVariables variableMapping genericType
+        |> trace (show genericType ++ "\n" ++ show placeholders)
 
 
-
-toType :: Map TypeVariableId T.Type -> TypeAnnotation -> Solver T.Type
-toType variableMapping annotation =
+replaceVariables
+    :: Map TypeVariableId InstancedType
+    -> G.GenericType
+    -> Solver InstancedType
+replaceVariables variableMapping annotation =
     case annotation of
-        TA.Bool ->
-            return T.Bool
+        G.Bool ->
+            return Bool
 
-        TA.Int ->
-            return T.Int
+        G.Int ->
+            return Int
 
-        TA.Float ->
-            return T.Float
+        G.Float ->
+            return Float
 
-        TA.Char ->
-            return T.Char
+        G.Char ->
+            return Char
 
-        TA.String ->
-            return T.String
+        G.String ->
+            return String
 
-        TA.Function { arg , returnType } -> do
-            argType <- toType variableMapping arg
-            returning <- toType variableMapping returnType
+        G.Function { arg , returnType } -> do
+            argType <- replaceVariables variableMapping arg
+            returning <- replaceVariables variableMapping returnType
 
-            T.FunctionType argType returning
-                |> T.Function
+            Function argType returning
                 |> return
 
 
-        TA.Custom { typeName, args } -> do
-            argTypes <- traverse (toType variableMapping) args
-            return <| T.Custom typeName argTypes
+        G.Instance i ->
+            return <| Instance i
 
 
-        TA.Variable identifier ->
+        G.Placeholder p ->
+            return <| Placeholder p
+
+
+        G.Custom { typeName, args } -> do
+            argTypes <- traverse (replaceVariables variableMapping) args
+            return <| Custom typeName argTypes
+
+
+        G.Variable identifier ->
             let
                 replacement =
                     Map.lookup identifier variableMapping
@@ -111,4 +120,97 @@ toType variableMapping annotation =
 
                 Nothing ->
                     Solver.fail
-                        (Solver.ShouldNotHappen "Variable must all have been assigned a placeholder just before")
+                        (Solver.ShouldNotHappen "Variable must all have been assigned an instance just before calling this function")
+
+
+generalize :: Set T.TypePlaceholder -> InstancedType -> Solver G.GenericType
+generalize expressionPlaceholders type_ =
+    let
+        toGeneralize t =
+            unboundPaceholders t
+                |> Set.toList
+
+        placeholderList =
+            Set.toList expressionPlaceholders
+    in do
+    precised <- mostPrecised type_
+    -- let placeholders = toGeneralize precised
+    variables <- traverse (const Solver.nextVariable) placeholderList
+    let variableMapping =
+            List.zip placeholderList variables
+                |> Map.fromList
+
+    replacePlaceholders variableMapping precised
+
+
+replacePlaceholders
+    :: Map T.TypePlaceholder TypeVariableId
+    -> InstancedType
+    -> Solver G.GenericType
+replacePlaceholders variableMapping type_ =
+    case type_ of
+        Bool ->
+            return G.Bool
+
+        Int ->
+            return G.Int
+
+        Float ->
+            return G.Float
+
+        Char ->
+            return G.Char
+
+        String ->
+            return G.String
+
+        Function arg returnType -> do
+            argAnnotation <- replacePlaceholders variableMapping arg
+            returnAnnotation <- replacePlaceholders variableMapping returnType
+            G.Function argAnnotation returnAnnotation
+                |> return
+
+        Custom typeName args -> do
+            argsAnnotation <-
+                traverse (replacePlaceholders variableMapping) args
+            G.Custom typeName argsAnnotation
+                |> return
+
+        Instance i ->
+            G.Instance i
+                |> return
+
+        Placeholder placeholder ->
+            let
+                replacement =
+                    Map.lookup placeholder variableMapping
+            in
+            case replacement of
+                Just v ->
+                    return <| G.Variable v
+
+                Nothing ->
+                    return <| G.Placeholder placeholder
+                    -- Solver.fail
+                    --     (Solver.ShouldNotHappen "Placeholder must all have been assigned a variable id just before calling this function")
+
+
+unboundPaceholders :: InstancedType -> Set T.TypePlaceholder
+unboundPaceholders type_ =
+    case type_ of
+        Placeholder placeholder ->
+            Set.singleton placeholder
+
+        Function { arg , returnType } -> do
+            Set.unions
+                [ unboundPaceholders arg
+                , unboundPaceholders returnType
+                ]
+
+        Custom { args } ->
+            args
+                |> map unboundPaceholders
+                |> Set.unions
+
+        _ ->
+            Set.empty

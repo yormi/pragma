@@ -5,16 +5,24 @@ module Type.Constraint.Solver.Solve
     ) where
 
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Set as Set
 
 import AST.CodeQuote (CodeQuote)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
+import Type.Constraint.Solver.Instanced (InstancedType)
+import qualified Type.Constraint.Solver.Instanced as I
+import qualified Type.Constraint.Solver.Generic as G
 import Type.Constraint.Solver.Model (Solver, SolvingError(..), Solution)
 import qualified Type.Constraint.Solver.Model as Solver
 import qualified Type.Constraint.Solver.Solution as Solution
 import qualified Type.Constraint.Solver.TypeAnnotation as TypeAnnotation
 import qualified Utils.List as List
+
+import qualified Printer.Type.Generic as GenericPrinter
+import qualified Printer.Type.Solution as SolutionPrinter
+import qualified Utils.String as String
 
 
 solve :: T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
@@ -30,11 +38,12 @@ solveConstraint constraint =
             { codeQuote, condition, whenTrue, whenFalse, placeholder }
             -> do
             precisedCondition <-
-                Solution.mostPrecised (Constraint.quotedType condition)
+                Constraint.quotedType condition
+                    |> deducedSoFar
 
             solveSimple
-                (Constraint.quotedType condition)
-                T.Bool
+                precisedCondition
+                I.Bool
                 (IfConditionMustBeABool
                     ((Constraint.codeQuote :: QuotedType -> CodeQuote)
                         condition
@@ -43,21 +52,28 @@ solveConstraint constraint =
                 )
 
             precisedWhenTrue <-
-                Solution.mostPrecised (Constraint.quotedType whenTrue)
+                Constraint.quotedType whenTrue
+                    |> deducedSoFar
+
             precisedWhenFalse <-
-                Solution.mostPrecised (Constraint.quotedType whenFalse)
+                Constraint.quotedType whenFalse
+                    |> deducedSoFar
 
             solveSimple
-                (Constraint.quotedType whenTrue)
-                (Constraint.quotedType whenFalse)
+                precisedWhenTrue
+                precisedWhenFalse
                 (BothIfAlternativesMustHaveSameType
                     codeQuote
                     precisedWhenTrue
                     precisedWhenFalse
                 )
 
-            Constraint.quotedType whenFalse
-                |> Solver.InstanceType
+            lastDeduction <-
+                Constraint.quotedType whenFalse
+                    |> deducedSoFar
+
+            lastDeduction
+                |> Solver.Instanced
                 |> Solver.updateSolution placeholder
 
 
@@ -67,18 +83,16 @@ solveConstraint constraint =
             , functionReference
             , argTypes
             , placeholder
-            } ->
-            let
-                functionType =
-                    buildFunction
-                        (NonEmpty.toList argTypes)
-                        (T.Placeholder placeholder)
-            in do
-            referenceType <- Solution.mostPrecised functionReference
+            } -> do
+            functionType <-
+                buildFunction
+                    (NonEmpty.toList argTypes)
+                    (T.Placeholder placeholder)
+            referenceType <- deducedSoFar functionReference
             case referenceType of
-                T.Function _ ->
+                I.Placeholder _ ->
                     solveSimple
-                        functionReference
+                        referenceType
                         functionType
                         (BadApplication
                             codeQuote
@@ -87,44 +101,80 @@ solveConstraint constraint =
                             functionType
                         )
 
-                _ ->
-                    NotAFunction codeQuote functionName referenceType
+                I.Function _ _ ->
+                    solveSimple
+                        referenceType
+                        functionType
+                        (BadApplication
+                            codeQuote
+                            functionName
+                            referenceType
+                            functionType
+                        )
+
+                _ -> do
+                    solution <- Solver.deducedSoFar
+                    NotAFunction codeQuote functionName referenceType solution
                         |> Solver.fail
 
 
-        Function
-            { codeQuote, signatureType, params, body } ->
-            let
-                definition =
-                    buildFunction (map T.Placeholder params) body
-
-            in do
+        Function { codeQuote, signatureType, params, body } -> do
+            definition <-
+                buildFunction (map T.Placeholder params) body
             precisedDefinition <- Solution.mostPrecised definition
-            solution <- Solver.deducedSoFar
 
-            if TypeAnnotation.isTypeMatching signatureType precisedDefinition then
-                return ()
-            else
-                FunctionDefinitionMustMatchType
+            instancedSignature <-
+                signatureType
+                    |> TypeAnnotation.instantiate
+
+            solveSimple
+                instancedSignature
+                precisedDefinition
+                (FunctionDefinitionMustMatchType
                     codeQuote
                     signatureType
                     precisedDefinition
-                    solution
-                    |> Solver.fail
+                )
 
 
         TopLevelDefinition { reference, typeAnnotation, placeholder } -> do
-            Solver.ReferenceType reference typeAnnotation
+            let generalized = G.fromTypeAnnotation typeAnnotation
+            Solver.Generic reference generalized
                 |> Solver.updateSolution placeholder
 
 
-        LetDefinition { reference, type_, placeholder } -> do
-            typeAnnotation <- TypeAnnotation.fromType type_
-            Solver.ReferenceType reference typeAnnotation
+        LetDefinition { reference, type_, placeholder, generated } -> do
+            solution <- Solver.deducedSoFar
+            (instantiationPlaceholders, precised) <-
+                deducedSoFar type_
+                    |> Solver.recordingGeneratedPlaceholder
+                    |> map (pipeTrace
+                        ([ "before    " ++ show reference ++ "    "
+                            ++ show type_
+                        , "deduced   " ++ show reference ++ "    "
+                        ]
+                            |> String.mergeLines
+                        )
+                    )
+            genericType <- Solution.generalize (Set.union instantiationPlaceholders generated) precised
+                    |> map (pipeTrace <|
+                        ([ "solution:"
+                        , SolutionPrinter.print solution
+                        , "generalize   " ++ show reference ++ "    "
+                        ]
+                            |> String.mergeLines
+                        )
+                        )
+            Solver.Generic reference genericType
                 |> Solver.updateSolution placeholder
 
 
-buildFunction :: [T.Type] -> T.Type -> T.Type
+deducedSoFar :: T.Type -> Solver InstancedType
+deducedSoFar =
+    I.fromType >> Solution.mostPrecised
+
+
+buildFunction :: [T.Type] -> T.Type -> Solver InstancedType
 buildFunction params finalType =
     List.foldl
         (\builtType p ->
@@ -132,49 +182,52 @@ buildFunction params finalType =
         )
         finalType
         (List.reverse params)
+        |> deducedSoFar
 
 
-solveSimple :: T.Type -> T.Type -> SolvingError -> Solver ()
+solveSimple
+    :: InstancedType -> InstancedType -> (Solution -> SolvingError) -> Solver ()
 solveSimple a b error = do
     precisedA <- Solution.mostPrecised a
     precisedB <- Solution.mostPrecised b
 
     case (precisedA, precisedB) of
-        (T.Function f, T.Function g) ->
-            solveFunction f g error
+        (I.Function argA returnA, I.Function argB returnB) -> do
+            precisedArgA <- Solution.mostPrecised argA
+            precisedArgB <- Solution.mostPrecised argB
 
-        (T.Custom _ argsA, T.Custom _ argsB) -> do
+            solveSimple precisedArgA precisedArgB error
+            solveSimple returnA returnB error
+
+
+        (I.Custom _ argsA, I.Custom _ argsB) -> do
             List.zip argsA argsB
                 |> traverse (\(argA, argB) -> solveSimple argA argB error)
                 |> void
 
 
-        (T.Placeholder pA, T.Placeholder pB) -> do
+        (I.Placeholder pA, I.Placeholder pB) -> do
             if pA == pB then
                 return ()
             else do
                 p <- Solver.nextPlaceholder
-                Solver.updateSolution pA (Solver.InstanceType p)
-                Solver.updateSolution pB (Solver.InstanceType p)
+                Solver.updateSolution pA (Solver.Instanced p)
+                Solver.updateSolution pB (Solver.Instanced p)
                 return ()
+                    |> trace ("Solving Placeholders " ++ show p)
 
-        (T.Placeholder pA, _) -> do
-            Solver.updateSolution pA (Solver.InstanceType b)
 
-        (_, T.Placeholder pB) -> do
-            Solver.updateSolution pB (Solver.InstanceType a)
+        (I.Placeholder pA, _) -> do
+            Solver.updateSolution pA (Solver.Instanced b)
+
+
+        (_, I.Placeholder pB) -> do
+            Solver.updateSolution pB (Solver.Instanced a)
+
 
         _ ->
             if precisedA == precisedB then
                 return ()
-            else
-                Solver.fail error
-
-
-solveFunction :: T.FunctionType -> T.FunctionType -> SolvingError -> Solver ()
-solveFunction (T.FunctionType argA returnA) (T.FunctionType argB returnB) error = do
-    a <- Solution.mostPrecised argA
-    b <- Solution.mostPrecised argB
-
-    solveSimple a b error
-    solveSimple returnA returnB error
+            else do
+                solution <- Solver.deducedSoFar
+                Solver.fail (error solution)

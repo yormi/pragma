@@ -5,6 +5,7 @@ module Utils.List
     , indexedMap
     , isEmpty
     , unique
+    , range
     , slice
     , singleton
     ) where
@@ -60,6 +61,20 @@ isEmpty =
 unique :: Eq a => [a] -> [a]
 unique =
     List.nub
+
+
+range :: Int -> Int -> [Int]
+range from toExclusively =
+    let
+        wantedLength =
+            toExclusively - from
+    in
+    if wantedLength > 0 then
+        List.replicate wantedLength (1 :: Int)
+            |> indexedMap (\index _ -> index + from)
+
+    else
+        []
 
 
 singleton :: a -> [a]

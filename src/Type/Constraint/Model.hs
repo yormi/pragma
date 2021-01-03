@@ -41,6 +41,7 @@ data Constraint
         { reference :: Reference
         , type_ :: T.Type
         , placeholder :: T.TypePlaceholder
+        , generated :: Set T.TypePlaceholder
         }
     deriving (Eq, Show)
 
