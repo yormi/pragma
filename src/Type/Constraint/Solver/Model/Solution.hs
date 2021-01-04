@@ -1,12 +1,12 @@
-module Type.Constraint.Solver.SolutionModel
+module Type.Constraint.Solver.Model.Solution
     ( InstancedType(..)
     , Solution
     , SolutionType(..)
     ) where
 
 import Type.Constraint.Reference (Reference)
-import Type.Constraint.Solver.Instanced (InstancedType(..))
-import Type.Constraint.Solver.Generic (GenericType)
+import Type.Constraint.Solver.Model.Instanced (InstancedType(..))
+import Type.Constraint.Solver.Model.Generic (GenericType)
 import qualified Type.Model as T
 
 

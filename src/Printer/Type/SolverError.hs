@@ -8,9 +8,10 @@ import qualified Printer.Console as Console
 import qualified Printer.Type.Instanced as InstancedTypePrinter
 import qualified Printer.Type.Solution as SolutionPrinter
 import qualified Printer.Utils as Utils
-import Type.Constraint.Solver.Model (SolvingError)
-import qualified Type.Constraint.Solver.Instanced as I
-import qualified Type.Constraint.Solver.Model as Solver
+import qualified Type.Constraint.Solver.Model.Instanced as I
+import Type.Constraint.Solver.Model.Solution (Solution)
+import Type.Constraint.Solver.Model.Solver (SolvingError)
+import qualified Type.Constraint.Solver.Model.Solver as Solver
 import qualified Utils.List as List
 import qualified Utils.String as String
 
@@ -22,20 +23,19 @@ print sourceCode e =
         Solver.TODO str ->
             "TODO --- " ++ str
 
-        Solver.ShouldNotHappen str ->
+        Solver.ShouldNotHappen str _ ->
             "SHOULD NOT HAPPEN --- This is a bug --- "
                 ++ str
                 ++ " --- "
                 ++ show e
 
-        Solver.TypeVariableCannotSatisfyBothConstraint _ _ ->
+        Solver.TypeVariableCannotSatisfyBothConstraint _ _ _ ->
             "TODO --- " ++ show e
 
 
         Solver.IfConditionMustBeABool { codeQuote, type_, solutionSoFar } ->
-            SolutionPrinter.print solutionSoFar
-            ++
             formatError
+            solutionSoFar
                 sourceCode
                 codeQuote
                 "The type of the condition between the 'if' and the 'then' must be a Bool."
@@ -56,9 +56,9 @@ print sourceCode e =
             , solutionSoFar
             }
             ->
-            SolutionPrinter.print solutionSoFar
-            ++
-            formatError sourceCode
+            formatError
+                solutionSoFar
+                sourceCode
                 codeQuote
                 "The if expressions must return the same type for both alternatives."
                 [ "\tTrue:"
@@ -79,23 +79,6 @@ print sourceCode e =
                 ]
 
 
-        Solver.NotAFunction
-            { codeQuote
-            , functionName
-            , functionType
-            , solutionSoFar
-            }
-            ->
-            SolutionPrinter.print solutionSoFar
-            ++
-            formatError
-                sourceCode
-                codeQuote
-                (Identifier.formatReferenceId functionName
-                    ++ " must be a function if you want to pass arguments to it.")
-                [ "\tActual :\t" ++ InstancedTypePrinter.print functionType ]
-
-
         Solver.BadApplication
             { codeQuote
             , functionName
@@ -104,24 +87,33 @@ print sourceCode e =
             , solutionSoFar
             }
             ->
-            SolutionPrinter.print solutionSoFar
-            ++
-            formatError
-                sourceCode
-                codeQuote
-                ("Arguments type must match with the type of "
-                    ++ Identifier.formatReferenceId functionName
-                    ++ " signature."
-                )
-                [ "\tSignature Type:"
-                , ""
-                , "\t\t" ++ Console.green (InstancedTypePrinter.print referenceType)
-                , ""
-                , "\tType according to the arguments:"
-                , ""
-                , "\t\t" ++ printComparedFunction referenceType functionType
-                ]
+            case functionType of
+                I.Function _ _ ->
+                    formatError
+                        solutionSoFar
+                        sourceCode
+                        codeQuote
+                        ("Arguments type must match with the type of "
+                            ++ Identifier.formatReferenceId functionName
+                            ++ " signature."
+                        )
+                        [ "\tSignature Type:"
+                        , ""
+                        , "\t\t" ++ Console.green (InstancedTypePrinter.print referenceType)
+                        , ""
+                        , "\tType according to the arguments:"
+                        , ""
+                        , "\t\t" ++ printComparedFunction referenceType functionType
+                        ]
 
+                _ ->
+                    formatError
+                        solutionSoFar
+                        sourceCode
+                        codeQuote
+                        (Identifier.formatReferenceId functionName
+                            ++ " must be a function if you want to pass arguments to it.")
+                        [ "\tActual :\t" ++ InstancedTypePrinter.print functionType ]
 
         Solver.FunctionDefinitionMustMatchType
             { codeQuote
@@ -130,9 +122,8 @@ print sourceCode e =
             , solutionSoFar
             }
             ->
-            SolutionPrinter.print solutionSoFar
-            ++
             formatError
+                solutionSoFar
                 sourceCode
                 codeQuote
                 "The function signature and the function definition types must be the same."
@@ -179,9 +170,10 @@ printComparedFunction reference toPrint =
     in
     f reference toPrint
 
-formatError :: String -> CodeQuote -> String -> [String] -> String
-formatError sourceCode codeQuote whatItShouldBe errorExplaination =
-    [
+formatError :: Solution -> String -> CodeQuote -> String -> [String] -> String
+formatError solutionSoFar sourceCode codeQuote whatItShouldBe errorExplaination =
+    [ [ SolutionPrinter.print solutionSoFar ]
+    ,
         [ ""
         , ""
         , "TYPE MISMATCH"

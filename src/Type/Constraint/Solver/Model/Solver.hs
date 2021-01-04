@@ -1,11 +1,9 @@
-module Type.Constraint.Solver.Model
-    ( module X
-    , InstancedType(..)
+module Type.Constraint.Solver.Model.Solver
+    ( InstancedType(..)
     , Solver
     , SolvingError(..)
     , deducedSoFar
     , fail
-    -- , nextInstance
     , nextPlaceholder
     , nextVariable
     , processSolution
@@ -22,13 +20,11 @@ import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ReferenceId, TypeVariableId)
 import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
-import Type.Constraint.Solver.Instanced (InstanceId(..), InstancedType(..))
-import qualified Type.Constraint.Solver.Instanced as I
-import Type.Constraint.Solver.SolutionModel as X (Solution, SolutionType(..))
+import Type.Constraint.Solver.Model.Instanced (InstancedType(..))
+import qualified Type.Constraint.Solver.Model.Instanced as I
+import Type.Constraint.Solver.Model.Solution (Solution, SolutionType(..))
 import qualified Type.Model as T
 import qualified Utils.List as List
-
-import qualified Printer.Type.Solution as SolutionPrinter
 
 
 type Solver a =
@@ -40,12 +36,14 @@ data State =
         { solution :: Solution
         , nextTypePlaceholder :: T.TypePlaceholder
         , nextTypeVariable :: Int
-        -- , nextInstanceId :: InstanceId
         }
 
 
 data SolvingError
-    = TypeVariableCannotSatisfyBothConstraint SolutionType SolutionType
+    = TypeVariableCannotSatisfyBothConstraint
+        SolutionType
+        SolutionType
+        Solution
     | IfConditionMustBeABool
         { codeQuote :: CodeQuote
         , type_ :: InstancedType
@@ -55,12 +53,6 @@ data SolvingError
         { codeQuote :: CodeQuote
         , whenTrue :: InstancedType
         , whenFalse :: InstancedType
-        , solutionSoFar :: Solution
-        }
-    | NotAFunction
-        { codeQuote :: CodeQuote
-        , functionName :: ReferenceId
-        , functionType :: InstancedType
         , solutionSoFar :: Solution
         }
     | BadApplication
@@ -77,7 +69,10 @@ data SolvingError
         , solutionSoFar :: Solution
         }
     | TODO String
-    | ShouldNotHappen String
+    | ShouldNotHappen
+        { msg :: String
+        , solutionSoFar :: Solution
+        }
     deriving (Eq, Show)
 
 
@@ -87,7 +82,6 @@ initialState nextAvailableTypeVariable =
         { solution = Map.empty
         , nextTypePlaceholder = nextAvailableTypeVariable
         , nextTypeVariable = 0
-        -- , nextInstanceId = InstanceId 0
         }
 
 
@@ -97,19 +91,11 @@ deducedSoFar =
         |> map solution
 
 
-fail :: SolvingError -> Solver a
-fail e =
-    lift <| Left e
+fail :: (Solution -> SolvingError) -> Solver a
+fail e = do
+    solution <- deducedSoFar
+    lift <| Left (e solution)
 
-
--- nextInstance :: Solver InstancedType
--- nextInstance = do
---     state <- State.get
---     let (InstanceId next) = nextInstanceId state
---     State.put <| state { nextInstanceId = InstanceId <| next + 1 }
---     InstanceId next
---         |> I.Instance
---         |> return
 
 nextPlaceholder :: Solver InstancedType
 nextPlaceholder = do
@@ -171,8 +157,7 @@ updateSolution placeholder concludedType = do
 
 
 addToSolution :: T.TypePlaceholder -> SolutionType -> Solver ()
-addToSolution placeholder@(T.TypePlaceholder p) t =
-    trace ("\t\tp" ++ show p ++ "\t=\t\t" ++ SolutionPrinter.printSolutionType t) <|
+addToSolution placeholder t =
     State.modify
         (\state ->
             solution state

@@ -1,4 +1,4 @@
-module Type.Constraint.Solver.Solve
+module Type.Constraint.Solver.Entry
     ( SolvingError(..)
     , Solution
     , solve
@@ -11,18 +11,16 @@ import AST.CodeQuote (CodeQuote)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
-import Type.Constraint.Solver.Instanced (InstancedType)
-import qualified Type.Constraint.Solver.Instanced as I
-import qualified Type.Constraint.Solver.Generic as G
-import Type.Constraint.Solver.Model (Solver, SolvingError(..), Solution)
-import qualified Type.Constraint.Solver.Model as Solver
-import qualified Type.Constraint.Solver.Solution as Solution
-import qualified Type.Constraint.Solver.TypeAnnotation as TypeAnnotation
+import qualified Type.Constraint.Solver.Deduce as Deduce
+import qualified Type.Constraint.Solver.Instantiate as Instantiate
+import Type.Constraint.Solver.Model.Instanced (InstancedType)
+import qualified Type.Constraint.Solver.Model.Instanced as I
+import qualified Type.Constraint.Solver.Generalize as Generalize
+import Type.Constraint.Solver.Model.Solution (Solution)
+import qualified Type.Constraint.Solver.Model.Solution as Solution
+import Type.Constraint.Solver.Model.Solver (Solver, SolvingError(..))
+import qualified Type.Constraint.Solver.Model.Solver as Solver
 import qualified Utils.List as List
-
-import qualified Printer.Type.Generic as GenericPrinter
-import qualified Printer.Type.Solution as SolutionPrinter
-import qualified Utils.String as String
 
 
 solve :: T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
@@ -54,11 +52,9 @@ solveConstraint constraint =
             precisedWhenTrue <-
                 Constraint.quotedType whenTrue
                     |> deducedSoFar
-
             precisedWhenFalse <-
                 Constraint.quotedType whenFalse
                     |> deducedSoFar
-
             solveSimple
                 precisedWhenTrue
                 precisedWhenFalse
@@ -71,9 +67,8 @@ solveConstraint constraint =
             lastDeduction <-
                 Constraint.quotedType whenFalse
                     |> deducedSoFar
-
             lastDeduction
-                |> Solver.Instanced
+                |> Solution.Instanced
                 |> Solver.updateSolution placeholder
 
 
@@ -89,57 +84,34 @@ solveConstraint constraint =
                     (NonEmpty.toList argTypes)
                     (T.Placeholder placeholder)
             referenceType <- deducedSoFar functionReference
-            case referenceType of
-                I.Placeholder _ ->
-                    solveSimple
-                        referenceType
-                        functionType
-                        (BadApplication
-                            codeQuote
-                            functionName
-                            referenceType
-                            functionType
-                        )
-
-                I.Function _ _ ->
-                    solveSimple
-                        referenceType
-                        functionType
-                        (BadApplication
-                            codeQuote
-                            functionName
-                            referenceType
-                            functionType
-                        )
-
-                _ -> do
-                    solution <- Solver.deducedSoFar
-                    NotAFunction codeQuote functionName referenceType solution
-                        |> Solver.fail
+            solveSimple
+                referenceType
+                functionType
+                (BadApplication
+                    codeQuote
+                    functionName
+                    referenceType
+                    functionType
+                )
 
 
         Function { codeQuote, signatureType, params, body } -> do
-            definition <-
-                buildFunction params body
-            precisedDefinition <- Solution.mostPrecised definition
-
-            instancedSignature <-
-                signatureType
-                    |> TypeAnnotation.instantiate
+            definition <- buildFunction params body
+            instancedSignature <- Instantiate.fromTypeAnnotation signatureType
 
             solveSimple
                 instancedSignature
-                precisedDefinition
+                definition
                 (FunctionDefinitionMustMatchType
                     codeQuote
                     signatureType
-                    precisedDefinition
+                    definition
                 )
 
 
         TopLevelDefinition { reference, typeAnnotation, placeholder } -> do
-            let generalized = G.fromTypeAnnotation typeAnnotation
-            Solver.Generic reference generalized
+            let generalized = Generalize.fromTypeAnnotation typeAnnotation
+            Solution.Generic reference generalized
                 |> Solver.updateSolution placeholder
 
 
@@ -149,14 +121,14 @@ solveConstraint constraint =
                     |> Solver.recordingGeneratedPlaceholder
             let expressionPlaceholders =
                     Set.union instantiationPlaceholders generated
-            genericType <- Solution.generalize expressionPlaceholders precised
-            Solver.Generic reference genericType
+            genericType <- Generalize.fromDefinition expressionPlaceholders precised
+            Solution.Generic reference genericType
                 |> Solver.updateSolution placeholder
 
 
 deducedSoFar :: T.Type -> Solver InstancedType
 deducedSoFar =
-    I.fromType >> Solution.mostPrecised
+    I.fromType >> Deduce.mostPrecised
 
 
 buildFunction :: [T.Type] -> T.Type -> Solver InstancedType
@@ -173,13 +145,13 @@ buildFunction params finalType =
 solveSimple
     :: InstancedType -> InstancedType -> (Solution -> SolvingError) -> Solver ()
 solveSimple a b error = do
-    precisedA <- Solution.mostPrecised a
-    precisedB <- Solution.mostPrecised b
+    precisedA <- Deduce.mostPrecised a
+    precisedB <- Deduce.mostPrecised b
 
     case (precisedA, precisedB) of
         (I.Function argA returnA, I.Function argB returnB) -> do
-            precisedArgA <- Solution.mostPrecised argA
-            precisedArgB <- Solution.mostPrecised argB
+            precisedArgA <- Deduce.mostPrecised argA
+            precisedArgB <- Deduce.mostPrecised argB
 
             solveSimple precisedArgA precisedArgB error
             solveSimple returnA returnB error
@@ -196,23 +168,21 @@ solveSimple a b error = do
                 return ()
             else do
                 p <- Solver.nextPlaceholder
-                Solver.updateSolution pA (Solver.Instanced p)
-                Solver.updateSolution pB (Solver.Instanced p)
+                Solver.updateSolution pA (Solution.Instanced p)
+                Solver.updateSolution pB (Solution.Instanced p)
                 return ()
-                    |> trace ("Solving Placeholders " ++ show p)
 
 
         (I.Placeholder pA, _) -> do
-            Solver.updateSolution pA (Solver.Instanced b)
+            Solver.updateSolution pA (Solution.Instanced b)
 
 
         (_, I.Placeholder pB) -> do
-            Solver.updateSolution pB (Solver.Instanced a)
+            Solver.updateSolution pB (Solution.Instanced a)
 
 
         _ ->
             if precisedA == precisedB then
                 return ()
-            else do
-                solution <- Solver.deducedSoFar
-                Solver.fail (error solution)
+            else
+                Solver.fail error

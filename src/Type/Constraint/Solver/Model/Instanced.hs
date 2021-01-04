@@ -1,6 +1,5 @@
-module Type.Constraint.Solver.Instanced
-    ( InstanceId(..)
-    , InstancedType(..)
+module Type.Constraint.Solver.Model.Instanced
+    ( InstancedType(..)
     , fromType
     ) where
 
@@ -27,11 +26,6 @@ data InstancedType
         , placeholder :: T.TypePlaceholder
         }
     | Placeholder T.TypePlaceholder
-    deriving (Eq, Show)
-
-
-data InstanceId
-    = InstanceId Int
     deriving (Eq, Show)
 
 

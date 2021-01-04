@@ -2,7 +2,7 @@ module Printer.Type.Instanced (print) where
 
 import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
-import Type.Constraint.Solver.Instanced (InstanceId(..), InstancedType(..))
+import Type.Constraint.Solver.Model.Instanced (InstancedType(..))
 import qualified Type.Model as T
 import qualified Utils.String as String
 

@@ -26,8 +26,8 @@ import Type.Constraint.Context.Model (Context)
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Gatherer.Module as Module
-import Type.Constraint.Solver.Model (Solution)
-import qualified Type.Constraint.Solver.Solve as ConstraintSolver
+import qualified Type.Constraint.Solver.Entry as ConstraintSolver
+import Type.Constraint.Solver.Model.Solution (Solution)
 import Type.Model as T
 import qualified Type.ValidateAnnotation as ValidateAnnotation
 import qualified Utils.Either as Either

@@ -13,7 +13,7 @@ import qualified Control.Monad.Except as Except
 import qualified Parser.Parser as Parser
 import qualified Type.Constraint.Context.Model as Context
 import qualified Type.Constraint.Gatherer.Model as Gatherer
-import qualified Type.Constraint.Solver.Solve as ConstraintSolver
+import qualified Type.Constraint.Solver.Entry as ConstraintSolver
 import qualified Type.ValidateAnnotation as ValidateAnnotation
 import qualified Utils.Either as Either
 import qualified Utils.List as List

@@ -1,7 +1,7 @@
 module Printer.Type.Generic (print) where
 
 import qualified AST.Identifier as Identifier
-import Type.Constraint.Solver.Generic (GenericType(..))
+import Type.Constraint.Solver.Model.Generic (GenericType(..))
 import qualified Type.Model as T
 import qualified Printer.Utils as Utils
 import qualified Utils.String as String
