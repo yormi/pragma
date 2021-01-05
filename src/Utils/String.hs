@@ -8,6 +8,7 @@ module Utils.String
     , padLeft
     , padRight
     , splitLines
+    , splitOn
     )
     where
 
@@ -45,6 +46,26 @@ padRight targetLength str =
 splitLines :: String -> [String]
 splitLines =
     List.lines
+
+
+splitOn :: Char -> String -> [String]
+splitOn c str =
+    let
+        predicate =
+            (==) c
+
+        afterChar =
+            List.dropWhile predicate str
+    in
+    if isEmpty afterChar then
+        []
+
+    else
+        let
+            (before, rest2) =
+                List.break predicate afterChar
+        in
+        before : splitOn c rest2
 
 
 mergeLines :: [String] -> String

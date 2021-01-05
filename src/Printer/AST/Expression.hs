@@ -33,10 +33,13 @@ print e =
             Identifier.formatReferenceId r
 
         If condition whenTrue whenFalse ->
-            "if " ++ print condition ++ " then" ++ "\n"
-                ++ (Utils.indent <| print whenTrue ++ "\n\n")
-                ++ "else\n"
-                ++ (Utils.indent <| print whenFalse ++ "\n")
+            [ "if " ++ print condition ++ " then"
+            , Utils.indent <| print whenTrue
+            , ""
+            , "else"
+            , Utils.indent <| print whenFalse
+            ]
+                |> String.mergeLines
 
         LetIn { Expression.definitions, Expression.body } ->
             "let\n"

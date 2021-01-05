@@ -4,10 +4,11 @@ module Utils.List
     , head
     , indexedMap
     , isEmpty
-    , unique
+    , last
     , range
     , slice
     , singleton
+    , unique
     ) where
 
 import qualified Data.List as List
@@ -16,6 +17,7 @@ import Data.List as X
     ( any
     , all
     , concat
+    , dropWhileEnd
     , filter
     , foldl
     , intercalate
@@ -23,6 +25,7 @@ import Data.List as X
     , length
     , replicate
     , reverse
+    , take
     , zip
     , zip3
     )
@@ -56,6 +59,15 @@ indexedMap f xs =
 isEmpty :: [a] -> Bool
 isEmpty =
     List.null
+
+
+last :: [a] -> Maybe a
+last xs =
+    if isEmpty xs then
+        Nothing
+
+    else
+        Just <| List.last xs
 
 
 unique :: Eq a => [a] -> [a]

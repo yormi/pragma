@@ -67,6 +67,10 @@ printTopLevel element =
             |> String.mergeLines
 
 
+--         Record {} ->
+--             "TODO"
+
+
 printDataChoice :: DataChoice -> String
 printDataChoice (DataChoice _ tag args) =
     if List.isEmpty args then

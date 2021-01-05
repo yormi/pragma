@@ -5,7 +5,7 @@ module Parser.Module
 
 import qualified AST.CodeQuote as CodeQuote
 import AST.Identifier (DataId)
-import AST.Module (DataChoice(..), Module(..), TopLevel(..))
+import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
 import Parser.Parser (Parser, ParserError(..))
 import qualified Parser.Expression as Expression
@@ -17,13 +17,55 @@ moduleParser :: Parser Module
 moduleParser = do
     module_ <-
         Parser.oneOf
-            [ sumType
+            [ Parser.unconsumeOnFailure record
+            , sumType
             , function
             ]
             |> Parser.many
             |> map Module
     Parser.endOfFile
     return module_
+
+
+record :: Parser TopLevel
+record = do
+    from <- Parser.position
+    Parser.reserved "type"
+    Parser.reserved "alias"
+    typeName <- Parser.typeIdentifier
+
+    typeVariables <- Parser.many Parser.typeVariableIdentifier
+
+    Parser.reservedOperator "="
+
+    Parser.reservedOperator "{"
+    firstField <- field
+    otherFields <-
+        Parser.many <| do
+            Parser.reservedOperator ","
+            field
+    Parser.reservedOperator "}"
+
+    to <- Parser.endPosition
+    let codeQuote = CodeQuote.fromPositions from to
+    let fields =
+            NonEmpty.build firstField otherFields
+    return <| Record codeQuote typeName typeVariables fields
+
+
+field :: Parser Field
+field = do
+    from <- Parser.position
+
+    fieldName <- Parser.dataIdentifier
+    Parser.reservedOperator ":"
+    annotation <- typeAnnotationParser
+
+    to <- Parser.endPosition
+
+    let codeQuote = CodeQuote.fromPositions from to
+    Field codeQuote fieldName annotation
+        |> return
 
 
 sumType :: Parser TopLevel

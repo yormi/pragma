@@ -7,6 +7,7 @@ module Parser.Parser
     , constructorIdentifier
     , dataIdentifier
     , endOfFile
+    , endPosition
     , fail
     , identifier
     , indented
@@ -31,12 +32,12 @@ module Parser.Parser
 
 
 import qualified Control.Monad as Monad
+import qualified Data.Char as Char
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parser
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
-
 
 import AST.CodeQuote (CodeQuote, Position(..))
 import qualified AST.CodeQuote as CodeQuote
@@ -49,10 +50,22 @@ import AST.Identifier
     )
 import qualified AST.Identifier as Identifier
 import qualified Utils.Either as Either
+import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
+import qualified Utils.String as String
 
 
-type Parser a = Indent.IndentParserT String () (Either ParserError) a
+type Parser a
+    = Indent.IndentParserT
+        String
+        FileContent
+        (Either ParserError)
+        a
+
+
+type FileContent
+    = String
+
 
 data ParserError
     = RawError Parser.ParseError
@@ -70,14 +83,20 @@ fail =
     lift << lift << Left
 
 
-runParser :: Parser a -> FilePath -> String -> Either ParserError a
-runParser parser filePath file = do
-    Indent.runIndentParserT parser () filePath file
+runParser :: Parser a -> FilePath -> FileContent -> Either ParserError a
+runParser parser filePath fileContent =
+    let
+        -- To allow differentiating last file char from position bumped
+        -- too far after last lexeme parsing
+        withNewLine =
+            fileContent ++ "\n"
+    in
+    Indent.runIndentParserT parser withNewLine filePath withNewLine
         |> map (Either.mapLeft RawError)
         |> join
 
 
-languageDefinition :: Monad m => Token.GenLanguageDef String () m
+languageDefinition :: Monad m => Token.GenLanguageDef String FileContent m
 languageDefinition = Token.LanguageDef
   { Token.commentStart    = "{-"
   , Token.commentEnd      = "-}"
@@ -105,7 +124,7 @@ languageDefinition = Token.LanguageDef
   }
 
 
-lexer :: Monad m => Token.GenTokenParser String () m
+lexer :: Monad m => Token.GenTokenParser String FileContent m
 lexer =
     Token.makeTokenParser languageDefinition
 
@@ -263,6 +282,57 @@ position =
                 (Parser.sourceColumn sourcePosition)
         )
         Parser.getPosition
+
+
+endPosition :: Parser Position
+endPosition = do
+    fileContent <- Parser.getState
+    Position filename currentLine currentColumn <- position
+
+    let beforePosition = cutFrom currentLine currentColumn fileContent
+    beforePosition
+        |> List.dropWhileEnd (not << Char.isSpace)
+        |> List.dropWhileEnd Char.isSpace
+        |> (\str ->
+                Position
+                    filename
+                    (countLine str)
+                    (countColumn str)
+            )
+        |> return
+
+
+cutFrom :: Int -> Int -> String -> String
+cutFrom lineNumber columnNumber =
+    String.splitLines
+        >> (\lines -> lines ++ [ "" ])
+        >> List.indexedMap
+            (\index line ->
+                if index + 1 < lineNumber then
+                    Just line
+
+                else if index + 1 == lineNumber then
+                    List.take columnNumber line
+                        |> Just
+
+                else
+                    Nothing
+            )
+        >> Maybe.values
+        >> String.mergeLines
+
+
+countLine :: String -> Int
+countLine =
+        String.splitLines >> List.length
+
+
+countColumn :: String -> Int
+countColumn =
+        String.splitLines
+            >> List.last
+            >> map List.length
+            >> Maybe.withDefault 1
 
 
 -- Indentation

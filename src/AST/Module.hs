@@ -1,5 +1,6 @@
 module AST.Module
     ( DataChoice(..)
+    , Field(..)
     , Module(..)
     , TopLevel(..)
     ) where
@@ -32,11 +33,26 @@ data TopLevel
         , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
         , dataChoices :: NonEmpty DataChoice
         }
+    | Record
+        { codeQuote :: CodeQuote
+        , typeName :: TypeId
+        , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
+        , fields :: NonEmpty Field
+        }
         deriving (Eq, Show)
 
 
-data DataChoice =
-    DataChoice
+data Field
+    = Field
+        { codeQuote :: CodeQuote
+        , name :: DataId
+        , typeAnnotation :: TypeAnnotation
+        }
+        deriving (Eq, Show)
+
+
+data DataChoice
+    = DataChoice
         { codeQuote :: CodeQuote
         , tag :: ConstructorId
         , args :: [TypeAnnotation]

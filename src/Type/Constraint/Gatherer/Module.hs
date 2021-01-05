@@ -50,6 +50,9 @@ gather topLevel =
             return  ()
 
 
+--         M.Record {} ->
+--             return  ()
+
 
 paramsWithTypes
     :: TypeAnnotation -> [Reference] -> Gatherer [(Reference, T.Type)]

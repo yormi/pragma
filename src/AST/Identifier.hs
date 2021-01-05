@@ -4,11 +4,15 @@ module AST.Identifier
     , ReferenceId
     , TypeId
     , TypeVariableId
+
     , constructorId
     , dataId
     , referenceId
     , typeId
     , typeVariableId
+
+    , dataIdForTest
+    , typeIdForTest
 
     , generateTypeVariableId
 
@@ -111,6 +115,16 @@ typeVariableId str =
                 else
                     Nothing
             )
+
+
+dataIdForTest :: String -> DataId
+dataIdForTest =
+    DataId
+
+
+typeIdForTest :: String -> TypeId
+typeIdForTest =
+    TypeId
 
 
 generateTypeVariableId :: Int -> TypeVariableId

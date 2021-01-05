@@ -34,6 +34,10 @@ dependencies:
 - transformers
 - text == 1.2.4.0
 
+
+- hspec
+
+
 ghc-options:
 - -Wall
 

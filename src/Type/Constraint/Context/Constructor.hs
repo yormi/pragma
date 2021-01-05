@@ -48,6 +48,9 @@ context topLevels =
                 M.SumType { M.typeName, M.typeVariables, M.dataChoices } -> do
                     sumType typeName typeVariables dataChoices resultingContext
 
+--                 M.Record {} -> do
+--                     resultingContext -- TODO
+
                 M.Function {} ->
                     resultingContext
 

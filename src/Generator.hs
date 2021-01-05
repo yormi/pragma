@@ -41,6 +41,9 @@ generateTopLevel topLevel =
                         |> NonEmpty.toList
                         |> bind generateConstructor
                     )
+
+--        M.Record {} ->
+--            [ "Record - TODO" ]
     )
                 |> String.mergeLines
 
