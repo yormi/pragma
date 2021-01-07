@@ -13,6 +13,7 @@ module AST.Identifier
 
     , dataIdForTest
     , typeIdForTest
+    , typeVariableIdForTest
 
     , generateTypeVariableId
 
@@ -25,6 +26,7 @@ module AST.Identifier
     )
     where
 
+import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Char as Char
 
 import qualified Utils.List as List
@@ -37,7 +39,7 @@ data ConstructorId
 
 data DataId
     = DataId String
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Generic, Ord, Show, FromJSON, ToJSON)
 
 
 data ReferenceId
@@ -125,6 +127,11 @@ dataIdForTest =
 typeIdForTest :: String -> TypeId
 typeIdForTest =
     TypeId
+
+
+typeVariableIdForTest :: String -> TypeVariableId
+typeVariableIdForTest =
+    TypeVariableId
 
 
 generateTypeVariableId :: Int -> TypeVariableId

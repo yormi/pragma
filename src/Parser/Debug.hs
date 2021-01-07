@@ -3,10 +3,8 @@ module Parser.Debug (printAll) where
 import qualified Control.Monad.Reader as Reader
 import qualified Data.List as List
 import qualified Text.Parsec as Parser
-import qualified Text.Parsec.Indent as Indent
 
-
-type Parser a = Indent.IndentParser String () a
+import Parser.Parser (Parser)
 
 
 printAll :: String -> Parser ()
@@ -17,8 +15,8 @@ printAll str = do
     printNewLine
 
 
-print_ :: String -> String -> String -> Parser ()
-print_ what section content =
+print :: String -> String -> String -> Parser ()
+print what section content =
     trace
         (what ++ " - " ++ section ++ ": " ++ content)
         (return ())
@@ -27,19 +25,19 @@ print_ what section content =
 printInput :: String -> Parser ()
 printInput str = do
     i <- Parser.getInput
-    print_ "INPUT" str <| List.take 6 (show i)
+    print "INPUT" str <| List.take 6 (show i)
 
 
 printPosition :: String -> Parser ()
 printPosition str = do
     p <- Parser.getPosition
-    print_ "POS" str <| show p
+    print "POS" str <| show p
 
 
 printRefPosition :: String -> Parser ()
 printRefPosition str = do
     a <- Reader.ask
-    print_ "REF" str <| show a
+    print "REF" str <| show a
 
 
 printNewLine :: Parser ()

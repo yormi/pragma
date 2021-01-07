@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base-noprelude >= 4.7 && < 5
+- aeson
 - ansi-terminal
 - containers
 - colour
@@ -42,6 +43,8 @@ ghc-options:
 - -Wall
 
 default-extensions:
+- DeriveAnyClass
+- DeriveGeneric
 - DuplicateRecordFields
 #- LambdaCase
 - NamedFieldPuns

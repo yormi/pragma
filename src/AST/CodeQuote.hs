@@ -5,6 +5,8 @@ module AST.CodeQuote
     , toPosition
     ) where
 
+import Data.Aeson (FromJSON, ToJSON)
+
 
 data CodeQuote =
     CodeQuote
@@ -14,7 +16,7 @@ data CodeQuote =
         , toLine :: Int
         , toColumn :: Int
         }
-        deriving (Eq, Show)
+        deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
 data Position =
@@ -23,7 +25,7 @@ data Position =
         , line :: Int
         , column :: Int
         }
-        deriving (Eq, Show)
+        deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
 fromPositions :: Position -> Position -> CodeQuote

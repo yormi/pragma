@@ -25,7 +25,7 @@ type Compiler a =
 
 data CompilerError
     = TypeValidationError ValidateAnnotation.Error
-    | ParsingError Parser.ParserError
+    | ParsingError [Parser.ParserError]
     | ContextError Context.Error
     | ConstraintGatheringError Gatherer.ConstraintError
     | ConstraintSolvingError ConstraintSolver.SolvingError

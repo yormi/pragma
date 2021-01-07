@@ -2,24 +2,35 @@ module Parser.Module
     ( moduleParser
     ) where
 
+import Data.List.NonEmpty (NonEmpty)
 
 import qualified AST.CodeQuote as CodeQuote
 import AST.Identifier (DataId)
 import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
-import Parser.Parser (Parser, ParserError(..))
+import Parser.Parser
+    ( FieldError(..)
+    , Parser
+    , ParserError(..)
+    , RecordError(..)
+    , TypeAliasError(..)
+    )
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
 import qualified Utils.NonEmpty as NonEmpty
+
+import qualified Text.Parsec as P
+import qualified Parser.Debug as Debug
 
 
 moduleParser :: Parser Module
 moduleParser = do
     module_ <-
         Parser.oneOf
-            [ Parser.unconsumeOnFailure record
-            , sumType
-            , function
+            [ record
+            -- [ Parser.unconsumeOnFailure record
+            -- , sumType
+            -- , function
             ]
             |> Parser.many
             |> map Module
@@ -32,25 +43,39 @@ record = do
     from <- Parser.position
     Parser.reserved "type"
     Parser.reserved "alias"
-    typeName <- Parser.typeIdentifier
+
+    typeName <-
+        Parser.typeIdentifier
+            |> Parser.unconsumeOnFailure
+            |> orFailWithPosition (TypeAliasInvalid InvalidTypeName)
 
     typeVariables <- Parser.many Parser.typeVariableIdentifier
 
     Parser.reservedOperator "="
+    fields <- recordDefinition
 
+    Parser.topLevel
+        |> orFailWithPosition (RecordInvalid TrailingCharacter)
+
+    to <- Parser.endPosition
+    let codeQuote = CodeQuote.fromPositions from to
+    return <| Record codeQuote typeName typeVariables fields
+
+
+recordDefinition :: Parser (NonEmpty Field)
+recordDefinition = do
     Parser.reservedOperator "{"
     firstField <- field
     otherFields <-
         Parser.many <| do
+            position <- Parser.position
             Parser.reservedOperator ","
             field
+                |> orFail (RecordInvalid ExtraComma position)
     Parser.reservedOperator "}"
 
-    to <- Parser.endPosition
-    let codeQuote = CodeQuote.fromPositions from to
-    let fields =
-            NonEmpty.build firstField otherFields
-    return <| Record codeQuote typeName typeVariables fields
+    NonEmpty.build firstField otherFields
+        |> return
 
 
 field :: Parser Field
@@ -58,14 +83,37 @@ field = do
     from <- Parser.position
 
     fieldName <- Parser.dataIdentifier
+
     Parser.reservedOperator ":"
-    annotation <- typeAnnotationParser
+        |> orFail (FieldInvalid DefinitionMustUseColon from)
+
+    annotation <-
+        typeAnnotationParser
+            |> orFail (FieldInvalid MustHaveTypeAnnotation from)
 
     to <- Parser.endPosition
 
     let codeQuote = CodeQuote.fromPositions from to
     Field codeQuote fieldName annotation
         |> return
+
+
+orFail :: ParserError -> Parser a -> Parser a
+orFail error parser = do
+    result <- P.optionMaybe parser
+    case result of
+        Just x ->
+            return x
+        Nothing ->
+            Parser.fail error
+
+
+orFailWithPosition
+    :: (CodeQuote.Position -> ParserError) -> Parser a -> Parser a
+orFailWithPosition errorBuilder parser = do
+    position <- Parser.position
+    let error = errorBuilder position
+    orFail error parser
 
 
 sumType :: Parser TopLevel

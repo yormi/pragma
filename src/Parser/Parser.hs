@@ -1,6 +1,9 @@
 module Parser.Parser
-    ( Parser
+    ( FieldError(..)
+    , Parser
     , ParserError(..)
+    , RecordError(..)
+    , TypeAliasError(..)
     , atLeastOne
     , between
     , charLiteral
@@ -23,6 +26,7 @@ module Parser.Parser
     , sameLine
     , sameLineOrIndented
     , stringLiteral
+    , toParserError
     , topLevel
     , typeIdentifier
     , typeVariableIdentifier
@@ -32,10 +36,13 @@ module Parser.Parser
 
 
 import qualified Control.Monad as Monad
+import Data.Aeson (FromJSON, ToJSON)
+import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parser
+import qualified Text.Parsec.Error as ParserError
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 
@@ -68,14 +75,34 @@ type FileContent
 
 
 data ParserError
-    = RawError Parser.ParseError
+    = RawError String
     | SumTypeConstructorMustStartWithUpper CodeQuote
     | DataNameMustStartWithLowerCase CodeQuote
     | TypeNameMustStartWithUpperCase CodeQuote
     | TypeVariableMustStartWithLowerCase CodeQuote
     | TypeSignatureNameMismatch CodeQuote DataId DataId
     | FunctionMustHaveTypeSignature CodeQuote
-    deriving (Eq, Show)
+    | FieldInvalid FieldError Position
+    | RecordInvalid RecordError Position
+    | TypeAliasInvalid TypeAliasError Position
+    deriving (Eq, Generic, Show, FromJSON, ToJSON)
+
+
+data RecordError
+    = TrailingCharacter
+    | ExtraComma
+    deriving (Eq, Generic, Show, FromJSON, ToJSON)
+
+
+data FieldError
+    = DefinitionMustUseColon
+    | MustHaveTypeAnnotation
+    deriving (Eq, Generic, Show, FromJSON, ToJSON)
+
+
+data TypeAliasError
+    = InvalidTypeName
+    deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
 fail :: ParserError -> Parser a
@@ -83,7 +110,16 @@ fail =
     lift << lift << Left
 
 
-runParser :: Parser a -> FilePath -> FileContent -> Either ParserError a
+toParserError :: Parser.ParseError -> [ParserError]
+toParserError error =
+    ParserError.errorMessages error
+        |> map ParserError.messageString
+        |> map encodeUtf8
+        |> map Aeson.decode
+        |> map (Maybe.withDefault (RawError <| show error))
+
+
+runParser :: Parser a -> FilePath -> FileContent -> Either [ParserError] a
 runParser parser filePath fileContent =
     let
         -- To allow differentiating last file char from position bumped
@@ -92,7 +128,8 @@ runParser parser filePath fileContent =
             fileContent ++ "\n"
     in
     Indent.runIndentParserT parser withNewLine filePath withNewLine
-        |> map (Either.mapLeft RawError)
+        |> map (Either.mapLeft toParserError)
+        |> Either.mapLeft List.singleton
         |> join
 
 
@@ -189,7 +226,7 @@ typeVariableIdentifier = do
             return variableId
 
         Nothing ->
-            Monad.fail <| show <| TypeVariableMustStartWithLowerCase codeQuote
+            fail <| TypeVariableMustStartWithLowerCase codeQuote
 
 
 identifier :: Parser String
