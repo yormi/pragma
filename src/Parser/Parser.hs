@@ -6,6 +6,7 @@ module Parser.Parser
     , TypeAliasError(..)
     , atLeastOne
     , between
+    , catchRaw
     , charLiteral
     , constructorIdentifier
     , dataIdentifier
@@ -15,6 +16,7 @@ module Parser.Parser
     , identifier
     , indented
     , many
+    , manyUntil
     , maybe
     , numberLiteral
     , position
@@ -31,17 +33,19 @@ module Parser.Parser
     , typeIdentifier
     , typeVariableIdentifier
     , unconsumeOnFailure
+    , unconsumeOnFailure_
     , withPositionReference
     ) where
 
 
-import qualified Control.Monad as Monad
+import Control.Monad.Trans.Except (Except)
+import qualified Control.Monad.Trans.Except as Except
 import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Text.Parsec as Parser
+import qualified Text.Parsec as Parsec
 import qualified Text.Parsec.Error as ParserError
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
@@ -62,11 +66,15 @@ import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
 
 
+-- Using this complex form because type synonym can't be partially applied.
+-- We need partial application for abstracting the `a` away from
+-- `IndentT s u m a` in order to make
+-- `IndentT` a kind `* -> *` for `ParsecT` to accept
 type Parser a
-    = Indent.IndentParserT
-        String
-        FileContent
-        (Either ParserError)
+    = Parsec.ParsecT String FileContent
+        (Indent.IndentT
+            (Except ParserError)
+        )
         a
 
 
@@ -101,16 +109,17 @@ data FieldError
 
 
 data TypeAliasError
-    = InvalidTypeName
+    = TypeNameInvalid
+    | TypeVariableInvalid
     deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
 fail :: ParserError -> Parser a
 fail =
-    lift << lift << Left
+    lift << lift << Except.throwE
 
 
-toParserError :: Parser.ParseError -> [ParserError]
+toParserError :: Parsec.ParseError -> [ParserError]
 toParserError error =
     ParserError.errorMessages error
         |> map ParserError.messageString
@@ -128,9 +137,9 @@ runParser parser filePath fileContent =
             fileContent ++ "\n"
     in
     Indent.runIndentParserT parser withNewLine filePath withNewLine
-        |> map (Either.mapLeft toParserError)
+        |> Except.runExcept
         |> Either.mapLeft List.singleton
-        |> join
+        |> bind (Either.mapLeft toParserError)
 
 
 languageDefinition :: Monad m => Token.GenLanguageDef String FileContent m
@@ -139,10 +148,10 @@ languageDefinition = Token.LanguageDef
   , Token.commentEnd      = "-}"
   , Token.commentLine     = "--"
   , Token.nestedComments  = True
-  , Token.identStart      = Parser.letter
-  , Token.identLetter     = Parser.choice [ Parser.alphaNum, Parser.oneOf "_'" ]
-  , Token.opStart         = Parser.oneOf "=!+-*/><|\\:"
-  , Token.opLetter        = Parser.oneOf "=!+-*/><|\\:"
+  , Token.identStart      = Parsec.letter
+  , Token.identLetter     = Parsec.choice [ Parsec.alphaNum, Parsec.oneOf "_'" ]
+  , Token.opStart         = Parsec.oneOf "=!+-*/><|\\:"
+  , Token.opLetter        = Parsec.oneOf "=!+-*/><|\\:"
   , Token.reservedNames   =
     [ "type", "alias"
     , "if", "then", "else"
@@ -212,7 +221,7 @@ typeIdentifier = do
             return typeId
 
         Nothing ->
-            Monad.fail <| show <| TypeNameMustStartWithUpperCase codeQuote
+            fail <| TypeNameMustStartWithUpperCase codeQuote
 
 
 typeVariableIdentifier :: Parser TypeVariableId
@@ -261,31 +270,36 @@ stringLiteral =
 
 maybe :: Parser a -> Parser (Maybe a)
 maybe =
-    Parser.optionMaybe << Parser.try
+    Parsec.try >> Parsec.optionMaybe
 
 
 many :: Parser a -> Parser [a]
 many =
-    Parser.many
+    Parsec.many
+
+
+manyUntil :: Parser a -> Parser b -> Parser [b]
+manyUntil end p =
+    Parsec.manyTill p end
 
 
 atLeastOne :: Parser a -> Parser (NonEmpty a)
 atLeastOne =
-    Parser.many1
+    Parsec.many1
         >> bind
             (NonEmpty.nonEmpty
                 >> map return
                 >> Maybe.withDefault
-                    (Parser.unexpected
+                    (Parsec.unexpected
                         "There should be at least one element to parse"
                     )
             )
-        >> Parser.try
+        >> Parsec.try
 
 
 oneOf :: [Parser a] -> Parser a
 oneOf =
-    Parser.choice
+    Parsec.choice
 
 
 between :: Parser () -> Parser () -> Parser c -> Parser c
@@ -297,13 +311,36 @@ between before after mainParser = do
 
 
 unconsumeOnFailure :: Parser a -> Parser a
-unconsumeOnFailure =
-    Parser.try
+unconsumeOnFailure parser=
+    Parsec.try <| do
+        parser
+            |> traverse
+                (\result ->
+                    Except.catchE result (show >> Parsec.parserFail)
+                )
+
+
+hasFailed :: Parser a -> 
+
+
+unconsumeOnFailure_ :: Parser a -> Parser a
+unconsumeOnFailure_ =
+    Parsec.try
+
+
+catchRaw :: ParserError -> Parser a -> Parser a
+catchRaw error parser = do
+    result <- Parsec.optionMaybe parser
+    case result of
+        Just x ->
+            return x
+        Nothing ->
+            fail error
 
 
 endOfFile :: Parser ()
 endOfFile =
-    Parser.eof
+    Parsec.eof
 
 
 -- Position
@@ -314,16 +351,16 @@ position =
     map
         (\sourcePosition ->
             Position
-                (Parser.sourceName sourcePosition)
-                (Parser.sourceLine sourcePosition)
-                (Parser.sourceColumn sourcePosition)
+                (Parsec.sourceName sourcePosition)
+                (Parsec.sourceLine sourcePosition)
+                (Parsec.sourceColumn sourcePosition)
         )
-        Parser.getPosition
+        Parsec.getPosition
 
 
 endPosition :: Parser Position
 endPosition = do
-    fileContent <- Parser.getState
+    fileContent <- Parsec.getState
     Position filename currentLine currentColumn <- position
 
     let beforePosition = cutFrom currentLine currentColumn fileContent
