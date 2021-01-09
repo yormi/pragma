@@ -28,7 +28,7 @@ moduleParser = do
     module_ <-
         Parser.oneOf
             [ record
-            -- [ Parser.unconsumeOnFailure_ record
+            -- [ Parser.unconsumeOnFailure record
             -- , sumType
             -- , function
             ]
@@ -46,15 +46,12 @@ record = do
 
     typeName <-
         Parser.typeIdentifier
-            |> Parser.unconsumeOnFailure_
-            |> orFailWithPosition (TypeAliasInvalid TypeNameInvalid)
+            |> Parser.unconsumeOnFailure
+            |> orFailWithPosition (TypeAliasInvalid InvalidTypeName)
 
-    typeVariables <-
-        Parser.typeVariableIdentifier
-            |> Parser.unconsumeOnFailure_
-            -- |> orFailWithPosition (TypeAliasInvalid TypeVariableInvalid)
-            |> Parser.manyUntil (Parser.reservedOperator "=")
+    typeVariables <- Parser.many Parser.typeVariableIdentifier
 
+    Parser.reservedOperator "="
     fields <- recordDefinition
 
     Parser.topLevel
@@ -92,7 +89,7 @@ field = do
 
     annotation <-
         typeAnnotationParser
-            |> Parser.catchRaw (FieldInvalid MustHaveTypeAnnotation from)
+            |> orFail (FieldInvalid MustHaveTypeAnnotation from)
 
     to <- Parser.endPosition
 
@@ -200,7 +197,7 @@ typeAnnotationParser :: Parser T.TypeAnnotation
 typeAnnotationParser =
     let
         functionTypeParser =
-            Parser.unconsumeOnFailure_ <|
+            Parser.unconsumeOnFailure <|
                 do -- careful not to start with typeParser.
                    -- It creates an infinite loop =/
                     arg <- simpleTypeParser
@@ -225,7 +222,7 @@ simpleTypeParser =
             Parser.reservedOperator ")"
             return t
 
-        , Parser.unconsumeOnFailure_ <|
+        , Parser.unconsumeOnFailure <|
             Parser.withPositionReference <| do
                 id <- Parser.typeIdentifier
                 args <-
@@ -235,7 +232,7 @@ simpleTypeParser =
                 T.Custom id args
                     |> return
 
-        , Parser.unconsumeOnFailure_ <| map (T.Variable) <|
+        , Parser.unconsumeOnFailure <| map (T.Variable) <|
             Parser.typeVariableIdentifier
         ]
 

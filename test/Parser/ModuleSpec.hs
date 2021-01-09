@@ -230,23 +230,7 @@ spec =
 
                 expected =
                     Position aFilePath 1 12
-                        |> Parser.TypeAliasInvalid Parser.TypeNameInvalid
-                        |> List.singleton
-            in do
-            expectFailure fileContent expected
-
-
-        it "fails given an invalid type variable name in the signature" <|
-            let
-                fileContent =
-                    [ "type alias Foo A ="
-                    , indent "{ a : Bool }"
-                    ]
-
-                expected =
-                    Position aFilePath 1 16
-                        |> Parser.TypeAliasInvalid
-                            Parser.TypeVariableInvalid
+                        |> Parser.TypeAliasInvalid Parser.InvalidTypeName
                         |> List.singleton
             in do
             expectFailure fileContent expected

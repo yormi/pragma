@@ -47,7 +47,6 @@ default-extensions:
 - DeriveGeneric
 - DuplicateRecordFields
 #- LambdaCase
-- LiberalTypeSynonyms
 - NamedFieldPuns
 - OverloadedStrings
 

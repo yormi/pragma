@@ -49,7 +49,7 @@ application =
             |> return
     )
         |> exprParser
-        |> Parser.unconsumeOnFailure_
+        |> Parser.unconsumeOnFailure
 
 
 argument :: Parser QuotedExpression
