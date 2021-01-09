@@ -38,11 +38,13 @@ module Parser.Parser
     ) where
 
 
-import Control.Monad.Trans.Except (Except)
+import Control.Monad.Trans.Except (ExceptT(..))
 import qualified Control.Monad.Trans.Except as Except
 import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
+import Data.Functor.Identity (Identity)
+import qualified Data.Functor.Identity as Identity
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parsec
@@ -70,12 +72,14 @@ import qualified Utils.String as String
 -- We need partial application for abstracting the `a` away from
 -- `IndentT s u m a` in order to make
 -- `IndentT` a kind `* -> *` for `ParsecT` to accept
-type Parser a
-    = Parsec.ParsecT String FileContent
-        (Indent.IndentT
-            (Except ParserError)
-        )
+type Parse a
+    = ExceptT ParserError
+        (Parsec.ParsecT String FileContent (Indent.IndentT Identity))
         a
+
+
+type Parser a
+    = Parsec.ParsecT String FileContent (Indent.IndentT Identity) a
 
 
 type FileContent
@@ -114,9 +118,14 @@ data TypeAliasError
     deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
-fail :: ParserError -> Parser a
+fail :: ParserError -> Parse a
 fail =
-    lift << lift << Except.throwE
+    Except.throwE
+
+
+fileContent :: Parse FileContent
+fileContent =
+    lift Parsec.getState
 
 
 toParserError :: Parsec.ParseError -> [ParserError]
@@ -128,7 +137,7 @@ toParserError error =
         |> map (Maybe.withDefault (RawError <| show error))
 
 
-runParser :: Parser a -> FilePath -> FileContent -> Either [ParserError] a
+runParser :: Parse a -> FilePath -> FileContent -> Either [ParserError] a
 runParser parser filePath fileContent =
     let
         -- To allow differentiating last file char from position bumped
@@ -136,10 +145,11 @@ runParser parser filePath fileContent =
         withNewLine =
             fileContent ++ "\n"
     in
-    Indent.runIndentParserT parser withNewLine filePath withNewLine
-        |> Except.runExcept
-        |> Either.mapLeft List.singleton
-        |> bind (Either.mapLeft toParserError)
+    Except.runExceptT parser
+        |> \p -> Indent.runIndentParserT p withNewLine filePath withNewLine
+        |> Identity.runIdentity
+        |> Either.mapLeft toParserError
+        |> bind (Either.mapLeft List.singleton)
 
 
 languageDefinition :: Monad m => Token.GenLanguageDef String FileContent m
@@ -175,7 +185,7 @@ lexer =
     Token.makeTokenParser languageDefinition
 
 
-constructorIdentifier :: Parser ConstructorId
+constructorIdentifier :: Parse ConstructorId
 constructorIdentifier = do
     from <- position
     id <- identifier
@@ -189,7 +199,7 @@ constructorIdentifier = do
             fail <| SumTypeConstructorMustStartWithUpper codeQuote
 
 
-dataIdentifier :: Parser DataId
+dataIdentifier :: Parse DataId
 dataIdentifier = do
     from <- position
     id <- identifier
@@ -204,13 +214,13 @@ dataIdentifier = do
 
 
 
-referenceIdentifier :: Parser ReferenceId
+referenceIdentifier :: Parse ReferenceId
 referenceIdentifier = do
     identifier
         |> map Identifier.referenceId
 
 
-typeIdentifier :: Parser TypeId
+typeIdentifier :: Parse TypeId
 typeIdentifier = do
     from <- position
     id <- identifier
@@ -224,7 +234,7 @@ typeIdentifier = do
             fail <| TypeNameMustStartWithUpperCase codeQuote
 
 
-typeVariableIdentifier :: Parser TypeVariableId
+typeVariableIdentifier :: Parse TypeVariableId
 typeVariableIdentifier = do
     from <- position
     id <- identifier
@@ -238,52 +248,90 @@ typeVariableIdentifier = do
             fail <| TypeVariableMustStartWithLowerCase codeQuote
 
 
-identifier :: Parser String
+identifier :: Parse String
 identifier =
     Token.identifier lexer
+        |> lift
 
 
-reserved :: String -> Parser ()
+reserved :: String -> Parse ()
 reserved =
     Token.reserved lexer
+        >> lift
 
 
-reservedOperator :: String -> Parser ()
+reservedOperator :: String -> Parse ()
 reservedOperator =
     Token.reservedOp lexer
+        >> lift
 
 
-charLiteral :: Parser Char
+charLiteral :: Parse Char
 charLiteral =
     Token.charLiteral lexer
+        |> lift
 
 
-numberLiteral :: Parser (Either Integer Double)
+numberLiteral :: Parse (Either Integer Double)
 numberLiteral =
     Token.naturalOrFloat lexer
+        |> lift
 
 
-stringLiteral :: Parser String
+stringLiteral :: Parse String
 stringLiteral =
     Token.stringLiteral lexer
+        |> lift
 
 
-maybe :: Parser a -> Parser (Maybe a)
+mapParser :: (Parser a -> Parser b) -> Parse a -> Parse b
+mapParser f =
+    Except.mapExceptT (sequence >> map f >> sequence)
+
+
+mapParser2
+    :: (Parser a -> Parser b -> Parser c) -> Parse a -> Parse b -> Parse c
+mapParser2 f a b =
+    let
+        parserA = Except.runExceptT a |> sequence
+        parserB = Except.runExceptT b |> sequence
+    in
+    map2 f parserA parserB
+        |> sequence
+        |> ExceptT
+
+
+mapParserList :: ([Parser a] -> Parser a) -> [Parse a] -> Parse a
+mapParserList f ps =
+    let
+        parsers =
+            traverse (Except.runExceptT >> sequence) ps
+    in
+    parsers
+        |> map f
+        |> sequence
+        |> ExceptT
+
+
+maybe :: Parse a -> Parse (Maybe a)
 maybe =
-    Parsec.try >> Parsec.optionMaybe
+    mapParser (Parsec.try >> Parsec.optionMaybe)
 
 
-many :: Parser a -> Parser [a]
+many :: Parse a -> Parse [a]
 many =
-    Parsec.many
+    mapParser Parsec.many
 
 
-manyUntil :: Parser a -> Parser b -> Parser [b]
+manyUntil :: Parse a -> Parse b -> Parse [b]
 manyUntil end p =
-    Parsec.manyTill p end
+    mapParser2
+        Parsec.manyTill
+        p
+        end
 
 
-atLeastOne :: Parser a -> Parser (NonEmpty a)
+atLeastOne :: Parse a -> Parse (NonEmpty a)
 atLeastOne =
     Parsec.many1
         >> bind
@@ -295,14 +343,15 @@ atLeastOne =
                     )
             )
         >> Parsec.try
+        |> mapParser
 
 
-oneOf :: [Parser a] -> Parser a
+oneOf :: [Parse a] -> Parse a
 oneOf =
-    Parsec.choice
+    mapParserList Parsec.choice
 
 
-between :: Parser () -> Parser () -> Parser c -> Parser c
+between :: Parse () -> Parse () -> Parse c -> Parse c
 between before after mainParser = do
     before
     x <- mainParser
@@ -310,27 +359,19 @@ between before after mainParser = do
     return x
 
 
-unconsumeOnFailure :: Parser a -> Parser a
-unconsumeOnFailure parser=
-    Parsec.try <| do
-        parser
-            |> traverse
-                (\result ->
-                    Except.catchE result (show >> Parsec.parserFail)
-                )
+unconsumeOnFailure :: Parse a -> Parse a
+unconsumeOnFailure =
+    mapParser Parsec.try
 
 
-hasFailed :: Parser a -> 
-
-
-unconsumeOnFailure_ :: Parser a -> Parser a
+unconsumeOnFailure_ :: Parse a -> Parse a
 unconsumeOnFailure_ =
-    Parsec.try
+    mapParser Parsec.try
 
 
-catchRaw :: ParserError -> Parser a -> Parser a
+catchRaw :: ParserError -> Parse a -> Parse a
 catchRaw error parser = do
-    result <- Parsec.optionMaybe parser
+    result <- mapParser Parsec.optionMaybe parser
     case result of
         Just x ->
             return x
@@ -338,15 +379,15 @@ catchRaw error parser = do
             fail error
 
 
-endOfFile :: Parser ()
+endOfFile :: Parse ()
 endOfFile =
-    Parsec.eof
+    lift Parsec.eof
 
 
 -- Position
 
 
-position :: Parser Position
+position :: Parse Position
 position =
     map
         (\sourcePosition ->
@@ -356,14 +397,15 @@ position =
                 (Parsec.sourceColumn sourcePosition)
         )
         Parsec.getPosition
+        |> lift
 
 
-endPosition :: Parser Position
+endPosition :: Parse Position
 endPosition = do
-    fileContent <- Parsec.getState
+    sourceCode <- fileContent
     Position filename currentLine currentColumn <- position
 
-    let beforePosition = cutFrom currentLine currentColumn fileContent
+    let beforePosition = cutFrom currentLine currentColumn sourceCode
     beforePosition
         |> List.dropWhileEnd (not << Char.isSpace)
         |> List.dropWhileEnd Char.isSpace
@@ -411,26 +453,26 @@ countColumn =
 
 -- Indentation
 
-topLevel :: Parser ()
+topLevel :: Parse ()
 topLevel =
-    Indent.topLevel
+    lift Indent.topLevel
 
 
-withPositionReference :: Parser a -> Parser a
+withPositionReference :: Parse a -> Parse a
 withPositionReference =
-    Indent.withPos
+    mapParser Indent.withPos
 
 
-indented :: Parser ()
+indented :: Parse ()
 indented =
-    Indent.indented
+    lift Indent.indented
 
 
-sameLine :: Parser ()
+sameLine :: Parse ()
 sameLine =
-    Indent.same
+    lift Indent.same
 
 
-sameLineOrIndented :: Parser ()
+sameLineOrIndented :: Parse ()
 sameLineOrIndented =
-    Indent.sameOrIndented
+    lift Indent.sameOrIndented
