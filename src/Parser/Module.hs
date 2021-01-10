@@ -8,13 +8,8 @@ import qualified AST.CodeQuote as CodeQuote
 import AST.Identifier (DataId)
 import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
-import Parser.Parser
-    ( FieldError(..)
-    , Parser
-    , ParserError(..)
-    , RecordError(..)
-    , TypeAliasError(..)
-    )
+import Parser.Error
+import Parser.Parser (Parser)
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
 import qualified Utils.NonEmpty as NonEmpty
@@ -51,15 +46,17 @@ record = do
 
     typeVariables <-
         Parser.manyUntil
-            (Parser.reservedOperator "==")
+            (Parser.reservedOperator "=")
             (Parser.typeVariableIdentifier
                 |> orFailWithPosition (TypeAliasInvalid TypeVariableInvalid)
             )
-            |> Parser.unconsumeOnFailure
 
     fields <- recordDefinition
 
-    Parser.topLevel
+    Parser.oneOf
+        [ Parser.topLevel
+        , Parser.endOfFile
+        ]
         |> orFailWithPosition (RecordInvalid TrailingCharacter)
 
     to <- Parser.endPosition
@@ -105,13 +102,9 @@ field = do
 
 
 orFail :: ParserError -> Parser a -> Parser a
-orFail error parser = do
-    result <- P.optionMaybe parser
-    case result of
-        Just x ->
-            return x
-        Nothing ->
-            Parser.fail error
+orFail error =
+    Parser.catchError <|
+        \_ -> Parser.fail error
 
 
 orFailWithPosition

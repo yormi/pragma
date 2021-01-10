@@ -58,6 +58,7 @@ parse printPreferences filePath fileContent =
 
     parsedModule <-
         Parser.runParser parser filePath fileContent
+            |> Either.mapLeft List.singleton
             |> Either.mapLeft ParsingError
             |> Compiler.fromEither
 

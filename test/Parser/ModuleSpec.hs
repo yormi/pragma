@@ -8,11 +8,11 @@ import AST.CodeQuote (CodeQuote(..), Position(..))
 import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
 import qualified AST.TypeAnnotation as TA
+import Parser.Error
 import Parser.Module
 import qualified Parser.Parser as Parser
 import Printer.Utils (indent)
 import qualified Utils.NonEmpty as NonEmpty
-import qualified Utils.List as List
 import qualified Utils.String as String
 
 
@@ -60,7 +60,7 @@ spec =
                 let
 
                     expected =
-                        buildCodeQuote 1 1 5 5
+                        buildCodeQuote 1 1 4 14
                 in do
                 expect
                     (\M.Record { codeQuote } ->
@@ -134,7 +134,7 @@ spec =
                             |> fail
 
                     Left e ->
-                        e `shouldBe` [expectedError]
+                        e `shouldBe` expectedError
         in do
         -- it "fails given a missing type" <|
         --     let
@@ -163,7 +163,7 @@ spec =
 
                 expected =
                     Position aFilePath 3 7
-                        |> Parser.FieldInvalid Parser.DefinitionMustUseColon
+                        |> FieldInvalid DefinitionMustUseColon
             in do
             expectFailure fileContent expected
 

@@ -1,17 +1,11 @@
 module Parser.Parser
-    ( FieldError(..)
-    , Parser
-    , ParserError(..)
-    , RecordError(..)
-    , TypeAliasError(..)
-    , atLeastOne
+    ( atLeastOne
     , between
     , charLiteral
     , constructorIdentifier
     , dataIdentifier
     , endOfFile
     , endPosition
-    , fail
     , identifier
     , indented
     , many
@@ -23,11 +17,9 @@ module Parser.Parser
     , referenceIdentifier
     , reserved
     , reservedOperator
-    , runParser
     , sameLine
     , sameLineOrIndented
     , stringLiteral
-    , toParserError
     , topLevel
     , typeIdentifier
     , typeVariableIdentifier
@@ -37,18 +29,17 @@ module Parser.Parser
 
 
 import qualified Control.Monad as Monad
-import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
 import qualified Data.Functor.Identity as Identity
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Text.Parsec as Parser
+import qualified Text.Parsec as Parsec
 import qualified Text.Parsec.Error as ParserError
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 
-import AST.CodeQuote (CodeQuote, Position(..))
+import AST.CodeQuote (Position(..))
 import qualified AST.CodeQuote as CodeQuote
 import AST.Identifier
     ( ConstructorId
@@ -58,94 +49,24 @@ import AST.Identifier
     , TypeVariableId
     )
 import qualified AST.Identifier as Identifier
+import Parser.Error
+import Parser.Model
 import qualified Utils.Either as Either
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
 
 
-type Parser a
-    = Indent.IndentParser String FileContent a
-
-
-type FileContent
-    = String
-
-
-data ParserError
-    = RawError String
-    | SumTypeConstructorMustStartWithUpper CodeQuote
-    | DataNameMustStartWithLowerCase CodeQuote
-    | TypeNameMustStartWithUpperCase CodeQuote
-    | TypeVariableMustStartWithLowerCase CodeQuote
-    | TypeSignatureNameMismatch CodeQuote DataId DataId
-    | FunctionMustHaveTypeSignature CodeQuote
-    | FieldInvalid FieldError Position
-    | RecordInvalid RecordError Position
-    | TypeAliasInvalid TypeAliasError Position
-    deriving (Eq, Generic, Show, FromJSON, ToJSON)
-
-
-data RecordError
-    = TrailingCharacter
-    | ExtraComma
-    deriving (Eq, Generic, Show, FromJSON, ToJSON)
-
-
-data FieldError
-    = DefinitionMustUseColon
-    | MustHaveTypeAnnotation
-    deriving (Eq, Generic, Show, FromJSON, ToJSON)
-
-
-data TypeAliasError
-    = TypeNameInvalid
-    | TypeVariableInvalid
-    deriving (Eq, Generic, Show, FromJSON, ToJSON)
-
-
-fail :: ParserError -> Parser a
-fail =
-    Aeson.encode
-        >> decodeUtf8
-        >> Monad.fail
-
-
-toParserError :: Parser.ParseError -> [ParserError]
-toParserError error =
-    ParserError.errorMessages error
-        |> map ParserError.messageString
-        |> map
-            (\str ->
-                encodeUtf8 str
-                    |> Aeson.decode
-                    |> Maybe.withDefault (RawError str)
-            )
-
-
-runParser :: Parser a -> FilePath -> FileContent -> Either [ParserError] a
-runParser parser filePath fileContent =
-    let
-        -- To allow differentiating last file char from position bumped
-        -- too far after last lexeme parsing
-        withNewLine =
-            fileContent ++ "\n"
-    in
-    Indent.runIndentParserT parser withNewLine filePath withNewLine
-        |> map (Either.mapLeft toParserError)
-        |> Identity.runIdentity
-
-
-languageDefinition :: Monad m => Token.GenLanguageDef String FileContent m
+languageDefinition :: Monad m => Token.GenLanguageDef String State m
 languageDefinition = Token.LanguageDef
   { Token.commentStart    = "{-"
   , Token.commentEnd      = "-}"
   , Token.commentLine     = "--"
   , Token.nestedComments  = True
-  , Token.identStart      = Parser.letter
-  , Token.identLetter     = Parser.choice [ Parser.alphaNum, Parser.oneOf "_'" ]
-  , Token.opStart         = Parser.oneOf "=!+-*/><|\\:"
-  , Token.opLetter        = Parser.oneOf "=!+-*/><|\\:"
+  , Token.identStart      = Parsec.letter
+  , Token.identLetter     = Parsec.choice [ Parsec.alphaNum, Parsec.oneOf "_'" ]
+  , Token.opStart         = Parsec.oneOf "=!+-*/><|\\:"
+  , Token.opLetter        = Parsec.oneOf "=!+-*/><|\\:"
   , Token.reservedNames   =
     [ "type", "alias"
     , "if", "then", "else"
@@ -164,7 +85,7 @@ languageDefinition = Token.LanguageDef
   }
 
 
-lexer :: Monad m => Token.GenTokenParser String FileContent m
+lexer :: Monad m => Token.GenTokenParser String State m
 lexer =
     Token.makeTokenParser languageDefinition
 
@@ -232,68 +153,83 @@ typeVariableIdentifier = do
             fail <| TypeVariableMustStartWithLowerCase codeQuote
 
 
+toParser :: Indent.IndentParser String State a -> Parser a
+toParser =
+    map Right >> Parser
+
+
 identifier :: Parser String
 identifier =
     Token.identifier lexer
+        |> toParser
 
 
 reserved :: String -> Parser ()
 reserved =
     Token.reserved lexer
+        >> toParser
 
 
 reservedOperator :: String -> Parser ()
 reservedOperator =
     Token.reservedOp lexer
+        >> toParser
 
 
 charLiteral :: Parser Char
 charLiteral =
     Token.charLiteral lexer
+        |> toParser
 
 
 numberLiteral :: Parser (Either Integer Double)
 numberLiteral =
     Token.naturalOrFloat lexer
+        |> toParser
 
 
 stringLiteral :: Parser String
 stringLiteral =
     Token.stringLiteral lexer
+        |> toParser
 
 
 maybe :: Parser a -> Parser (Maybe a)
-maybe =
-    Parser.optionMaybe << Parser.try
+maybe (Parser p) =
+    Parsec.try p
+        |> map Either.toMaybe
+        |> Parsec.optionMaybe
+        |> map join
+        |> toParser
 
 
 many :: Parser a -> Parser [a]
 many =
-    Parser.many
+    Parsec.many
 
 
 manyUntil :: Parser b -> Parser a -> Parser [a]
 manyUntil end p =
-    Parser.manyTill p end
+    Parsec.manyTill p end
 
 
 atLeastOne :: Parser a -> Parser (NonEmpty a)
 atLeastOne =
-    Parser.many1
+    Parsec.many1
         >> bind
             (NonEmpty.nonEmpty
                 >> map return
                 >> Maybe.withDefault
-                    (Parser.unexpected
+                    (Parsec.unexpected
                         "There should be at least one element to parse"
                     )
             )
-        >> Parser.try
+        >> Parsec.try
 
 
 oneOf :: [Parser a] -> Parser a
 oneOf =
-    Parser.choice
+    Parsec.choice
 
 
 between :: Parser () -> Parser () -> Parser c -> Parser c
@@ -306,12 +242,12 @@ between before after mainParser = do
 
 unconsumeOnFailure :: Parser a -> Parser a
 unconsumeOnFailure =
-    Parser.try
+    Parsec.try
 
 
 endOfFile :: Parser ()
 endOfFile =
-    Parser.eof
+    Parsec.eof
 
 
 -- Position
@@ -322,29 +258,35 @@ position =
     map
         (\sourcePosition ->
             Position
-                (Parser.sourceName sourcePosition)
-                (Parser.sourceLine sourcePosition)
-                (Parser.sourceColumn sourcePosition)
+                (Parsec.sourceName sourcePosition)
+                (Parsec.sourceLine sourcePosition)
+                (Parsec.sourceColumn sourcePosition)
         )
-        Parser.getPosition
+        Parsec.getPosition
 
 
 endPosition :: Parser Position
-endPosition = do
-    fileContent <- Parser.getState
-    Position filename currentLine currentColumn <- position
+endPosition =
+    toParser <| do
+        state <- Parsec.getState
+        let fileContentWithNewLine =
+            -- To allow differentiating last file char from position bumped
+            -- too far after last lexeme parsing
+                fileContent state ++ "\n"
+        Position filename currentLine currentColumn <- position
 
-    let beforePosition = cutFrom currentLine currentColumn fileContent
-    beforePosition
-        |> List.dropWhileEnd (not << Char.isSpace)
-        |> List.dropWhileEnd Char.isSpace
-        |> (\str ->
-                Position
-                    filename
-                    (countLine str)
-                    (countColumn str)
-            )
-        |> return
+        let beforePosition =
+                cutFrom currentLine currentColumn fileContentWithNewLine
+        beforePosition
+            |> List.dropWhileEnd (not << Char.isSpace)
+            |> List.dropWhileEnd Char.isSpace
+            |> (\str ->
+                    Position
+                        filename
+                        (countLine str)
+                        (countColumn str)
+                )
+            |> return
 
 
 cutFrom :: Int -> Int -> String -> String
@@ -385,23 +327,29 @@ countColumn =
 topLevel :: Parser ()
 topLevel =
     Indent.topLevel
+        |> toParser
 
 
 withPositionReference :: Parser a -> Parser a
-withPositionReference =
-    Indent.withPos
+withPositionReference (Parser p) =
+    Indent.withPos p
+        |> Parser
+
 
 
 indented :: Parser ()
 indented =
     Indent.indented
+        |> toParser
 
 
 sameLine :: Parser ()
 sameLine =
     Indent.same
+        |> toParser
 
 
 sameLineOrIndented :: Parser ()
 sameLineOrIndented =
     Indent.sameOrIndented
+        |> toParser
