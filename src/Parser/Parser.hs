@@ -15,6 +15,7 @@ module Parser.Parser
     , identifier
     , indented
     , many
+    , manyUntil
     , maybe
     , numberLiteral
     , position
@@ -39,6 +40,7 @@ import qualified Control.Monad as Monad
 import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
+import qualified Data.Functor.Identity as Identity
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parser
@@ -63,11 +65,7 @@ import qualified Utils.String as String
 
 
 type Parser a
-    = Indent.IndentParserT
-        String
-        FileContent
-        (Either ParserError)
-        a
+    = Indent.IndentParser String FileContent a
 
 
 type FileContent
@@ -101,22 +99,28 @@ data FieldError
 
 
 data TypeAliasError
-    = InvalidTypeName
+    = TypeNameInvalid
+    | TypeVariableInvalid
     deriving (Eq, Generic, Show, FromJSON, ToJSON)
 
 
 fail :: ParserError -> Parser a
 fail =
-    lift << lift << Left
+    Aeson.encode
+        >> decodeUtf8
+        >> Monad.fail
 
 
 toParserError :: Parser.ParseError -> [ParserError]
 toParserError error =
     ParserError.errorMessages error
         |> map ParserError.messageString
-        |> map encodeUtf8
-        |> map Aeson.decode
-        |> map (Maybe.withDefault (RawError <| show error))
+        |> map
+            (\str ->
+                encodeUtf8 str
+                    |> Aeson.decode
+                    |> Maybe.withDefault (RawError str)
+            )
 
 
 runParser :: Parser a -> FilePath -> FileContent -> Either [ParserError] a
@@ -129,8 +133,7 @@ runParser parser filePath fileContent =
     in
     Indent.runIndentParserT parser withNewLine filePath withNewLine
         |> map (Either.mapLeft toParserError)
-        |> Either.mapLeft List.singleton
-        |> join
+        |> Identity.runIdentity
 
 
 languageDefinition :: Monad m => Token.GenLanguageDef String FileContent m
@@ -212,7 +215,7 @@ typeIdentifier = do
             return typeId
 
         Nothing ->
-            Monad.fail <| show <| TypeNameMustStartWithUpperCase codeQuote
+            fail <| TypeNameMustStartWithUpperCase codeQuote
 
 
 typeVariableIdentifier :: Parser TypeVariableId
@@ -267,6 +270,11 @@ maybe =
 many :: Parser a -> Parser [a]
 many =
     Parser.many
+
+
+manyUntil :: Parser b -> Parser a -> Parser [a]
+manyUntil end p =
+    Parser.manyTill p end
 
 
 atLeastOne :: Parser a -> Parser (NonEmpty a)

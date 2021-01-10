@@ -47,11 +47,16 @@ record = do
     typeName <-
         Parser.typeIdentifier
             |> Parser.unconsumeOnFailure
-            |> orFailWithPosition (TypeAliasInvalid InvalidTypeName)
+            |> orFailWithPosition (TypeAliasInvalid TypeNameInvalid)
 
-    typeVariables <- Parser.many Parser.typeVariableIdentifier
+    typeVariables <-
+        Parser.manyUntil
+            (Parser.reservedOperator "==")
+            (Parser.typeVariableIdentifier
+                |> orFailWithPosition (TypeAliasInvalid TypeVariableInvalid)
+            )
+            |> Parser.unconsumeOnFailure
 
-    Parser.reservedOperator "="
     fields <- recordDefinition
 
     Parser.topLevel
@@ -66,6 +71,7 @@ recordDefinition :: Parser (NonEmpty Field)
 recordDefinition = do
     Parser.reservedOperator "{"
     firstField <- field
+
     otherFields <-
         Parser.many <| do
             position <- Parser.position
