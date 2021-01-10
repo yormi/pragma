@@ -9,7 +9,8 @@ import AST.Identifier (DataId)
 import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as T
 import Parser.Error
-import Parser.Parser (Parser)
+import Parser.Model (Parser)
+import qualified Parser.Model as Parser
 import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
 import qualified Utils.NonEmpty as NonEmpty
@@ -103,8 +104,7 @@ field = do
 
 orFail :: ParserError -> Parser a -> Parser a
 orFail error =
-    Parser.catchError <|
-        \_ -> Parser.fail error
+    Parser.catchUncaughtError error
 
 
 orFailWithPosition

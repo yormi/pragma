@@ -10,7 +10,7 @@ import qualified AST.Module as M
 import qualified AST.TypeAnnotation as TA
 import Parser.Error
 import Parser.Module
-import qualified Parser.Parser as Parser
+import qualified Parser.Model as Parser
 import Printer.Utils (indent)
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.String as String

@@ -3,7 +3,7 @@ module Parser.Value (valueParser) where
 import Data.Bifunctor (bimap)
 
 import AST.Expression (Value(..), BoolLiteral(..))
-import Parser.Parser (Parser)
+import Parser.Model (Parser)
 import qualified Parser.Parser as Parser
 import qualified Utils.Either as Either
 

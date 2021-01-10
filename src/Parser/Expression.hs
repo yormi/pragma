@@ -4,7 +4,7 @@ module Parser.Expression
 
 import qualified AST.CodeQuote as CodeQuote
 import AST.Expression
-import Parser.Parser (Parser)
+import Parser.Model (Parser)
 import qualified Parser.Parser as Parser
 import qualified Parser.Value as Value
 

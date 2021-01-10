@@ -54,6 +54,7 @@ import Parser.Model
 import qualified Utils.Either as Either
 import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
+import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.String as String
 
 
@@ -204,32 +205,48 @@ maybe (Parser p) =
 
 
 many :: Parser a -> Parser [a]
-many =
-    Parsec.many
+many (Parser p) =
+    Parsec.many p
+        |> map sequence
+        |> Parser
 
 
 manyUntil :: Parser b -> Parser a -> Parser [a]
-manyUntil end p =
+manyUntil (Parser end) (Parser p) =
     Parsec.manyTill p end
+        |> map sequence
+        |> Parser
 
 
 atLeastOne :: Parser a -> Parser (NonEmpty a)
-atLeastOne =
-    Parsec.many1
-        >> bind
-            (NonEmpty.nonEmpty
-                >> map return
-                >> Maybe.withDefault
-                    (Parsec.unexpected
-                        "There should be at least one element to parse"
-                    )
-            )
-        >> Parsec.try
+atLeastOne (Parser a) =
+    (do
+        either <-
+            Parsec.many1 a
+                |> map sequence
+
+        Parsec.try <|
+            case either of
+                Right (x : rest) ->
+                    NonEmpty.build x rest
+                        |> Right
+                        |> return
+
+                Right [] ->
+                    Parsec.unexpected "There should be at least one element to parse"
+
+                Left e ->
+                    return <| Left e
+    )
+        |> Parser
 
 
 oneOf :: [Parser a] -> Parser a
-oneOf =
-    Parsec.choice
+oneOf parsers =
+    parsers
+        |> map (\(Parser p) -> p)
+        |> Parsec.choice
+        |> Parser
 
 
 between :: Parser () -> Parser () -> Parser c -> Parser c
@@ -241,13 +258,15 @@ between before after mainParser = do
 
 
 unconsumeOnFailure :: Parser a -> Parser a
-unconsumeOnFailure =
-    Parsec.try
+unconsumeOnFailure (Parser p) =
+    Parsec.try p
+        |> Parser
 
 
 endOfFile :: Parser ()
 endOfFile =
     Parsec.eof
+        |> toParser
 
 
 -- Position
@@ -255,38 +274,38 @@ endOfFile =
 
 position :: Parser Position
 position =
-    map
-        (\sourcePosition ->
-            Position
-                (Parsec.sourceName sourcePosition)
-                (Parsec.sourceLine sourcePosition)
-                (Parsec.sourceColumn sourcePosition)
-        )
-        Parsec.getPosition
+    Parsec.getPosition
+        |> map
+            (\sourcePosition ->
+                Position
+                    (Parsec.sourceName sourcePosition)
+                    (Parsec.sourceLine sourcePosition)
+                    (Parsec.sourceColumn sourcePosition)
+            )
+        |> toParser
 
 
 endPosition :: Parser Position
-endPosition =
-    toParser <| do
-        state <- Parsec.getState
-        let fileContentWithNewLine =
-            -- To allow differentiating last file char from position bumped
-            -- too far after last lexeme parsing
-                fileContent state ++ "\n"
-        Position filename currentLine currentColumn <- position
+endPosition = do
+    state <- getState
+    let fileContentWithNewLine =
+        -- To allow differentiating last file char from position bumped
+        -- too far after last lexeme parsing
+            fileContent state ++ "\n"
+    Position filename currentLine currentColumn <- position
 
-        let beforePosition =
-                cutFrom currentLine currentColumn fileContentWithNewLine
-        beforePosition
-            |> List.dropWhileEnd (not << Char.isSpace)
-            |> List.dropWhileEnd Char.isSpace
-            |> (\str ->
-                    Position
-                        filename
-                        (countLine str)
-                        (countColumn str)
-                )
-            |> return
+    let beforePosition =
+            cutFrom currentLine currentColumn fileContentWithNewLine
+    beforePosition
+        |> List.dropWhileEnd (not << Char.isSpace)
+        |> List.dropWhileEnd Char.isSpace
+        |> (\str ->
+                Position
+                    filename
+                    (countLine str)
+                    (countColumn str)
+            )
+        |> return
 
 
 cutFrom :: Int -> Int -> String -> String
@@ -316,10 +335,10 @@ countLine =
 
 countColumn :: String -> Int
 countColumn =
-        String.splitLines
-            >> List.last
-            >> map List.length
-            >> Maybe.withDefault 1
+    String.splitLines
+        >> List.last
+        >> map List.length
+        >> Maybe.withDefault 1
 
 
 -- Indentation

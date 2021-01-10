@@ -15,7 +15,7 @@ import qualified AST.Module as M
 import Compiler (Compiler, CompilerError(..))
 import qualified Compiler
 import qualified Generator
-import qualified Parser.Parser as Parser
+import qualified Parser.Model as Parser
 import qualified Parser.Module as Module
 import qualified Printer.AST.Module as ModulePrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter

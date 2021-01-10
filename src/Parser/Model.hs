@@ -4,6 +4,7 @@ module Parser.Model
     , State(..)
     , catchUncaughtError
     , fail
+    , getState
     , runParser
     , toParserError
     ) where
@@ -76,7 +77,10 @@ instance Monad Parser where
                     case result of
                         Right x ->
                             f x
-                                |> (\(Parser resultingParser) -> resultingParser)
+                                |>
+                                    (\(Parser resultingParser) ->
+                                        resultingParser
+                                    )
 
                         Left e ->
                             return <| Left e
@@ -100,6 +104,13 @@ fail =
     Left
         >> return
         >> Parser
+
+
+getState :: Parser State
+getState =
+    Parsec.getState
+        |> map Right
+        |> Parser
 
 
 catchUncaughtError :: ParserError -> Parser a -> Parser a

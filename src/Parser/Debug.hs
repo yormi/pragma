@@ -2,9 +2,9 @@ module Parser.Debug (printAll) where
 
 import qualified Control.Monad.Reader as Reader
 import qualified Data.List as List
-import qualified Text.Parsec as Parser
+import qualified Text.Parsec as Parsec
 
-import Parser.Parser (Parser)
+import Parser.Model (Parser(..))
 
 
 printAll :: String -> Parser ()
@@ -24,19 +24,28 @@ print what section content =
 
 printInput :: String -> Parser ()
 printInput str = do
-    i <- Parser.getInput
+    i <-
+        Parsec.getInput
+            |> map Right
+            |> Parser
     print "INPUT" str <| List.take 6 (show i)
 
 
 printPosition :: String -> Parser ()
 printPosition str = do
-    p <- Parser.getPosition
+    p <-
+        Parsec.getPosition
+            |> map Right
+            |> Parser
     print "POS" str <| show p
 
 
 printRefPosition :: String -> Parser ()
 printRefPosition str = do
-    a <- Reader.ask
+    a <-
+        Reader.ask
+            |> map Right
+            |> Parser
     print "REF" str <| show a
 
 
