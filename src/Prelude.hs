@@ -31,6 +31,7 @@ import Relude as X
     , (||)
     , div
     , fst
+    , mod
     , round
     , snd
     --, mempty

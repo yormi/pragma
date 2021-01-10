@@ -17,6 +17,7 @@ import Data.List as X
     ( any
     , all
     , concat
+    , drop
     , dropWhileEnd
     , filter
     , foldl
@@ -26,6 +27,7 @@ import Data.List as X
     , replicate
     , reverse
     , take
+    , takeWhile
     , zip
     , zip3
     )
