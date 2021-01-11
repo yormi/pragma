@@ -2,12 +2,14 @@ module Parser2.Model
     ( Error(..)
     , Parsed(..)
     , Parser
+    , Position(..)
     , Quote(..)
     , RawError(..)
     , run
 
     -- COMBINATORS
     , anyChar
+    , identifier
     , space
     , string
     )
@@ -22,6 +24,7 @@ import qualified GHC.Show
 
 import qualified Parser.Error as Error
 import qualified Utils.List as List
+import qualified Utils.Tuple as Tuple
 
 
 type Parser a
@@ -43,6 +46,14 @@ data Parsed a =
 resultOnly :: QuotedParser a -> Parser a
 resultOnly =
     map result
+
+
+quoteOnly :: QuotedParser a -> Parser Quote
+quoteOnly =
+    map quote
+
+
+--- QUOTE ---
 
 
 data Quote =
@@ -74,6 +85,18 @@ quoteCode from to =
         }
 
 
+fromPosition :: Quote -> Position
+fromPosition q =
+    Position
+        { filePath = filePath (q :: Quote)
+        , line = fromLine q
+        , column = fromColumn q
+        }
+
+
+---
+
+
 type SourceCode
     = String
 
@@ -87,7 +110,8 @@ data Error
 data RawError
     = EndOfFileReached
     | StringExpected Position
-    | SpaceExpected Position Char
+    | SpaceExpected Quote Char
+    | InvalidCharactersInIdentifier [ (Position, Char) ]
     deriving (Eq, Show)
 
 
@@ -105,7 +129,15 @@ data Position
         , line :: Int
         , column :: Int
         }
-        deriving (Eq, Show)
+        deriving (Eq)
+
+
+instance Show Position where
+    show (Position _ line column) =
+        show line ++ ":" ++ show column
+
+
+---
 
 
 basicFailure :: RawError -> Parser a
@@ -144,10 +176,33 @@ getPosition =
         |> map currentPosition
 
 
-consume :: Char -> Parser ()
-consume c = do
+consumeChar :: Char -> Parser Position
+consumeChar c = do
+    position <- getPosition
     updateRemaining
     updatePosition c
+    return position
+
+
+consumeString :: String -> Parser Quote
+consumeString str =
+    let
+        consume remainingString =
+            case remainingString of
+                c : [] -> do
+                    to <- getPosition
+                    consumeChar c
+                    return to
+
+
+                c : rest -> do
+                    consumeChar c
+                    consume rest
+    in do
+    from <- getPosition
+    to <- consume str
+    quoteCode from to
+        |> return
 
 
 updateRemaining :: Parser ()
@@ -190,12 +245,11 @@ updatePosition c =
 
 anyChar :: QuotedParser Char
 anyChar = do
-    from <- getPosition
     remaining <- getRemaining
     case remaining of
         c : _ -> do
-            consume c -- Returns the Quote !??!?!?
-            return (Parsed (quoteCode from from) c)
+            position <- consumeChar c
+            return <| Parsed (quoteCode position position) c
 
         _ ->
             basicFailure EndOfFileReached
@@ -203,14 +257,12 @@ anyChar = do
 
 space :: QuotedParser ()
 space = do
-    from <- getPosition
     Parsed quote c <- anyChar
     if c == ' ' then
         return <| Parsed quote ()
 
     else
-        basicFailure <| SpaceExpected from c
-
+        basicFailure <| SpaceExpected quote c
 
 
 string :: QuotedParser String
@@ -224,9 +276,39 @@ string = do
             basicFailure <| StringExpected from
 
         str -> do
-            traverse consume str
-            to <- getPosition
-            Parsed (quoteCode from to) str
+            quote <- consumeString str
+            Parsed quote str
                 |> return
 
 
+--- TOKEN ---
+
+identifierCharacters :: String
+identifierCharacters =
+    "abcdefghijklmnopqrstuvwxyz"
+    ++ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    ++ "1234567890"
+
+
+identifier :: QuotedParser String
+identifier = do
+    (Parsed quote str) <- string
+    let invalidCharacters =
+            str
+                |> List.indexedMap (\index c -> (index, c))
+                |> List.filter
+                    (\(_, c) -> not <| List.contains c identifierCharacters)
+
+    if List.isEmpty invalidCharacters then
+        return <| Parsed quote str
+    else
+        invalidCharacters
+            |> map
+                (\(index, char) ->
+                    quote
+                        |> fromPosition
+                        |> \p -> p { column = column p + index }
+                        |> \position -> (position, char)
+                )
+            |> InvalidCharactersInIdentifier
+            |> basicFailure

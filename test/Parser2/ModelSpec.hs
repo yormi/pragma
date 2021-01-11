@@ -2,9 +2,6 @@ module Parser2.ModelSpec where
 
 import Test.Hspec hiding (context)
 
-import Control.Monad (fail)
-
-import Parser.Error hiding (RawError)
 import Parser2.Model
 
 
@@ -14,9 +11,15 @@ spec =
         aFilePath = "some/File/Path.pa"
 
         testSuccess parser sourceCode expected =
+            test parser sourceCode (Right expected)
+
+        testFailure parser sourceCode expected =
+            test parser sourceCode (Left expected)
+
+        test parser sourceCode expected =
             parser
                 |> run aFilePath sourceCode
-                |> (`shouldBe` Right expected)
+                |> (`shouldBe` expected)
     in
     fdescribe "Parser" <| do
         describe "anyChar" <| do
@@ -54,18 +57,13 @@ spec =
                     sourceCode =
                         ""
 
-                    parser = do
-                        a <- anyChar
-                        b <- anyChar
-                        return (a, b)
+                    parser =
+                        anyChar
 
                     expected =
                         RawError EndOfFileReached
-                            |> Left
                 in do
-                parser
-                    |> run aFilePath sourceCode
-                    |> (`shouldBe` expected)
+                testFailure parser sourceCode expected
 
 
         describe "string" <| do
@@ -104,6 +102,73 @@ spec =
                             "words"
                         )
                 in
-                parser
-                    |> run aFilePath sourceCode
-                    |> (`shouldBe` Right expected)
+                testSuccess parser sourceCode expected
+
+
+            it "fails given currently on a space" <|
+                let
+                    sourceCode =
+                        "two words"
+
+                    parser = do
+                        a <- string
+                        b <- string
+                        return (a, b)
+
+                    expected =
+                        Position aFilePath 1 4
+                            |> StringExpected
+                            |> RawError
+
+                in
+                testFailure parser sourceCode expected
+
+
+        describe "identifier" <| do
+            it "Parses once given all legal id characters" <|
+                let
+                    sourceCode =
+                        "two words"
+
+                    expected =
+                        Parsed
+                            (Quote aFilePath 1 1 1 3)
+                            "two"
+                in
+                testSuccess identifier sourceCode expected
+
+
+            it "fails on a space" <|
+                let
+                    sourceCode =
+                        "two words"
+
+                    parser = do
+                        a <- identifier
+                        b <- identifier
+                        return (a, b)
+
+                    expected =
+                        Position aFilePath 1 4
+                            |> StringExpected
+                            |> RawError
+                in
+                testFailure parser sourceCode expected
+
+
+            it "fails given a string with invalid characters" <|
+                let
+                    sourceCode =
+                        "two$ words"
+
+                    parser = do
+                        a <- identifier
+                        b <- identifier
+                        return (a, b)
+
+                    expected =
+                        [ (Position aFilePath 1 4, '$') ]
+                            |> InvalidCharactersInIdentifier
+                            |> RawError
+                in
+                testFailure parser sourceCode expected
