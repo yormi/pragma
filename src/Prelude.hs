@@ -13,6 +13,7 @@ import Relude as X
     , Float
     , Double
     , FilePath
+    , Foldable
     , Generic
     , Int
     , Integer

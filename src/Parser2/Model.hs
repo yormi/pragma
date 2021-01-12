@@ -10,6 +10,9 @@ module Parser2.Model
     -- COMBINATORS
     , anyChar
     , identifier
+    , oneOf
+    , operator
+    , reserved
     , space
     , string
     )
@@ -24,7 +27,6 @@ import qualified GHC.Show
 
 import qualified Parser.Error as Error
 import qualified Utils.List as List
-import qualified Utils.Tuple as Tuple
 
 
 type Parser a
@@ -108,10 +110,15 @@ data Error
 
 
 data RawError
-    = EndOfFileReached
+    = ThisIsABug String
+    | EndOfFileReached
     | StringExpected Position
     | SpaceExpected Quote Char
     | InvalidCharactersInIdentifier [ (Position, Char) ]
+    | IdentifierCantBeAReservedWord Quote String
+    | ReservedWordExpected Quote String
+    | NotAReservedWord Quote String
+    | OperatorExpected Quote String
     deriving (Eq, Show)
 
 
@@ -139,12 +146,39 @@ instance Show Position where
 
 ---
 
+fail :: Error -> Parser a
+fail =
+    Except.throwE >> lift
+
 
 basicFailure :: RawError -> Parser a
 basicFailure =
     RawError
         >> Except.throwE
         >> lift
+
+
+fromExcept :: (State -> Except Error (a, State)) -> Parser a
+fromExcept =
+    State.StateT
+
+
+toExcept :: State -> Parser a -> Except Error (a, State)
+toExcept state parser =
+    State.runStateT parser state
+
+
+recoverParser :: Parser a -> Parser a -> Parser a
+recoverParser recoveringParser p =
+    fromExcept <|
+        \state ->
+            toExcept state p
+                |> recoverExcept (toExcept state recoveringParser)
+
+
+recoverExcept :: Except a b -> Except a b -> Except a b
+recoverExcept recoveringExcept except =
+    Except.catchE except (const recoveringExcept)
 
 
 run :: String -> SourceCode -> Parser a -> Either Error a
@@ -281,13 +315,14 @@ string = do
                 |> return
 
 
---- TOKEN ---
+--- IDENTIFIER ---
 
 identifierCharacters :: String
 identifierCharacters =
     "abcdefghijklmnopqrstuvwxyz"
     ++ "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     ++ "1234567890"
+    ++ "_"
 
 
 identifier :: QuotedParser String
@@ -299,8 +334,13 @@ identifier = do
                 |> List.filter
                     (\(_, c) -> not <| List.contains c identifierCharacters)
 
-    if List.isEmpty invalidCharacters then
+    if isAReservedWord str then
+        IdentifierCantBeAReservedWord quote str
+            |> basicFailure
+
+    else if List.isEmpty invalidCharacters then
         return <| Parsed quote str
+
     else
         invalidCharacters
             |> map
@@ -312,3 +352,90 @@ identifier = do
                 )
             |> InvalidCharactersInIdentifier
             |> basicFailure
+
+
+--- RESERVED WORD ---
+
+
+reservedWords :: [String]
+reservedWords =
+    [ "type", "alias"
+    , "let", "in"
+    , "if", "then", "else"
+    , "case", "of"
+    ]
+
+
+isAReservedWord :: String -> Bool
+isAReservedWord str =
+    List.contains str reservedWords
+
+
+reserved :: String -> Parser Quote
+reserved desiredString = do
+    Parsed quote parsedString <- string
+
+    if not <| isAReservedWord desiredString then
+        desiredString ++ " is not a reserved word"
+            |> ThisIsABug
+            |> basicFailure
+
+    else if parsedString /= desiredString then
+        basicFailure <| ReservedWordExpected quote desiredString
+
+    else
+        return quote
+
+
+--- OPERATOR ---
+
+
+operators :: [String]
+operators =
+    [ "\\", "->"
+    , "_"
+    , ">>", "<<", "|>", "<|"
+    , "{", "}", ":", "=", ","
+    , "[", "]"
+    , "==", "/=", ">=", "<=", ">", "<"
+    , "+", "-", "*", "/", "//"
+    ]
+
+
+operator :: String -> Parser Quote
+operator desiredString = do
+    Parsed quote parsedString <- string
+
+    if not <| isAnOperator desiredString then
+        desiredString ++ " is not an operator"
+            |> ThisIsABug
+            |> basicFailure
+
+    else if parsedString /= desiredString then
+        basicFailure <| OperatorExpected quote desiredString
+
+    else
+        return quote
+
+
+isAnOperator :: String -> Bool
+isAnOperator str =
+    List.contains str operators
+
+
+--- ONE OF ---
+
+
+oneOf :: Error -> [Parser a] -> Parser a
+oneOf error =
+    let
+        recursive remainingParsers =
+            case remainingParsers of
+                [] ->
+                    fail error
+
+                p : rest ->
+                    recoverParser (recursive rest) p
+
+    in
+    recursive
