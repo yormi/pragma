@@ -28,14 +28,9 @@ module Parser.Parser
     ) where
 
 
-import qualified Control.Monad as Monad
-import qualified Data.Aeson as Aeson
 import qualified Data.Char as Char
-import qualified Data.Functor.Identity as Identity
 import Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Text.Parsec as Parsec
-import qualified Text.Parsec.Error as ParserError
 import qualified Text.Parsec.Indent as Indent
 import qualified Text.Parsec.Token as Token
 

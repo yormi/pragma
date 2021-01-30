@@ -2,7 +2,10 @@ module Parser2.ModelSpec where
 
 import Test.Hspec hiding (context)
 
+import qualified Parser2.Error as E
+import Parser2.Combinator
 import Parser2.Model
+import Parser2.Parser
 
 
 spec :: Spec
@@ -15,7 +18,6 @@ spec =
 
         testFailure parser sourceCode expected =
             expected
-                |> RawError
                 |> Left
                 |> test parser sourceCode
 
@@ -64,7 +66,7 @@ spec =
                         anyChar
 
                     expected =
-                        EndOfFileReached
+                        E.EndOfFileReached
                 in do
                 testFailure parser sourceCode expected
 
@@ -120,7 +122,7 @@ spec =
 
                     expected =
                         Position aFilePath 1 4
-                            |> StringExpected
+                            |> E.StringExpected
 
                 in
                 testFailure parser sourceCode expected
@@ -152,7 +154,7 @@ spec =
 
                     expected =
                         Position aFilePath 1 4
-                            |> StringExpected
+                            |> E.StringExpected
                 in
                 testFailure parser sourceCode expected
 
@@ -169,7 +171,7 @@ spec =
 
                     expected =
                         [ (Position aFilePath 1 4, '$') ]
-                            |> InvalidCharactersInIdentifier
+                            |> E.InvalidCharactersInIdentifier
                 in
                 testFailure parser sourceCode expected
 
@@ -186,7 +188,7 @@ spec =
                         identifier
 
                     expected =
-                        IdentifierCantBeAReservedWord
+                        E.IdentifierCantBeAReservedWord
                             (Quote aFilePath 1 1 1 4)
                             reservedWord
                 in do
@@ -220,7 +222,9 @@ spec =
                         reserved typoed
 
                     expected =
-                        ThisIsABug "esle is not a reserved word"
+                        E.ThisIsABug
+                            (Position aFilePath 1 1)
+                            "esle is not a reserved word"
                 in do
                 testFailure parser sourceCode expected
 
@@ -237,7 +241,7 @@ spec =
                         reserved reservedWord
 
                     expected =
-                        ReservedWordExpected
+                        E.ReservedWordExpected
                             (Quote aFilePath 1 1 1 4)
                             reservedWord
                 in do
@@ -271,7 +275,9 @@ spec =
                         operator typoed
 
                     expected =
-                        ThisIsABug "!= is not an operator"
+                        E.ThisIsABug
+                            (Position aFilePath 1 1)
+                            "!= is not an operator"
                 in do
                 testFailure parser sourceCode expected
 
@@ -288,7 +294,7 @@ spec =
                         operator reservedWord
 
                     expected =
-                        OperatorExpected
+                        E.OperatorExpected
                             (Quote aFilePath 1 1 1 1)
                             reservedWord
                 in do
@@ -297,8 +303,11 @@ spec =
 
         describe "oneOf" <|
             let
+                aPosition =
+                    Position aFilePath 1 1
+
                 anError =
-                    ThisIsABug "anError"
+                    E.ThisIsABug aPosition "anError"
             in do
             it "Returns the successful parser value given the first parser succeed" <|
                 let
@@ -307,7 +316,7 @@ spec =
 
                     parser =
                         oneOf
-                            (RawError anError)
+                            anError
                             [ reserved "if"
                             , operator "{"
                             ]
@@ -325,7 +334,7 @@ spec =
 
                     parser =
                         oneOf
-                            (RawError anError)
+                            anError
                             [ reserved "if"
                             , operator "{"
                             ]
@@ -343,7 +352,7 @@ spec =
 
                     parser =
                         oneOf
-                            (RawError anError)
+                            anError
                             [ reserved "if"
                             , operator "{"
                             ]
@@ -352,3 +361,72 @@ spec =
                         anError
                 in do
                 testFailure parser sourceCode expected
+
+
+        describe "many" <| do
+            it "Returns a list of the parsed value" <|
+                let
+                    sourceCode =
+                        "a b c d"
+
+                    parser =
+                        many <| do
+                            id <- identifier
+                            maybe space
+                            return id
+
+                    expected =
+                        [ Parsed (Quote aFilePath 1 1 1 1) "a"
+                        , Parsed (Quote aFilePath 1 3 1 3) "b"
+                        , Parsed (Quote aFilePath 1 5 1 5) "c"
+                        , Parsed (Quote aFilePath 1 7 1 7) "d"
+                        ]
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Returns an empty list given unable to parse even once" <|
+                let
+                    sourceCode =
+                        ""
+
+                    parser =
+                        many <| do
+                            id <- identifier
+                            maybe space
+                            return id
+
+                    expected =
+                        []
+                in do
+                testSuccess parser sourceCode expected
+
+
+        describe "maybe" <| do
+            it "Returns Nothing given the given parser is not successful" <|
+                let
+                    sourceCode =
+                        ""
+
+                    parser =
+                        maybe string
+
+                    expected =
+                        Nothing
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Returns Just with the parsed value given a successful parser" <|
+                let
+                    sourceCode =
+                        "yo"
+
+                    parser =
+                        maybe string
+
+                    expected =
+                        Parsed (Quote aFilePath 1 1 1 2) "yo"
+                            |> Just
+                in do
+                testSuccess parser sourceCode expected

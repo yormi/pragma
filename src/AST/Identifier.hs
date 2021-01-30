@@ -32,27 +32,27 @@ import qualified Data.Char as Char
 import qualified Utils.List as List
 
 
-data ConstructorId
+newtype ConstructorId
     = ConstructorId String
     deriving (Eq, Ord, Show)
 
 
-data DataId
+newtype DataId
     = DataId String
     deriving (Eq, Generic, Ord, Show, FromJSON, ToJSON)
 
 
-data ReferenceId
+newtype ReferenceId
     = ReferenceId String
     deriving (Eq, Ord, Show)
 
 
-data TypeId
+newtype TypeId
     = TypeId String
     deriving (Eq, Ord, Show)
 
 
-data TypeVariableId
+newtype TypeVariableId
     = TypeVariableId String
     deriving (Eq, Ord, Show)
 

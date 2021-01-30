@@ -20,7 +20,7 @@ packages:
     hackage: data-default-instances-base-0.1.0.1
 snapshots:
 - completed:
-    size: 532386
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/17.yaml
-    sha256: d3ee1ae797cf63189c95cf27f00700304946c5cb3c1e6a82001cd6584a221e1b
-  original: lts-16.17
+    size: 533053
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/29.yaml
+    sha256: eb8ccc595466edefb9a679f19aec2e283d12f4c6ea5eefded1ebe8bd157d77d1
+  original: lts-16.29
