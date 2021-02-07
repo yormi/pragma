@@ -1,12 +1,12 @@
-module Parser2.IdentifierSpec where
+module Parser3.IdentifierSpec where
 
 import Test.Hspec hiding (context)
 
-import qualified AST2.Identifier as Identifier
-import qualified Parser2.Error as E
-import Parser2.Model
-import Parser2.Parser
-import qualified Parser2.Identifier as Identifier
+import qualified AST3.Identifier as Identifier
+import qualified Parser3.Error as E
+import Parser3.Quote (Quote(..))
+import qualified Parser3.Parser as Parser
+import qualified Parser3.Identifier as Identifier
 
 
 spec :: Spec
@@ -14,20 +14,8 @@ spec =
     let
         aFilePath = "some/File/Path.pa"
 
-        testSuccess parser sourceCode quote expected =
-            Parsed quote expected
-                |> Right
-                |> test parser sourceCode
-
-        testFailure parser sourceCode expected =
-            expected
-                |> Left
-                |> test parser sourceCode
-
-        test parser sourceCode expected =
-            parser
-                |> run aFilePath sourceCode
-                |> (`shouldBe` expected)
+        run parser sourceCode =
+            Parser.run aFilePath sourceCode parser
     in
     describe "Identifier Parser" <| do
         describe "reference" <| do
@@ -43,8 +31,9 @@ spec =
                         E.IdentifierCantBeAReservedWord
                             (Quote aFilePath 1 1 1 2)
                             "if"
+                            |> Left
                 in
-                testFailure parser source expected
+                run parser source `shouldBe` expected
 
 
             it "Parses a PascalCase string" <|
@@ -55,13 +44,11 @@ spec =
                     source =
                         "PascalCase"
 
-                    quote =
-                        Quote aFilePath 1 1 1 10
-
                     expected =
-                        Identifier.referenceId source
+                        Identifier.referenceId (Quote aFilePath 1 1 1 10) source
+                            |> Right
                 in
-                testSuccess parser source quote expected
+                run parser source `shouldBe` expected
 
 
             it "Parses a camelCase string" <|
@@ -72,10 +59,8 @@ spec =
                     source =
                         "camelCase"
 
-                    quote =
-                        Quote aFilePath 1 1 1 9
-
                     expected =
-                        Identifier.referenceId source
+                        Identifier.referenceId (Quote aFilePath 1 1 1 9) source
+                            |> Right
                 in
-                testSuccess parser source quote expected
+                run parser source `shouldBe` expected

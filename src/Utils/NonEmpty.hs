@@ -1,4 +1,9 @@
-module Utils.NonEmpty (module X, build, fromList) where
+module Utils.NonEmpty
+    ( module X
+    , build
+    , fromList
+    , singleton
+    ) where
 
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import Data.List.NonEmpty as X (NonEmpty(..), last, tail, toList)
@@ -12,3 +17,8 @@ build x xs =
 fromList :: [a] -> Maybe (NonEmpty a)
 fromList =
     nonEmpty
+
+
+singleton :: a -> NonEmpty a
+singleton x =
+    build x []

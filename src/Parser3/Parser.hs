@@ -2,10 +2,10 @@ module Parser3.Parser
     ( Parser
     , consumeChar
     , consumeString
-    , debug
     , fail
     , getPosition
     , getRemaining
+    , lookAhead
     , recoverParser
     , run
     , unconsumeOnFailure
@@ -41,22 +41,6 @@ data State
         , referenceIndentation :: Column
         }
         deriving (Eq, Show)
-
-
-debug :: Show a => Parser a -> Parser a
-debug p = do
-    stateBefore <- State.get
-    trace (show stateBefore) <|
-        fromExcept <|
-            \state ->
-                let
-                    except =
-                        toExcept state p
-                in
-                trace ("ERROR: " ++ show except) except
-
-
-
 
 
 fail :: Error -> Parser a
@@ -96,6 +80,14 @@ recoverParser recoveringParser p =
 recoverExcept :: Except a b -> Except a b -> Except a b
 recoverExcept recoveringExcept except =
     Except.catchE except (const recoveringExcept)
+
+
+lookAhead :: Parser a -> Parser a
+lookAhead parser = do
+    previousState <- State.get
+    result <- parser
+    State.put previousState
+    return result
 
 
 run :: String -> SourceCode -> Parser a -> Either Error a

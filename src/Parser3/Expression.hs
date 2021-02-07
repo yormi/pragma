@@ -58,6 +58,7 @@ application =
 
 argument :: Parser Expression
 argument = do
+    C.someSpace
     position <- P.getPosition
     C.oneOf
         (E.ArgumentExpected position)

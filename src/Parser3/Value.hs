@@ -6,23 +6,45 @@ import qualified Parser3.Combinator as C
 import qualified Parser3.Error as Error
 import qualified Parser3.Lexeme as Lexeme
 import Parser3.Parser (Parser)
-import qualified Parser3.Parser as P
+import qualified Parser3.Parser as Parser
 import qualified Parser3.Quote as Quote
 import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
+import qualified Utils.Tuple as Tuple
 
 
 parser :: Parser Value
 parser = do
     C.someSpace
-    position <- P.getPosition
+    position <- Parser.getPosition
     C.oneOf
         (Error.ValueExpected position)
         [ boolParser
         , charLiteral
         , intParser
-        -- , map String Parser.stringLiteral
+        , stringLiteral
         ]
+
+
+stringLiteral :: Parser Value
+stringLiteral = do
+    C.someSpace
+    from <- C.char '"'
+    str <-
+        C.oneOf
+            Error.EndOfFileReached
+            [ do
+                _ <- C.char '\\'
+                _ <- C.char '"'
+                return '"'
+            , C.anyChar
+                |> map Tuple.second
+            ]
+            |> C.until (C.char '"')
+    to <- C.char '"'
+    let quote = Quote.fromPositions from to
+    String quote str
+        |> return
 
 
 charLiteral :: Parser Value
@@ -38,7 +60,7 @@ charLiteral = do
 intParser :: Parser Value
 intParser = do
     C.someSpace
-    from <- P.getPosition
+    from <- Parser.getPosition
 
     minusSign <- C.maybe <| Lexeme.operator "-"
     (stringQuote, str) <- C.string
@@ -55,7 +77,7 @@ intParser = do
                 |> return
 
         Nothing ->
-            P.fail <| Error.IntExpected from
+            Parser.fail <| Error.IntExpected from
 
 
 -- numberParser :: QuotedParser Value
@@ -78,7 +100,7 @@ intParser = do
 
 boolParser :: Parser Value
 boolParser = do
-    position <- P.getPosition
+    position <- Parser.getPosition
     C.oneOf
         (Error.BooleanExpected position)
         [ map TrueLiteral (Lexeme.reserved "True")

@@ -14,7 +14,6 @@ import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
 import qualified Utils.List as List
 import qualified Utils.String as String
-import qualified Utils.Tuple as Tuple
 
 
 -- *********************************************
@@ -121,7 +120,7 @@ operators =
     ]
 
 
-operator :: String -> Parser ()
+operator :: String -> Parser Quote
 operator desiredString = do
     C.someSpace
     from <- Parser.getPosition
@@ -132,23 +131,18 @@ operator desiredString = do
             |> Parser.fail
     else
         Parser.unconsumeOnFailure <| do
-            parsedChars <-
-                List.range 0 (List.length desiredString)
-                    |> traverse (const C.anyChar)
-
-            let comparingString =
-                    map Tuple.second parsedChars
+            (quote, parsedString) <- C.string
 
             if not <| isAnOperator desiredString then
                 desiredString ++ " is not an operator"
                     |> ThisIsABug from
                     |> Parser.fail
 
-            else if comparingString /= desiredString then
+            else if parsedString /= desiredString then
                 Parser.fail <| OperatorExpected from desiredString
 
             else
-                return ()
+                return quote
 
 
 isAnOperator :: String -> Bool

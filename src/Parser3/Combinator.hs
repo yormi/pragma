@@ -8,6 +8,7 @@ module Parser3.Combinator
     , someSpace
     , space
     , string
+    , until
     )
     where
 
@@ -21,6 +22,21 @@ import qualified Parser3.Parser as Parser
 import qualified Utils.List as List
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
+
+
+until :: Parser a -> Parser b -> Parser [b]
+until stopWith parser =
+    (do
+        _ <- Parser.lookAhead stopWith
+        return []
+    )
+        |> Parser.recoverParser
+            (do
+                xAgain <- parser
+                xs <- until stopWith parser
+                return (xAgain : xs)
+            )
+
 
 
 anyChar :: Parser (Position, Char)
