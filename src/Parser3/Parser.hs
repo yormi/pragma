@@ -1,14 +1,14 @@
-module Parser2.Parser
+module Parser3.Parser
     ( Parser
-    , QuotedParser
     , consumeChar
     , consumeString
+    , debug
     , fail
     , getPosition
     , getRemaining
-    , mapResult
     , recoverParser
     , run
+    , unconsumeOnFailure
     )
     where
 
@@ -17,17 +17,12 @@ import qualified Control.Monad.Trans.State as State
 import Control.Monad.Trans.Except (Except)
 import qualified Control.Monad.Trans.Except as Except
 
-import Parser2.Error (Error)
-import qualified Parser2.Error as E
-import Parser2.Model
-    ( Column
-    , Parsed(..)
-    , Position(..)
-    , Quote
-    , SourceCode
-    , positionToColumn
-    , quoteCode
-    )
+import Parser3.Error (Error)
+import qualified Parser3.Error as E
+import Parser3.Position (Column, Position(..))
+import qualified Parser3.Position as Position
+import Parser3.Quote (Quote)
+import qualified Parser3.Quote as Quote
 import qualified Utils.List as List
 
 
@@ -35,8 +30,8 @@ type Parser a
     = StateT State (Except Error) a
 
 
-type QuotedParser a
-    = Parser (Parsed a)
+type SourceCode =
+    String
 
 
 data State
@@ -46,6 +41,22 @@ data State
         , referenceIndentation :: Column
         }
         deriving (Eq, Show)
+
+
+debug :: Show a => Parser a -> Parser a
+debug p = do
+    stateBefore <- State.get
+    trace (show stateBefore) <|
+        fromExcept <|
+            \state ->
+                let
+                    except =
+                        toExcept state p
+                in
+                trace ("ERROR: " ++ show except) except
+
+
+
 
 
 fail :: Error -> Parser a
@@ -61,6 +72,17 @@ fromExcept =
 toExcept :: State -> Parser a -> Except Error (a, State)
 toExcept state parser =
     State.runStateT parser state
+
+
+unconsumeOnFailure :: Parser a -> Parser a
+unconsumeOnFailure p =
+    fromExcept <|
+        \state ->
+            let
+                except =
+                    toExcept state p
+            in
+            Except.catchE except (fail >> toExcept state)
 
 
 recoverParser :: Parser a -> Parser a -> Parser a
@@ -87,7 +109,7 @@ run filePath sourceCode parser =
                 }
 
         initialColumn =
-            positionToColumn initialPosition
+            Position.toColumn initialPosition
 
         initialState =
             State sourceCode initialPosition initialColumn
@@ -174,12 +196,5 @@ consumeString str =
     in do
     from <- getPosition
     to <- consume str
-    quoteCode from to
-        |> return
-
-
-mapResult :: (a -> b) -> QuotedParser a -> QuotedParser b
-mapResult f parser = do
-    Parsed quote result <- parser
-    Parsed quote (f result)
+    Quote.fromPositions from to
         |> return

@@ -1,11 +1,12 @@
-module Parser2.ModelSpec where
+module Parser3.CombinatorSpec where
 
 import Test.Hspec hiding (context)
 
-import qualified Parser2.Error as E
-import Parser2.Combinator
-import Parser2.Model
-import Parser2.Parser
+import qualified Parser3.Error as E
+import Parser3.Combinator
+import Parser3.Position (Position(..))
+import Parser3.Quote (Quote(..))
+import Parser3.Parser
 
 
 spec :: Spec
@@ -26,7 +27,7 @@ spec =
                 |> run aFilePath sourceCode
                 |> (`shouldBe` expected)
     in
-    fdescribe "Parser" <| do
+    describe "Parser Combinators" <| do
         describe "anyChar" <| do
             it "Parses once" <|
                 let
@@ -72,10 +73,38 @@ spec =
 
 
         describe "string" <| do
-            it "Parses once" <|
+            it "Parses first word given splitted by space" <|
                 let
                     sourceCode =
                         "two words"
+
+                    expected =
+                        Parsed
+                            (Quote aFilePath 1 1 1 3)
+                            "two"
+                in
+                string
+                    |> run aFilePath sourceCode
+                    |> (`shouldBe` Right expected)
+
+            it "Parses first word given splitted by closing parenthesized" <|
+                let
+                    sourceCode =
+                        "two)words"
+
+                    expected =
+                        Parsed
+                            (Quote aFilePath 1 1 1 3)
+                            "two"
+                in
+                string
+                    |> run aFilePath sourceCode
+                    |> (`shouldBe` Right expected)
+
+            it "Parses first word given splitted by closing square bracket" <|
+                let
+                    sourceCode =
+                        "two]words"
 
                     expected =
                         Parsed
@@ -94,7 +123,7 @@ spec =
 
                     parser = do
                         a <- string
-                        space
+                        _ <- space
                         b <- string
                         return (a, b)
 
@@ -110,22 +139,20 @@ spec =
                 testSuccess parser sourceCode expected
 
 
-            it "Fails given currently on a space" <|
+            it "consumes the spaces before a word then parses the word" <|
                 let
                     sourceCode =
-                        "two words"
+                        "    two words"
 
-                    parser = do
-                        a <- string
-                        b <- string
-                        return (a, b)
+                    parser =
+                        string
 
                     expected =
-                        Position aFilePath 1 4
-                            |> E.StringExpected
-
+                        Parsed
+                            (Quote aFilePath 1 5 1 7)
+                            "two"
                 in
-                testFailure parser sourceCode expected
+                testSuccess parser sourceCode expected
 
 
         describe "identifier" <| do
@@ -142,21 +169,20 @@ spec =
                 testSuccess identifier sourceCode expected
 
 
-            it "Fails on a space" <|
+            it "consumes the spaces before a word then parses the identifier" <|
                 let
                     sourceCode =
-                        "two words"
+                        "  someId"
 
-                    parser = do
-                        a <- identifier
-                        b <- identifier
-                        return (a, b)
+                    parser =
+                        identifier
 
                     expected =
-                        Position aFilePath 1 4
-                            |> E.StringExpected
+                        Parsed
+                            (Quote aFilePath 1 3 1 8)
+                            "someId"
                 in
-                testFailure parser sourceCode expected
+                testSuccess parser sourceCode expected
 
 
             it "Fails given a string with characters that are not valid identifier characters" <|
@@ -206,6 +232,7 @@ spec =
 
                     expected =
                         Quote aFilePath 1 1 1 2
+                            |> \q -> Parsed q ()
                 in do
                 testSuccess parser sourceCode expected
 
@@ -259,6 +286,37 @@ spec =
 
                     expected =
                         Quote aFilePath 1 1 1 2
+                            |> \q -> Parsed q ()
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Returns the quote given the first chars represent the operator even if there is no space after" <|
+                let
+                    sourceCode =
+                        "==banana"
+
+                    parser =
+                        operator "=="
+
+                    expected =
+                        Quote aFilePath 1 1 1 2
+                            |> \q -> Parsed q ()
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Returns the quote even if there is spaces in front of the operator" <|
+                let
+                    sourceCode =
+                        " =="
+
+                    parser =
+                        operator "=="
+
+                    expected =
+                        Quote aFilePath 1 2 1 3
+                            |> \q -> Parsed q ()
                 in do
                 testSuccess parser sourceCode expected
 
@@ -295,8 +353,24 @@ spec =
 
                     expected =
                         E.OperatorExpected
-                            (Quote aFilePath 1 1 1 1)
+                            (Position aFilePath 1 1)
                             reservedWord
+                in do
+                testFailure parser sourceCode expected
+
+
+            it "Fails as a bug given the provided string is empty" <|
+                let
+                    sourceCode =
+                        "="
+
+                    parser =
+                        operator ""
+
+                    expected =
+                        E.ThisIsABug
+                            (Position aFilePath 1 1)
+                            "The required operator should not be empty"
                 in do
                 testFailure parser sourceCode expected
 
@@ -323,11 +397,12 @@ spec =
 
                     expected =
                         Quote aFilePath 1 1 1 2
+                            |> \q -> Parsed q ()
                 in do
                 testSuccess parser sourceCode expected
 
 
-            it "Returns the successful parser value given the second parser succeed" <|
+            it "Returns the successful parser value given the second parser succeeded" <|
                 let
                     sourceCode =
                         "{ hello = \"world\" }"
@@ -341,6 +416,7 @@ spec =
 
                     expected =
                         Quote aFilePath 1 1 1 1
+                            |> \q -> Parsed q ()
                 in do
                 testSuccess parser sourceCode expected
 
@@ -372,7 +448,7 @@ spec =
                     parser =
                         many <| do
                             id <- identifier
-                            maybe space
+                            _ <- maybe space
                             return id
 
                     expected =
@@ -391,13 +467,32 @@ spec =
                         ""
 
                     parser =
-                        many <| do
-                            id <- identifier
-                            maybe space
-                            return id
+                        many identifier
 
                     expected =
                         []
+                in do
+                testSuccess parser sourceCode expected
+
+
+        describe "atLeastOne" <| do
+            it "Returns a list of the parsed value" <|
+                let
+                    sourceCode =
+                        "a b c d"
+
+                    parser =
+                        many <| do
+                            id <- identifier
+                            _ <- maybe space
+                            return id
+
+                    expected =
+                        [ Parsed (Quote aFilePath 1 1 1 1) "a"
+                        , Parsed (Quote aFilePath 1 3 1 3) "b"
+                        , Parsed (Quote aFilePath 1 5 1 5) "c"
+                        , Parsed (Quote aFilePath 1 7 1 7) "d"
+                        ]
                 in do
                 testSuccess parser sourceCode expected
 
@@ -430,3 +525,88 @@ spec =
                             |> Just
                 in do
                 testSuccess parser sourceCode expected
+
+
+        describe "parenthesized" <| do
+            it "Parses successfully given no spaces" <|
+                let
+                    sourceCode =
+                        "(yo)"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        Parsed (Quote aFilePath 1 2 1 3) "yo"
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Parses successfully given spaces before the opening parenthesis" <|
+                let
+                    sourceCode =
+                        "  (yo)"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        Parsed (Quote aFilePath 1 4 1 5) "yo"
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Parses successfully given spaces after the opening parenthesis" <|
+                let
+                    sourceCode =
+                        "(  yo)"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        Parsed (Quote aFilePath 1 4 1 5) "yo"
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Parses successfully given spaces before the closing parenthesis" <|
+                let
+                    sourceCode =
+                        "(yo  )"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        Parsed (Quote aFilePath 1 2 1 3) "yo"
+                in do
+                testSuccess parser sourceCode expected
+
+
+            it "Fails given no opening parenthesis" <|
+                let
+                    sourceCode =
+                        "yo)"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        E.NotTheDesiredChar (Position aFilePath 1 1) '('
+                in do
+                testFailure parser sourceCode expected
+
+
+            it "Fails given no closing parenthesis" <|
+                let
+                    sourceCode =
+                        "(yo bob"
+
+                    parser =
+                        parenthesized string
+
+                    expected =
+                        E.NotTheDesiredChar (Position aFilePath 1 5) ')'
+                in do
+                testFailure parser sourceCode expected

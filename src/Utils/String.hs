@@ -9,11 +9,15 @@ module Utils.String
     , padRight
     , splitLines
     , splitOn
+    , toInt
     )
     where
 
 import Data.List as X (length)
 import qualified Data.List as List
+import qualified Text.Read as Read
+
+import Prelude hiding (toInt)
 
 
 containsChar :: Char -> String -> Bool
@@ -76,3 +80,8 @@ mergeLines =
 mergeWords :: [String] -> String
 mergeWords =
     List.unwords
+
+
+toInt :: String -> Maybe Int
+toInt =
+    Read.readMaybe

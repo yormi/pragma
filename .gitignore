@@ -1,6 +1,8 @@
 .stack-work/
 *~
 *.cabal
+dist-newstyle/
+stack.yaml.lock
 
 # To avoid nvim shit with coc and haskell-language-server
 hie.yaml

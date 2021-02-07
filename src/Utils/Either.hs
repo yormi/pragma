@@ -9,7 +9,7 @@ module Utils.Either
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Either (either)
-import Data.Either as X (lefts, rights)
+import Data.Either as X (lefts, isLeft, rights)
 
 
 fold :: (a -> c) -> (b -> c) -> Either a b -> c

@@ -20,7 +20,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/pragma#readme>
 
 dependencies:
-- base-noprelude >= 4.7 && < 5
+- base-noprelude
 - aeson
 - ansi-terminal
 - containers
@@ -28,12 +28,12 @@ dependencies:
 - directory
 - indents
 - mtl
-- parsec == 3.1.14.0
+- parsec
 - pretty
 - relude
 - table-layout
 - transformers
-- text == 1.2.4.0
+- text
 
 
 - hspec

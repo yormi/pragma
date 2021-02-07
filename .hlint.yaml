@@ -1,2 +1,4 @@
 - ignore: { name: "Use tuple-section" }
 - ignore: { name: "Use (,)" }
+- ignore: { name: "Use when" }
+- ignore: { name: "Avoid lambda using `infix`" }

@@ -1,27 +1,30 @@
-module Parser2.Expression
+module Parser3.Expression
     ( expressionParser
     ) where
 
-import AST.Expression
-import Parser2.Parser (QuotedParser)
-import qualified Parser2.Combinator as C
-import qualified Parser2.Error as E
-import qualified Parser2.Identifier as Identifier
-import qualified Parser2.Parser as P
--- import qualified Parser2.Value as Value
+import AST3.Expression (Expression)
+import qualified AST3.Expression as Expression
+import Parser3.Parser (Parser)
+import qualified Parser3.Combinator as C
+import qualified Parser3.Error as E
+import qualified Parser3.Lexeme as Lexeme
+import qualified Parser3.Identifier as Identifier
+import qualified Parser3.Parser as P
+import qualified Parser3.Quote as Quote
+import qualified Parser3.Value as Value
 
 
-expressionParser :: QuotedParser Expression
-expressionParser =
-    C.oneOf E.ExpressionExpected
-        -- [ parenthesisedExpression
+expressionParser :: Parser Expression
+expressionParser = do
+    position <- P.getPosition
+    C.oneOf (E.ExpressionExpected position)
+        [ parenthesizedExpression
+        , map Expression.Value Value.parser
         -- , caseOf
-        -- , ifThenElse
+        , ifThenElse
         -- , letIn
-        -- , application
-        [ reference
-        -- , map Value Value.valueParser
-        --     |> exprParser
+        , application
+        , reference
         -- , lambda
         ]
 
@@ -29,48 +32,46 @@ expressionParser =
 -- REFERENCE
 
 
-reference :: QuotedParser Expression
-reference =
+reference :: Parser Expression
+reference = do
     Identifier.reference
-        |> P.mapResult Reference
+        |> map Expression.Reference
 
 
--- -- APPLICATION
--- 
--- 
--- application :: Parser QuotedExpression
--- application =
---     (do
---         functionName <- Parser.referenceIdentifier
---         args <-
---             Parser.atLeastOne <| do
---                 Parser.sameLineOrIndented
---                 argument
---         Application functionName args
---             |> return
---     )
---         |> exprParser
---         |> Parser.unconsumeOnFailure
--- 
--- 
--- argument :: Parser QuotedExpression
--- argument =
---     Parser.oneOf
---         [ map Value Value.valueParser
---             |> exprParser
---         , reference
---         , parenthesisedExpression
---         ]
--- 
--- 
--- parenthesisedExpression :: Parser QuotedExpression
--- parenthesisedExpression = do
---     Parser.reservedOperator "("
---     expr <- expressionParser
---     Parser.reservedOperator ")"
---     return expr
--- 
--- 
+-- APPLICATION
+
+
+application :: Parser Expression
+application =
+    (do
+        functionName <- Identifier.reference
+        args <-
+            C.atLeastOne <| do
+                -- C.sameLineOrIndented
+                argument
+
+        Expression.Application functionName args
+            |> return
+    )
+        |> P.unconsumeOnFailure
+
+
+argument :: Parser Expression
+argument = do
+    position <- P.getPosition
+    C.oneOf
+        (E.ArgumentExpected position)
+        [ map Expression.Value Value.parser
+        , reference
+        , parenthesizedExpression
+        ]
+
+
+parenthesizedExpression :: Parser Expression
+parenthesizedExpression =
+    Lexeme.parenthesized expressionParser
+
+
 -- -- LAMBDA
 -- 
 -- 
@@ -84,30 +85,29 @@ reference =
 --         return <| Lambda params expr
 --     )
 --     |> exprParser
--- 
--- 
--- 
--- -- IF THEN ELSE
--- 
--- 
--- ifThenElse :: Parser QuotedExpression
--- ifThenElse =
---     (do
---         condition <-
---             Parser.between
---                 (Parser.reserved "if")
---                 (Parser.reserved "then")
---                 (expressionParser)
---         whenTrue <- expressionParser
---         Parser.reserved "else"
---         whenFalse <- expressionParser
--- 
---         If condition whenTrue whenFalse
---             |> return
---     )
---         |> exprParser
--- 
--- 
+
+
+
+-- IF THEN ELSE
+
+
+ifThenElse :: Parser Expression
+ifThenElse = do
+    ifQuote <- Lexeme.reserved "if"
+    condition <- expressionParser
+    _ <- Lexeme.reserved "then"
+    whenTrue <- expressionParser
+    _ <- Lexeme.reserved "else"
+    whenFalse <- expressionParser
+
+    Expression.If
+        (Quote.from ifQuote)
+        condition
+        whenTrue
+        whenFalse
+        |> return
+
+
 -- -- LET IN
 -- 
 -- 

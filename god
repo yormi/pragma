@@ -25,6 +25,8 @@ EOF
     ghcid \
           --command "stack ghci pragma:lib pragma:test:pragma-test --ghci-options=-fobject-code" \
           --warnings \
+          --no-height-limit \
+          --reverse-errors \
           --test "main"
     ;;
 

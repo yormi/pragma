@@ -1,0 +1,81 @@
+module Parser2.IdentifierSpec where
+
+import Test.Hspec hiding (context)
+
+import qualified AST2.Identifier as Identifier
+import qualified Parser2.Error as E
+import Parser2.Model
+import Parser2.Parser
+import qualified Parser2.Identifier as Identifier
+
+
+spec :: Spec
+spec =
+    let
+        aFilePath = "some/File/Path.pa"
+
+        testSuccess parser sourceCode quote expected =
+            Parsed quote expected
+                |> Right
+                |> test parser sourceCode
+
+        testFailure parser sourceCode expected =
+            expected
+                |> Left
+                |> test parser sourceCode
+
+        test parser sourceCode expected =
+            parser
+                |> run aFilePath sourceCode
+                |> (`shouldBe` expected)
+    in
+    describe "Identifier Parser" <| do
+        describe "reference" <| do
+            it "Fails on reserved string" <|
+                let
+                    parser =
+                        Identifier.reference
+
+                    source =
+                        "if"
+
+                    expected =
+                        E.IdentifierCantBeAReservedWord
+                            (Quote aFilePath 1 1 1 2)
+                            "if"
+                in
+                testFailure parser source expected
+
+
+            it "Parses a PascalCase string" <|
+                let
+                    parser =
+                        Identifier.reference
+
+                    source =
+                        "PascalCase"
+
+                    quote =
+                        Quote aFilePath 1 1 1 10
+
+                    expected =
+                        Identifier.referenceId source
+                in
+                testSuccess parser source quote expected
+
+
+            it "Parses a camelCase string" <|
+                let
+                    parser =
+                        Identifier.reference
+
+                    source =
+                        "camelCase"
+
+                    quote =
+                        Quote aFilePath 1 1 1 9
+
+                    expected =
+                        Identifier.referenceId source
+                in
+                testSuccess parser source quote expected
