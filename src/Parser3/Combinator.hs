@@ -5,6 +5,7 @@ module Parser3.Combinator
     , many
     , maybe
     , oneOf
+    , oneOf_
     , someSpace
     , space
     , string
@@ -99,6 +100,47 @@ isEndingWord c =
 
 
 --- COMBINATORS ---
+
+
+oneOf_ :: [Parser a] -> Parser a
+oneOf_ =
+    let
+        recursive remainingParsers =
+            case remainingParsers of
+                [] ->
+                    shouldNotHappen
+
+                [p] ->
+                    p
+
+                p : rest -> do
+                    either <- Parser.catch p
+                    case either of
+                        Right x ->
+                            return x
+
+                        Left errorRank1 ->
+                            onFailure errorRank1 rest
+
+        onFailure errorRank rest = do
+            either <- Parser.catch <| recursive rest
+            case either of
+                Right x ->
+                    return x
+
+                Left errorRank2 ->
+                    Parser.moreRelevant errorRank errorRank2
+                        |> Parser.fail
+
+        shouldNotHappen = do
+            position <- Parser.getPosition
+            ThisIsABug position
+                "At least one parser must be provided to the oneOf combinator"
+                |> Parser.fail
+    in
+    recursive
+
+--
 
 
 oneOf :: Error -> [Parser a] -> Parser a
