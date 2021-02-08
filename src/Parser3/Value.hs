@@ -26,31 +26,17 @@ parser = do
         ]
 
 
-stringLiteral :: Parser Value
-stringLiteral = do
-    C.someSpace
-    from <- C.char '"'
-    str <-
-        C.oneOf
-            Error.EndOfFileReached
-            [ do
-                _ <- C.char '\\'
-                _ <- C.char '"'
-                return '"'
-            , C.anyChar
-                |> map Tuple.second
-            ]
-            |> C.until (C.char '"')
-    to <- C.char '"'
-    let quote = Quote.fromPositions from to
-    String quote str
-        |> return
-
-
 charLiteral :: Parser Value
 charLiteral = do
     from <- C.char '\''
-    (_, c) <- C.anyChar
+    c <-
+        C.oneOf
+            (Error.CharExpected from)
+            [ escapedNewLine
+            , escapedTab
+            , C.anyChar
+                |> map Tuple.second
+            ]
     to <- C.char '\''
     let quote = Quote.fromPositions from to
     Char quote c
@@ -80,24 +66,6 @@ intParser = do
             Parser.fail <| Error.IntExpected from
 
 
--- numberParser :: QuotedParser Value
--- numberParser =
---     C.oneOf
---         [ do
---             minusSign <- C.maybe <| C.operator "-"
---             C.many C.digit
--- 
---             n <- Parser.numberLiteral
---             n
---                 |> bimap ((*) (-1)) ((*) (-1))
---                 |> Either.fold Int Float
---                 |> return
--- 
---         , Parser.numberLiteral
---             |> map (Either.fold Int Float)
---         ]
-
-
 boolParser :: Parser Value
 boolParser = do
     position <- Parser.getPosition
@@ -107,3 +75,44 @@ boolParser = do
         , map FalseLiteral (Lexeme.reserved "False")
         ]
         |> map Bool
+
+
+stringLiteral :: Parser Value
+stringLiteral = do
+    C.someSpace
+    from <- C.char '"'
+    str <-
+        C.oneOf
+            Error.EndOfFileReached
+            [ escapedDoubleQuote
+            , escapedNewLine
+            , escapedTab
+            , C.anyChar
+                |> map Tuple.second
+            ]
+            |> C.until (C.char '"')
+    to <- C.char '"'
+    let quote = Quote.fromPositions from to
+    String quote str
+        |> return
+
+
+escapedDoubleQuote :: Parser Char
+escapedDoubleQuote = do
+    _ <- C.char '\\'
+    _ <- C.char '"'
+    return '"'
+
+
+escapedNewLine :: Parser Char
+escapedNewLine = do
+    _ <- C.char '\\'
+    _ <- C.char 'n'
+    return '\n'
+
+
+escapedTab :: Parser Char
+escapedTab = do
+    _ <- C.char '\\'
+    _ <- C.char 't'
+    return '\t'

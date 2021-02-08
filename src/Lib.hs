@@ -4,7 +4,7 @@ import qualified System.Directory as Directory
 import System.IO (readFile)
 
 import Compiler (Compiler)
-import qualified Compiler as Compiler
+import qualified Compiler
 import qualified CompilationStep
 import qualified Printer.CompilerError as CompilerErrorPrinter
 import qualified Utils.Either as Either

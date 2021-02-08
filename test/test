@@ -13,6 +13,9 @@ foo x n c =
 
         baz =
             bar
+
+        blah =
+            "yo\nyo\n"
     in
     if True then
         Red x

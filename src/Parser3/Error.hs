@@ -8,6 +8,7 @@ data Error
     = ThisIsABug Position String
     | EndOfFileReached
 
+    -- COMBINATOR
     | NotTheDesiredChar Position Char
     | SpaceExpected Position Char
     | StringExpected Position
@@ -15,16 +16,20 @@ data Error
     | IdentifierExpected Position
     | InvalidCharactersInIdentifier [ (Position, Char) ]
 
+    -- LEXEME
     | IdentifierCantBeAReservedWord Quote String
     | ReservedWordExpected Quote String
     | NotAReservedWord Quote String
     | OperatorExpected Position String
 
-    | ArgumentExpected Position
+    -- VALUE
+    | CharExpected Position
     | BooleanExpected Position
-    | ExpressionExpected Position
     | IntExpected Position
     | ValueExpected Position
 
+    -- EXPRESSION
+    | ExpressionExpected Position
+    | ArgumentExpected Position
 
     deriving (Eq, Show)
