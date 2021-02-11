@@ -6,7 +6,6 @@ import AST3.Expression (Expression)
 import qualified AST3.Expression as Expression
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
-import qualified Parser3.Model.Error as E
 import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Identifier as Identifier
 import qualified Parser3.Parser as P

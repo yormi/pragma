@@ -186,16 +186,35 @@ spec =
                 run parser sourceCode `shouldBe` expected
 
 
-            it "Fails with the provided error given no parser succeeds" <|
+            it "Fails with the last error given no parser consumed anything" <|
                 let
                     sourceCode =
                         "+"
 
                     parser =
-                        C.oneOf [ C.char 'i' , C.char '{' ]
+                        C.oneOf [ C.char 'i', C.char '{' ]
 
                     expected =
                         Left <| E.NotTheDesiredChar (buildPosition 1 1) '{'
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Fails with the error of the parser that consumed the most" <|
+                let
+                    sourceCode =
+                        "aa"
+
+                    parser =
+                        C.oneOf
+                            [ do
+                                _ <- C.char 'a'
+                                C.char 'b'
+                            , C.char '{'
+                            ]
+
+                    expected =
+                        Left <| E.NotTheDesiredChar (buildPosition 1 2) 'b'
                 in do
                 run parser sourceCode `shouldBe` expected
 

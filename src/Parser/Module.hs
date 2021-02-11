@@ -15,9 +15,6 @@ import qualified Parser.Expression as Expression
 import qualified Parser.Parser as Parser
 import qualified Utils.NonEmpty as NonEmpty
 
-import qualified Text.Parsec as P
-import qualified Parser.Debug as Debug
-
 
 moduleParser :: Parser Module
 moduleParser = do

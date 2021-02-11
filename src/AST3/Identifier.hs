@@ -11,7 +11,6 @@ module AST3.Identifier
     , typeId
     , typeVariableId
 
-    , dataIdForTest
     , typeIdForTest
     , typeVariableIdForTest
 
@@ -26,7 +25,6 @@ module AST3.Identifier
     )
     where
 
-import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Char as Char
 
 import Parser3.Model.Quote (Quote)
@@ -38,9 +36,9 @@ newtype ConstructorId
     deriving (Eq, Ord, Show)
 
 
-newtype DataId
-    = DataId String
-    deriving (Eq, Generic, Ord, Show, FromJSON, ToJSON)
+data DataId
+    = DataId Quote String
+    deriving (Eq, Show)
 
 
 data ReferenceId
@@ -73,14 +71,14 @@ constructorId str =
 
 
 
-dataId :: String -> Maybe DataId
-dataId str =
+dataId :: Quote -> String -> Maybe DataId
+dataId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isLower firstChar then
-                    Just <| DataId str
+                    Just <| DataId quote str
 
                 else
                     Nothing
@@ -120,11 +118,6 @@ typeVariableId str =
             )
 
 
-dataIdForTest :: String -> DataId
-dataIdForTest =
-    DataId
-
-
 typeIdForTest :: String -> TypeId
 typeIdForTest =
     TypeId
@@ -147,8 +140,9 @@ formatConstructorId :: ConstructorId -> String
 formatConstructorId (ConstructorId str) =
     str
 
+
 formatDataId :: DataId -> String
-formatDataId (DataId str) =
+formatDataId (DataId _ str) =
     str
 
 
@@ -170,7 +164,7 @@ formatTypeVariableId (TypeVariableId str) =
 --- SPECIALIZE ---
 
 dataOrConstructor :: ReferenceId -> Either ConstructorId DataId
-dataOrConstructor (ReferenceId _ str) =
+dataOrConstructor (ReferenceId quote str) =
     let
         firstChar =
             List.head str
@@ -181,7 +175,7 @@ dataOrConstructor (ReferenceId _ str) =
                 Left <| ConstructorId str
 
             else
-                Right <| DataId str
+                Right <| DataId quote str
 
         Nothing ->
             Left <| ConstructorId str -- Swallow this case since it should not happen

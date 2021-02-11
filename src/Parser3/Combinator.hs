@@ -3,6 +3,7 @@ module Parser3.Combinator
     , anyCharBut
     , atLeastOne
     , char
+    , endOfFile
     , many
     , maybe
     , oneOf
@@ -23,6 +24,7 @@ import qualified Parser3.Parser as Parser
 import qualified Utils.List as List
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
+import qualified Utils.String as String
 
 
 until :: Parser a -> Parser b -> Parser [b]
@@ -113,6 +115,18 @@ isEndingWord :: Char -> Bool
 isEndingWord c =
     Char.isSpace c
         || List.contains c [ ')', ']' ]
+
+
+endOfFile :: Parser ()
+endOfFile = do
+    someSpace
+    remaining <- Parser.getRemaining
+    position <- Parser.getPosition
+    if String.isEmpty remaining then
+        return ()
+
+    else
+        Parser.fail <| ThisIsABug position "All characters should have been consumed"
 
 
 --- COMBINATORS ---

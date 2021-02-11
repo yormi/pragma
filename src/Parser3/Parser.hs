@@ -5,12 +5,14 @@ module Parser3.Parser
     , consumeString
     , fail
     , getPosition
+    , getReferencePosition
     , getRemaining
     , lookAhead
     , mapError
     , moreRelevant
     , recoverParser
     , run
+    , setReferencePosition
     , unconsumeOnFailure
     )
     where
@@ -22,8 +24,7 @@ import qualified Control.Monad.Trans.Except as Except
 
 import Parser3.Model.Error (Error)
 import qualified Parser3.Model.Error as E
-import Parser3.Model.Position (Column, Position(..))
-import qualified Parser3.Model.Position as Position
+import Parser3.Model.Position (Position(..))
 import Parser3.Model.Quote (Quote)
 import qualified Parser3.Model.Quote as Quote
 import qualified Utils.Either as Either
@@ -44,7 +45,7 @@ data State
     = State
         { remainingSourceCode :: SourceCode
         , currentPosition :: Position
-        , referenceIndentation :: Column
+        , referencePosition :: Position
         }
         deriving (Eq, Show)
 
@@ -168,11 +169,8 @@ run filePath sourceCode parser =
                 , column = 1
                 }
 
-        initialColumn =
-            Position.toColumn initialPosition
-
         initialState =
-            State sourceCode initialPosition initialColumn
+            State sourceCode initialPosition initialPosition
     in
     State.evalStateT parser initialState
         |> Except.runExcept
@@ -189,6 +187,18 @@ getPosition :: Parser Position
 getPosition =
     State.get
         |> map currentPosition
+
+
+getReferencePosition :: Parser Position
+getReferencePosition =
+    State.get
+        |> map referencePosition
+
+
+setReferencePosition :: Position -> Parser ()
+setReferencePosition position =
+    State.modify (\state -> state { referencePosition = position })
+
 
 
 updateRemaining :: Parser ()
