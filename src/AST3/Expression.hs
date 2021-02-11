@@ -10,8 +10,8 @@ module AST3.Expression
 
 import Data.List.NonEmpty (NonEmpty)
 
-import Parser3.Position (Position)
-import Parser3.Quote (Quote)
+import Parser3.Model.Position (Position)
+import Parser3.Model.Quote (Quote)
 import AST3.Identifier (DataId, ReferenceId)
 
 

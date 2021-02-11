@@ -3,9 +3,9 @@ module Parser3.CombinatorSpec where
 import Test.Hspec hiding (context)
 
 import qualified Parser3.Combinator as C
-import qualified Parser3.Error as E
-import Parser3.Position (Position(..))
-import Parser3.Quote (Quote(..))
+import qualified Parser3.Model.Error as E
+import Parser3.Model.Position (Position(..))
+import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
 
 
@@ -17,16 +17,6 @@ spec =
 
         buildPosition =
             Position aFilePath
-
-        testSuccess parser sourceCode expected =
-            test parser sourceCode (Right expected)
-
-        testFailure parser sourceCode expected =
-            test parser sourceCode (Left expected)
-
-        test parser sourceCode expected =
-            run parser sourceCode
-                |> (`shouldBe` expected)
 
         run parser sourceCode =
             Parser.run aFilePath sourceCode parser
@@ -70,6 +60,44 @@ spec =
 
                     parser =
                         C.anyChar
+
+                    expected =
+                        Left E.EndOfFileReached
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+        describe "anyCharBut" <|
+            let
+                parser =
+                    C.anyCharBut ['d', 'e', 'f']
+            in do
+            it "Parses given no unwanted chars" <|
+                let
+                    sourceCode =
+                        "abc"
+
+                    expected =
+                        (buildPosition 1 1, 'a')
+                in
+                run parser sourceCode `shouldBe` Right expected
+
+
+            it "Parses given unwanted chars" <|
+                let
+                    sourceCode =
+                        "def"
+
+                    expected =
+                        Left <| E.NonDesiredChar (buildPosition 1 1) 'd'
+                in
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Fails given no remaining chars" <|
+                let
+                    sourceCode =
+                        ""
 
                     expected =
                         Left E.EndOfFileReached
@@ -129,26 +157,19 @@ spec =
                 run parser sourceCode `shouldBe` expected
 
 
-        describe "oneOf" <|
-            let
-                aPosition =
-                    Position aFilePath 1 1
-
-                anError =
-                    E.ThisIsABug aPosition "anError"
-            in do
+        describe "oneOf" <| do
             it "Returns the successful parser value given the first parser succeed" <|
                 let
                     sourceCode =
                         "if False then"
 
                     parser =
-                        C.oneOf anError [ C.char 'i' , C.char '{' ]
+                        C.oneOf [ C.char 'i' , C.char '{' ]
 
                     expected =
-                        buildPosition 1 1
+                        Right <| buildPosition 1 1
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
             it "Returns the successful parser value given the second parser succeeded" <|
@@ -157,12 +178,12 @@ spec =
                         "{ hello = \"world\" }"
 
                     parser =
-                        C.oneOf anError [ C.char 'i' , C.char '{' ]
+                        C.oneOf [ C.char 'i' , C.char '{' ]
 
                     expected =
-                        buildPosition 1 1
+                        Right <| buildPosition 1 1
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
             it "Fails with the provided error given no parser succeeds" <|
@@ -171,12 +192,12 @@ spec =
                         "+"
 
                     parser =
-                        C.oneOf anError [ C.char 'i' , C.char '{' ]
+                        C.oneOf [ C.char 'i' , C.char '{' ]
 
                     expected =
-                        anError
+                        Left <| E.NotTheDesiredChar (buildPosition 1 1) '{'
                 in do
-                testFailure parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
         describe "many" <| do
@@ -196,8 +217,9 @@ spec =
                         , (buildPosition 1 5, 'c')
                         , (buildPosition 1 7, 'd')
                         ]
+                        |> Right
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
             it "Returns an empty list given unable to parse even once" <|
@@ -209,9 +231,9 @@ spec =
                         C.many C.anyChar
 
                     expected =
-                        []
+                        Right []
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
         describe "atLeastOne" <| do
@@ -231,8 +253,9 @@ spec =
                         , (buildPosition 1 5, 'c')
                         , (buildPosition 1 7, 'd')
                         ]
+                        |> Right
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
         describe "maybe" <| do
@@ -245,9 +268,9 @@ spec =
                         C.maybe C.string
 
                     expected =
-                        Nothing
+                        Right Nothing
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected
 
 
             it "Returns Just with the parsed value given a successful parser" <|
@@ -261,5 +284,6 @@ spec =
                     expected =
                         (Quote aFilePath 1 1 1 2, "yo")
                             |> Just
+                            |> Right
                 in do
-                testSuccess parser sourceCode expected
+                run parser sourceCode `shouldBe` expected

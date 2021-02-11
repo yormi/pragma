@@ -3,22 +3,19 @@ module Parser3.Value (parser) where
 import AST3.Expression (Value(..), BoolLiteral(..))
 import qualified AST3.Expression as Expression
 import qualified Parser3.Combinator as C
-import qualified Parser3.Error as Error
+import qualified Parser3.Model.Error as Error
 import qualified Parser3.Lexeme as Lexeme
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
-import qualified Parser3.Quote as Quote
+import qualified Parser3.Model.Quote as Quote
 import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
 import qualified Utils.Tuple as Tuple
 
-
 parser :: Parser Value
 parser = do
     C.someSpace
-    position <- Parser.getPosition
     C.oneOf
-        (Error.ValueExpected position)
         [ boolParser
         , charLiteral
         , intParser
@@ -31,12 +28,13 @@ charLiteral = do
     from <- C.char '\''
     c <-
         C.oneOf
-            (Error.CharExpected from)
-            [ escapedNewLine
+            [ escapedSingleQuote
+            , escapedNewLine
             , escapedTab
-            , C.anyChar
+            , C.anyCharBut [ '\'' ]
                 |> map Tuple.second
             ]
+            |> Parser.mapError (const <| Error.CharExpected from)
     to <- C.char '\''
     let quote = Quote.fromPositions from to
     Char quote c
@@ -70,11 +68,11 @@ boolParser :: Parser Value
 boolParser = do
     position <- Parser.getPosition
     C.oneOf
-        (Error.BooleanExpected position)
         [ map TrueLiteral (Lexeme.reserved "True")
         , map FalseLiteral (Lexeme.reserved "False")
         ]
         |> map Bool
+        |> Parser.mapError (\_ -> Error.BooleanExpected position)
 
 
 stringLiteral :: Parser Value
@@ -83,7 +81,6 @@ stringLiteral = do
     from <- C.char '"'
     str <-
         C.oneOf
-            Error.EndOfFileReached
             [ escapedDoubleQuote
             , escapedNewLine
             , escapedTab
@@ -91,10 +88,18 @@ stringLiteral = do
                 |> map Tuple.second
             ]
             |> C.until (C.char '"')
+            |> Parser.mapError (\_ -> Error.EndOfFileReached)
     to <- C.char '"'
     let quote = Quote.fromPositions from to
     String quote str
         |> return
+
+
+escapedSingleQuote :: Parser Char
+escapedSingleQuote = do
+    _ <- C.char '\\'
+    _ <- C.char '\''
+    return '\''
 
 
 escapedDoubleQuote :: Parser Char

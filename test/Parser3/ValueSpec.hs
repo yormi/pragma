@@ -3,10 +3,10 @@ module Parser3.ValueSpec where
 import Test.Hspec hiding (context)
 
 import AST3.Expression as Expression
-import qualified Parser3.Error as Error
+import qualified Parser3.Model.Error as Error
 import qualified Parser3.Value as Value
-import Parser3.Position (Position(..))
-import Parser3.Quote (Quote(..))
+import Parser3.Model.Position (Position(..))
+import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
 
 
@@ -23,10 +23,10 @@ spec =
             it "Fails given no valid value" <|
                 let
                     sourceCode =
-                        "???"
+                        "''"
 
                     expected =
-                        Error.ValueExpected (Position aFilePath 1 1)
+                        Error.CharExpected (Position aFilePath 1 1)
                             |> Left
                 in
                 run Value.parser sourceCode `shouldBe` expected
@@ -39,7 +39,7 @@ spec =
                         "''"
 
                     expected =
-                        Error.ValueExpected (Position aFilePath 1 1)
+                        Error.CharExpected (Position aFilePath 1 1)
                             |> Left
                 in
                 run Value.parser sourceCode `shouldBe` expected
@@ -52,6 +52,18 @@ spec =
 
                     expected =
                         Expression.Char (Quote aFilePath 1 1 1 3) 'c'
+                            |> Right
+                in
+                run Value.parser sourceCode `shouldBe` expected
+
+
+            it "Parses a single quote char" <|
+                let
+                    sourceCode =
+                        "'\\''"
+
+                    expected =
+                        Expression.Char (Quote aFilePath 1 1 1 4) '\''
                             |> Right
                 in
                 run Value.parser sourceCode `shouldBe` expected

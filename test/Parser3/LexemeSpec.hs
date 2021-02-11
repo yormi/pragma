@@ -3,10 +3,10 @@ module Parser3.LexemeSpec where
 import Test.Hspec hiding (context)
 
 import qualified Parser3.Combinator as C
-import qualified Parser3.Error as E
+import qualified Parser3.Model.Error as E
 import qualified Parser3.Lexeme as Lexeme
-import Parser3.Position (Position(..))
-import Parser3.Quote (Quote(..))
+import Parser3.Model.Position (Position(..))
+import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
 
 

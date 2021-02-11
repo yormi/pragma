@@ -4,8 +4,8 @@ import Test.Hspec hiding (context)
 
 import qualified AST3.Expression as Expression
 import qualified AST3.Identifier as Identifier
-import Parser3.Position (Position(..))
-import Parser3.Quote (Quote(..))
+import Parser3.Model.Position (Position(..))
+import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
 import qualified Parser3.Expression as Expression
 import qualified Utils.Either as Either

@@ -7,6 +7,7 @@ module Parser3.Parser
     , getPosition
     , getRemaining
     , lookAhead
+    , mapError
     , moreRelevant
     , recoverParser
     , run
@@ -19,12 +20,12 @@ import qualified Control.Monad.Trans.State as State
 import Control.Monad.Trans.Except (Except)
 import qualified Control.Monad.Trans.Except as Except
 
-import Parser3.Error (Error)
-import qualified Parser3.Error as E
-import Parser3.Position (Column, Position(..))
-import qualified Parser3.Position as Position
-import Parser3.Quote (Quote)
-import qualified Parser3.Quote as Quote
+import Parser3.Model.Error (Error)
+import qualified Parser3.Model.Error as E
+import Parser3.Model.Position (Column, Position(..))
+import qualified Parser3.Model.Position as Position
+import Parser3.Model.Quote (Quote)
+import qualified Parser3.Model.Quote as Quote
 import qualified Utils.Either as Either
 import qualified Utils.List as List
 import qualified Utils.String as String
@@ -73,20 +74,15 @@ fail error = do
 
 
 catch :: Parser a -> Parser (Either ErrorRank a)
-catch parser = do
-    initialState <- State.get
-    either <-
-        fromExcept <|
-            \state ->
-                let
-                    except =
-                        toExcept state parser
-                            |> map (Tuple.mapFirst Right)
-                in do
-                Except.catchE except (\e -> return (Left e, state))
-
-    State.put initialState
-    return either
+catch parser =
+    fromExcept <|
+        \state ->
+            let
+                except =
+                    toExcept state parser
+                        |> map (Tuple.mapFirst Right)
+            in do
+            Except.catchE except (\e -> return (Left e, state))
 
 
 errorMetric :: Parser ErrorMetric
@@ -119,6 +115,15 @@ toExcept state parser =
 
 
 --
+
+
+mapError :: (Error -> Error) -> Parser a -> Parser a
+mapError f parser =
+    fromExcept <|
+        \state ->
+            toExcept state parser
+                |> Except.withExcept
+                    (\(ErrorRank metric error) -> ErrorRank metric <| f error)
 
 
 unconsumeOnFailure :: Parser a -> Parser a

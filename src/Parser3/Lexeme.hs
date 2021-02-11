@@ -6,10 +6,10 @@ module Parser3.Lexeme
     ) where
 
 import qualified Parser3.Combinator as C
-import Parser3.Error (Error(..))
-import Parser3.Position (Position(..))
-import qualified Parser3.Quote as Quote
-import Parser3.Quote (Quote(..))
+import Parser3.Model.Error (Error(..))
+import Parser3.Model.Position (Position(..))
+import qualified Parser3.Model.Quote as Quote
+import Parser3.Model.Quote (Quote(..))
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
 import qualified Utils.List as List

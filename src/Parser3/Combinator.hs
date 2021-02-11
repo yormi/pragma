@@ -1,11 +1,11 @@
 module Parser3.Combinator
     ( anyChar
+    , anyCharBut
     , atLeastOne
     , char
     , many
     , maybe
     , oneOf
-    , oneOf_
     , someSpace
     , space
     , string
@@ -15,9 +15,9 @@ module Parser3.Combinator
 
 import qualified Data.Char as Char
 
-import Parser3.Error (Error(..))
-import Parser3.Position (Position(..))
-import Parser3.Quote (Quote(..))
+import Parser3.Model.Error (Error(..))
+import Parser3.Model.Position (Position(..))
+import Parser3.Model.Quote (Quote(..))
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
 import qualified Utils.List as List
@@ -47,6 +47,22 @@ anyChar = do
         c : _ -> do
             position <- Parser.consumeChar c
             return (position, c)
+
+        _ ->
+            Parser.fail EndOfFileReached
+
+
+anyCharBut :: [Char] -> Parser (Position, Char)
+anyCharBut nonDesiredChars = do
+    remaining <- Parser.getRemaining
+    case remaining of
+        c : _ ->
+            if List.contains c nonDesiredChars then do
+                position <- Parser.getPosition
+                Parser.fail <| NonDesiredChar position c
+            else do
+                position <- Parser.consumeChar c
+                return (position, c)
 
         _ ->
             Parser.fail EndOfFileReached
@@ -102,34 +118,17 @@ isEndingWord c =
 --- COMBINATORS ---
 
 
-oneOf_ :: [Parser a] -> Parser a
-oneOf_ =
+oneOf :: [Parser a] -> Parser a
+oneOf remainingParsers =
     let
-        recursive remainingParsers =
-            case remainingParsers of
-                [] ->
-                    shouldNotHappen
-
-                [p] ->
-                    p
-
-                p : rest -> do
-                    either <- Parser.catch p
-                    case either of
-                        Right x ->
-                            return x
-
-                        Left errorRank1 ->
-                            onFailure errorRank1 rest
-
         onFailure errorRank rest = do
-            either <- Parser.catch <| recursive rest
+            either <- Parser.catch <| oneOf rest
             case either of
                 Right x ->
                     return x
 
-                Left errorRank2 ->
-                    Parser.moreRelevant errorRank errorRank2
+                Left errorRankRest ->
+                    Parser.moreRelevant errorRank errorRankRest
                         |> Parser.fail
 
         shouldNotHappen = do
@@ -138,24 +137,21 @@ oneOf_ =
                 "At least one parser must be provided to the oneOf combinator"
                 |> Parser.fail
     in
-    recursive
+    case remainingParsers of
+        [p] ->
+            p
 
---
+        p : rest -> do
+            either <- Parser.catch p
+            case either of
+                Right x ->
+                    return x
 
+                Left errorRank1 ->
+                    onFailure errorRank1 rest
 
-oneOf :: Error -> [Parser a] -> Parser a
-oneOf error =
-    let
-        recursive remainingParsers =
-            case remainingParsers of
-                [] ->
-                    Parser.fail error
-
-                p : rest ->
-                    Parser.recoverParser (recursive rest) p
-
-    in
-    recursive
+        [] ->
+            shouldNotHappen
 
 
 many :: Parser a -> Parser [a]

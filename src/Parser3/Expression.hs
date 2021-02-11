@@ -6,24 +6,23 @@ import AST3.Expression (Expression)
 import qualified AST3.Expression as Expression
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
-import qualified Parser3.Error as E
+import qualified Parser3.Model.Error as E
 import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Identifier as Identifier
 import qualified Parser3.Parser as P
-import qualified Parser3.Quote as Quote
+import qualified Parser3.Model.Quote as Quote
 import qualified Parser3.Value as Value
 
 
 expressionParser :: Parser Expression
-expressionParser = do
-    position <- P.getPosition
-    C.oneOf (E.ExpressionExpected position)
+expressionParser =
+    C.oneOf
         [ parenthesizedExpression
         , map Expression.Value Value.parser
         -- , caseOf
         , ifThenElse
         -- , letIn
-        , application
+        , P.unconsumeOnFailure application
         , reference
         -- , lambda
         ]
@@ -42,26 +41,21 @@ reference = do
 
 
 application :: Parser Expression
-application =
-    (do
-        functionName <- Identifier.reference
-        args <-
-            C.atLeastOne <| do
-                -- C.sameLineOrIndented
-                argument
+application = do
+    functionName <- Identifier.reference
+    args <-
+        C.atLeastOne <| do
+            -- C.sameLineOrIndented
+            argument
 
-        Expression.Application functionName args
-            |> return
-    )
-        |> P.unconsumeOnFailure
+    Expression.Application functionName args
+        |> return
 
 
 argument :: Parser Expression
 argument = do
     C.someSpace
-    position <- P.getPosition
     C.oneOf
-        (E.ArgumentExpected position)
         [ map Expression.Value Value.parser
         , reference
         , parenthesizedExpression

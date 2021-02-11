@@ -29,7 +29,7 @@ module AST3.Identifier
 import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Char as Char
 
-import Parser3.Quote (Quote)
+import Parser3.Model.Quote (Quote)
 import qualified Utils.List as List
 
 
