@@ -25,6 +25,7 @@ data Error
 
     -- INDENTATION
     | TopLevelIndentationExpected Position
+    | SameLineExpected Position
     | SameLineOrIndentedExpected Position
 
     -- IDENTIFIER
@@ -34,7 +35,7 @@ data Error
     | CharExpected Position
     | BooleanExpected Position
     | IntExpected Position
-    | ValueExpected Position
+    | StringMustBeOnSingleLine Quote
 
     -- MODULE
     | FunctionMustHaveTypeSignature Quote

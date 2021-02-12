@@ -1,13 +1,13 @@
 module Parser3.Indentation
     ( topLevel
+    , sameLine
     , sameLineOrIndented
     , withPositionReference
     )
     where
 
 
-import qualified Parser3.Combinator as C
-import Parser3.Model.Error (Error(..))
+import qualified Parser3.Model.Error as Error
 import qualified Parser3.Model.Position as Position
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
@@ -15,19 +15,31 @@ import qualified Parser3.Parser as Parser
 
 topLevel :: Parser ()
 topLevel = do
-    C.someSpace
     position <- Parser.getPosition
 
     if Position.column position == 1 then
         return ()
 
     else
-        Parser.fail <| TopLevelIndentationExpected position
+        Parser.fail <| Error.TopLevelIndentationExpected position
+
+
+sameLine :: Parser ()
+sameLine = do
+    referencePosition <- Parser.getReferencePosition
+    position <- Parser.getPosition
+
+    let isOnSameLine = Position.line position == Position.line referencePosition
+
+    if isOnSameLine then
+        return ()
+
+    else
+        Parser.fail <| Error.SameLineExpected position
 
 
 sameLineOrIndented :: Parser ()
 sameLineOrIndented = do
-    C.someSpace
     referencePosition <- Parser.getReferencePosition
     position <- Parser.getPosition
 
@@ -39,12 +51,11 @@ sameLineOrIndented = do
         return ()
 
     else
-        Parser.fail <| SameLineOrIndentedExpected position
+        Parser.fail <| Error.SameLineOrIndentedExpected position
 
 
 withPositionReference :: Parser a -> Parser a
 withPositionReference parser = do
-    C.someSpace
     initialReference <- Parser.getReferencePosition
     currentPosition <- Parser.getPosition
 

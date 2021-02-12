@@ -8,6 +8,7 @@ import qualified Parser3.Value as Value
 import Parser3.Model.Position (Position(..))
 import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
+import qualified Utils.String as String
 
 
 spec :: Spec
@@ -160,6 +161,22 @@ spec =
 
 
         describe "string" <| do
+            it "Fails given a multiline string" <|
+                let
+                    sourceCode =
+                        [ "\"two line"
+                        , "    string\""
+                        ]
+                            |> String.mergeLines
+
+                    expected =
+                        Quote aFilePath 1 1 1 10
+                            |> Error.StringMustBeOnSingleLine
+                            |> Left
+                in
+                run Value.parser sourceCode `shouldBe` expected
+
+
             it "Parses a string literal" <|
                 let
                     sourceCode =

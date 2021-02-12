@@ -30,6 +30,10 @@ EOF
           --test "main"
     ;;
 
+  coverage )
+    stack test --coverage
+    ;;
+
   loc )
     cloc src
     ;;
@@ -41,6 +45,7 @@ Usage: $(pwd)
 
   god start
   god test
+  god coverage
 
   god loc
 EOF

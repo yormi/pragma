@@ -142,8 +142,7 @@ oneOf remainingParsers =
                     return x
 
                 Left errorRankRest ->
-                    Parser.moreRelevant errorRank errorRankRest
-                        |> Parser.fail
+                    Parser.mostRelevant errorRank errorRankRest
 
         shouldNotHappen = do
             position <- Parser.getPosition

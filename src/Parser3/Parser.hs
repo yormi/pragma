@@ -8,8 +8,9 @@ module Parser3.Parser
     , getReferencePosition
     , getRemaining
     , lookAhead
+    , map3
     , mapError
-    , moreRelevant
+    , mostRelevant
     , recoverParser
     , run
     , setReferencePosition
@@ -17,6 +18,7 @@ module Parser3.Parser
     )
     where
 
+import qualified Control.Applicative as Applicative
 import Control.Monad.Trans.State (StateT)
 import qualified Control.Monad.Trans.State as State
 import Control.Monad.Trans.Except (Except)
@@ -89,16 +91,25 @@ catch parser =
 errorMetric :: Parser ErrorMetric
 errorMetric = do
     remaining <- getRemaining
-    return <| String.length remaining
+    trace (show remaining ++ " --- " ++ (show <| String.length remaining)) <|
+        return <| String.length remaining
 
 
-moreRelevant :: ErrorRank -> ErrorRank -> Error
-moreRelevant e1 e2 =
+mostRelevant :: ErrorRank -> ErrorRank -> Parser a
+mostRelevant e1 e2 =
+    trace (show e1 ++ "  vs.  " ++ show e2) <|
     if metric e1 < metric e2 then
-        error e1
+        trace ("CHOOSING: " ++ show e1) <|
+        continueWithError e1
 
     else
-        error e2
+        trace ("CHOOSING: " ++ show e2) <|
+        continueWithError e2
+
+
+continueWithError :: ErrorRank -> Parser a
+continueWithError =
+    Except.throwE >> lift
 
 
 
@@ -116,15 +127,6 @@ toExcept state parser =
 
 
 --
-
-
-mapError :: (Error -> Error) -> Parser a -> Parser a
-mapError f parser =
-    fromExcept <|
-        \state ->
-            toExcept state parser
-                |> Except.withExcept
-                    (\(ErrorRank metric error) -> ErrorRank metric <| f error)
 
 
 unconsumeOnFailure :: Parser a -> Parser a
@@ -269,3 +271,21 @@ consumeString str =
     to <- consume str
     Quote.fromPositions from to
         |> return
+
+
+
+-- MAP
+
+
+map3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+map3 =
+    Applicative.liftA3
+
+
+mapError :: (Error -> Error) -> Parser a -> Parser a
+mapError f parser =
+    fromExcept <|
+        \state ->
+            toExcept state parser
+                |> Except.withExcept
+                    (\(ErrorRank metric error) -> ErrorRank metric <| f error)

@@ -2,6 +2,8 @@ module Parser.Expression
     ( expressionParser
     ) where
 
+import qualified Control.Applicative as Applicative
+
 import qualified AST.CodeQuote as CodeQuote
 import AST.Expression
 import Parser.Model (Parser)
@@ -184,3 +186,8 @@ exprParser parser =
         Parser.position
         parser
         Parser.position
+
+
+map3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+map3 =
+    Applicative.liftA3

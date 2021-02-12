@@ -1,10 +1,17 @@
 module Utils.Maybe
-    ( toList
+    ( map2
+    , toList
     , values
     , withDefault
     ) where
 
+import qualified Control.Monad as Monad
 import qualified Data.Maybe as Maybe
+
+
+map2 :: (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
+map2 =
+    Monad.liftM2
 
 
 toList :: Maybe a -> [a]

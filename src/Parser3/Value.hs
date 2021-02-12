@@ -4,13 +4,18 @@ import AST3.Expression (Value(..), BoolLiteral(..))
 import qualified AST3.Expression as Expression
 import qualified Parser3.Combinator as C
 import qualified Parser3.Model.Error as Error
+import Parser3.Model.Position (Position)
+import Parser3.Model.Quote (Quote)
+import qualified Parser3.Model.Quote as Quote
 import qualified Parser3.Lexeme as Lexeme
+import qualified Parser3.Indentation as Indentation
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
-import qualified Parser3.Model.Quote as Quote
+import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
 import qualified Utils.String as String
 import qualified Utils.Tuple as Tuple
+
 
 parser :: Parser Value
 parser = do
@@ -26,13 +31,13 @@ parser = do
 charLiteral :: Parser Value
 charLiteral = do
     from <- C.char '\''
-    c <-
+    (_, c) <-
         C.oneOf
             [ escapedSingleQuote
             , escapedNewLine
             , escapedTab
             , C.anyCharBut [ '\'' ]
-                |> map Tuple.second
+                |> map quotizeCharResult
             ]
             |> Parser.mapError (const <| Error.CharExpected from)
     to <- C.char '\''
@@ -78,46 +83,89 @@ boolParser = do
 stringLiteral :: Parser Value
 stringLiteral = do
     C.someSpace
-    from <- C.char '"'
-    str <-
-        C.oneOf
-            [ escapedDoubleQuote
-            , escapedNewLine
-            , escapedTab
-            , C.anyChar
-                |> map Tuple.second
-            ]
-            |> C.until (C.char '"')
-            |> Parser.mapError (\_ -> Error.EndOfFileReached)
+    Indentation.withPositionReference <| do
+        from <- C.char '"'
+        (innerQuote, str) <- sameLineChars
+
+        C.someSpace
+        Indentation.sameLine
+            |> Parser.mapError
+                (\_ ->
+                    let
+                        errorQuote =
+                            innerQuote
+                                |> map Quote.to
+                                |> Maybe.withDefault from
+                                |> Quote.fromPositions from
+                    in
+                    trace "ERROR" <|
+                    Error.StringMustBeOnSingleLine errorQuote
+                )
+
+        to <- C.char '"'
+        let quote = Quote.fromPositions from to
+        return <| String quote str
+
+
+sameLineChars :: Parser (Maybe Quote, String)
+sameLineChars = do
+    result <-
+        (do
+            Indentation.sameLine
+            C.oneOf
+                [ escapedDoubleQuote
+                , escapedNewLine
+                , escapedTab
+                , C.anyCharBut [ '"' ]
+                    |> map quotizeCharResult
+                ]
+        )
+            |> C.many
+    let quotes = map Tuple.first result
+    let quote =
+            Maybe.map2 Quote.fromPositions
+                (map Quote.from <| List.head quotes)
+                (map Quote.to <| List.last quotes)
+    let str = map Tuple.second result
+    return (quote, str)
+
+
+quotizeCharResult :: (Position, Char) -> (Quote, Char)
+quotizeCharResult (position, c) =
+    let
+        quote =
+            Quote.fromPositions position position
+    in
+    (quote, c)
+
+
+escapedSingleQuote :: Parser (Quote, Char)
+escapedSingleQuote = do
+    from <- C.char '\\'
+    to <- C.char '\''
+    let quote = Quote.fromPositions from to
+    return (quote, '\'')
+
+
+escapedDoubleQuote :: Parser (Quote, Char)
+escapedDoubleQuote = do
+    from <- C.char '\\'
     to <- C.char '"'
     let quote = Quote.fromPositions from to
-    String quote str
-        |> return
+    return (quote, '"')
 
 
-escapedSingleQuote :: Parser Char
-escapedSingleQuote = do
-    _ <- C.char '\\'
-    _ <- C.char '\''
-    return '\''
-
-
-escapedDoubleQuote :: Parser Char
-escapedDoubleQuote = do
-    _ <- C.char '\\'
-    _ <- C.char '"'
-    return '"'
-
-
-escapedNewLine :: Parser Char
+escapedNewLine :: Parser (Quote, Char)
 escapedNewLine = do
-    _ <- C.char '\\'
-    _ <- C.char 'n'
-    return '\n'
+    from <- C.char '\\'
+    to <- C.char 'n'
+    let quote = Quote.fromPositions from to
+    return (quote, '\n')
 
 
-escapedTab :: Parser Char
+escapedTab :: Parser (Quote, Char)
 escapedTab = do
-    _ <- C.char '\\'
-    _ <- C.char 't'
-    return '\t'
+    from <- C.char '\\'
+    to <- C.char 't'
+    let quote = Quote.fromPositions from to
+    return (quote, '\t')
