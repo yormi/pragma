@@ -10,7 +10,6 @@ module Parser3.Parser
     , lookAhead
     , map3
     , mapError
-    , mostRelevant
     , recoverParser
     , run
     , setReferencePosition
@@ -29,14 +28,12 @@ import qualified Parser3.Model.Error as E
 import Parser3.Model.Position (Position(..))
 import Parser3.Model.Quote (Quote)
 import qualified Parser3.Model.Quote as Quote
-import qualified Utils.Either as Either
 import qualified Utils.List as List
-import qualified Utils.String as String
 import qualified Utils.Tuple as Tuple
 
 
 type Parser a
-    = StateT State (Except ErrorRank) a
+    = StateT State (Except Error) a
 
 
 type SourceCode =
@@ -52,31 +49,16 @@ data State
         deriving (Eq, Show)
 
 
-data ErrorRank =
-    ErrorRank
-        { metric :: ErrorMetric
-        , error :: Error
-        }
-        deriving (Eq, Show)
-
-
-type ErrorMetric =
-    Int
-
-
 fail :: Error -> Parser a
-fail error = do
-    metric <- errorMetric
-    ErrorRank metric error
-        |> Except.throwE
-        |> lift
+fail = do
+    Except.throwE >> lift
 
 
 
 -- CATCH
 
 
-catch :: Parser a -> Parser (Either ErrorRank a)
+catch :: Parser a -> Parser (Either Error a)
 catch parser =
     fromExcept <|
         \state ->
@@ -88,40 +70,16 @@ catch parser =
             Except.catchE except (\e -> return (Left e, state))
 
 
-errorMetric :: Parser ErrorMetric
-errorMetric = do
-    remaining <- getRemaining
-    trace (show remaining ++ " --- " ++ (show <| String.length remaining)) <|
-        return <| String.length remaining
-
-
-mostRelevant :: ErrorRank -> ErrorRank -> Parser a
-mostRelevant e1 e2 =
-    trace (show e1 ++ "  vs.  " ++ show e2) <|
-    if metric e1 < metric e2 then
-        trace ("CHOOSING: " ++ show e1) <|
-        continueWithError e1
-
-    else
-        trace ("CHOOSING: " ++ show e2) <|
-        continueWithError e2
-
-
-continueWithError :: ErrorRank -> Parser a
-continueWithError =
-    Except.throwE >> lift
-
-
 
 -- EXCEPT
 
 
-fromExcept :: (State -> Except ErrorRank (a, State)) -> Parser a
+fromExcept :: (State -> Except Error (a, State)) -> Parser a
 fromExcept =
     State.StateT
 
 
-toExcept :: State -> Parser a -> Except ErrorRank (a, State)
+toExcept :: State -> Parser a -> Except Error (a, State)
 toExcept state parser =
     State.runStateT parser state
 
@@ -176,7 +134,6 @@ run filePath sourceCode parser =
     in
     State.evalStateT parser initialState
         |> Except.runExcept
-        |> Either.mapLeft error
 
 
 getRemaining :: Parser SourceCode
@@ -287,5 +244,4 @@ mapError f parser =
     fromExcept <|
         \state ->
             toExcept state parser
-                |> Except.withExcept
-                    (\(ErrorRank metric error) -> ErrorRank metric <| f error)
+                |> Except.withExcept f

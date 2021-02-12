@@ -5,9 +5,9 @@ import Test.Hspec hiding (context)
 import AST3.Expression as Expression
 import qualified Parser3.Model.Error as Error
 import qualified Parser3.Value as Value
-import Parser3.Model.Position (Position(..))
 import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
+import qualified Utils.Either as Either
 import qualified Utils.String as String
 
 
@@ -26,11 +26,8 @@ spec =
                     sourceCode =
                         "''"
 
-                    expected =
-                        Error.CharExpected (Position aFilePath 1 1)
-                            |> Left
                 in
-                run Value.parser sourceCode `shouldBe` expected
+                run Value.parser sourceCode `shouldSatisfy` Either.isLeft
 
 
         describe "char" <| do
@@ -38,12 +35,8 @@ spec =
                 let
                     sourceCode =
                         "''"
-
-                    expected =
-                        Error.CharExpected (Position aFilePath 1 1)
-                            |> Left
                 in
-                run Value.parser sourceCode `shouldBe` expected
+                run Value.parser sourceCode `shouldSatisfy` Either.isLeft
 
 
             it "Parses a char literal" <|

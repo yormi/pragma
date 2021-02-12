@@ -135,15 +135,6 @@ endOfFile = do
 oneOf :: [Parser a] -> Parser a
 oneOf remainingParsers =
     let
-        onFailure errorRank rest = do
-            either <- Parser.catch <| oneOf rest
-            case either of
-                Right x ->
-                    return x
-
-                Left errorRankRest ->
-                    Parser.mostRelevant errorRank errorRankRest
-
         shouldNotHappen = do
             position <- Parser.getPosition
             ThisIsABug position
@@ -160,8 +151,8 @@ oneOf remainingParsers =
                 Right x ->
                     return x
 
-                Left errorRank1 ->
-                    onFailure errorRank1 rest
+                Left _ ->
+                    oneOf rest
 
         [] ->
             shouldNotHappen

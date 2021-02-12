@@ -200,47 +200,21 @@ spec =
                 run parser sourceCode `shouldBe` expected
 
 
-            describe "Fails with the error of the parser that consumed the most" <| do
-                it "Given the first fails when 2 parsers are provided" <|
-                    let
-                        sourceCode =
-                            "aa"
+            it "Fails with the last error given all parsers fails" <|
+                let
+                    sourceCode =
+                        "a"
 
-                        parser =
-                            C.oneOf
-                                [ do
-                                    _ <- C.char 'a'
-                                    C.char 'b'
-                                , C.char '{'
-                                ]
+                    parser =
+                        C.oneOf
+                            [ C.char 'b'
+                            , C.char 'c'
+                            ]
 
-                        expected =
-                            Left <| E.NotTheDesiredChar (buildPosition 1 2) 'b'
-                    in do
-                    run parser sourceCode `shouldBe` expected
-
-
-                it "Given another than the first parser consumed the most and there is more than 2 parsers provided" <|
-                    let
-                        sourceCode =
-                            "aaa"
-
-                        parser =
-                            C.oneOf
-                                [ do
-                                    _ <- C.char 'a'
-                                    C.char '{'
-                                , C.char '}'
-                                , do
-                                    _ <- C.char 'a'
-                                    _ <- C.char 'a'
-                                    C.char 'b'
-                                ]
-
-                        expected =
-                            Left <| E.NotTheDesiredChar (buildPosition 1 3) 'b'
-                    in do
-                    run parser sourceCode `shouldBe` expected
+                    expected =
+                        Left <| E.NotTheDesiredChar (buildPosition 1 1) 'c'
+                in do
+                run parser sourceCode `shouldBe` expected
 
 
         describe "many" <| do
