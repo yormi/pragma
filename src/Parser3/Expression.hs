@@ -8,7 +8,8 @@ import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
 import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Identifier as Identifier
-import qualified Parser3.Parser as P
+import qualified Parser3.Indentation as Indentation
+import qualified Parser3.Parser as Parser
 import qualified Parser3.Model.Quote as Quote
 import qualified Parser3.Value as Value
 
@@ -20,11 +21,12 @@ expressionParser =
         , map Expression.Value Value.parser
         -- , caseOf
         , ifThenElse
-        -- , letIn
-        , P.unconsumeOnFailure application
+        , letIn
+        , Parser.unconsumeOnFailure application
         , reference
         -- , lambda
         ]
+
 
 
 -- REFERENCE
@@ -36,6 +38,7 @@ reference = do
         |> map Expression.Reference
 
 
+
 -- APPLICATION
 
 
@@ -44,7 +47,8 @@ application = do
     functionName <- Identifier.reference
     args <-
         C.atLeastOne <| do
-            -- C.sameLineOrIndented
+            C.someSpace
+            Indentation.sameLineOrIndented
             argument
 
     Expression.Application functionName args
@@ -64,6 +68,7 @@ argument = do
 parenthesizedExpression :: Parser Expression
 parenthesizedExpression =
     Lexeme.parenthesized expressionParser
+
 
 
 -- -- LAMBDA
@@ -102,32 +107,30 @@ ifThenElse = do
         |> return
 
 
--- -- LET IN
--- 
--- 
--- letIn :: Parser QuotedExpression
--- letIn =
---     (do
---         definitions <-
---             Parser.between
---                 (Parser.reserved "let")
---                 (Parser.reserved "in")
---                 (Parser.atLeastOne definition)
---         expr <- expressionParser
---         return <| LetIn definitions expr
---     )
---         |> exprParser
--- 
--- 
--- definition :: Parser Definition
--- definition = do
---     id <- Parser.dataIdentifier
---     Parser.reservedOperator "="
---     expr <- Parser.withPositionReference expressionParser
---     return <| SimpleDefinition id expr
--- 
--- 
--- 
+
+-- LET IN
+
+
+letIn :: Parser Expression
+letIn = do
+    C.someSpace
+    from <- Parser.getPosition
+    _ <- Lexeme.reserved "let"
+    definitions <- C.atLeastOne definition
+    _ <- Lexeme.reserved "in"
+    expr <- expressionParser
+    return <| Expression.LetIn from definitions expr
+
+
+definition :: Parser Expression.Definition
+definition = do
+    id <- Identifier.data_
+    _ <- Lexeme.operator "="
+    expr <- Indentation.withPositionReference expressionParser
+    return <| Expression.SimpleDefinition id expr
+
+
+
 -- -- CASE OF
 -- 
 -- 

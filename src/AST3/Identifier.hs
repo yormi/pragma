@@ -11,11 +11,6 @@ module AST3.Identifier
     , typeId
     , typeVariableId
 
-    , typeIdForTest
-    , typeVariableIdForTest
-
-    , generateTypeVariableId
-
     , dataOrConstructor
     , formatConstructorId
     , formatDataId
@@ -46,13 +41,13 @@ data ReferenceId
     deriving (Eq, Show)
 
 
-newtype TypeId
-    = TypeId String
-    deriving (Eq, Ord, Show)
+data TypeId
+    = TypeId Quote String
+    deriving (Eq, Show)
 
 
-newtype TypeVariableId
-    = TypeVariableId String
+data TypeVariableId
+    = TypeVariableId Quote String
     deriving (Eq, Ord, Show)
 
 
@@ -90,47 +85,33 @@ referenceId =
     ReferenceId
 
 
-typeId :: String -> Maybe TypeId
-typeId str =
+typeId :: Quote -> String -> Maybe TypeId
+typeId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isUpper firstChar then
-                    Just <| TypeId str
+                    Just <| TypeId quote str
 
                 else
                     Nothing
             )
 
 
-typeVariableId :: String -> Maybe TypeVariableId
-typeVariableId str =
+typeVariableId :: Quote -> String -> Maybe TypeVariableId
+typeVariableId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isLower firstChar then
-                    Just <| TypeVariableId str
+                    Just <| TypeVariableId quote str
 
                 else
                     Nothing
             )
 
-
-typeIdForTest :: String -> TypeId
-typeIdForTest =
-    TypeId
-
-
-typeVariableIdForTest :: String -> TypeVariableId
-typeVariableIdForTest =
-    TypeVariableId
-
-
-generateTypeVariableId :: Int -> TypeVariableId
-generateTypeVariableId n =
-    TypeVariableId <| "a" ++ show n
 
 
 --- FORMAT ---
@@ -152,12 +133,12 @@ formatReferenceId (ReferenceId _ str) =
 
 
 formatTypeId :: TypeId -> String
-formatTypeId (TypeId str) =
+formatTypeId (TypeId _ str) =
     str
 
 
 formatTypeVariableId :: TypeVariableId -> String
-formatTypeVariableId (TypeVariableId str) =
+formatTypeVariableId (TypeVariableId _ str) =
     str
 
 

@@ -7,7 +7,7 @@ import Control.Monad.Writer (Writer)
 import qualified Control.Monad.Writer as Writer
 import qualified Data.Set as Set
 
-import AST.Identifier (TypeId, TypeVariableId)
+import AST3.Identifier (TypeId, TypeVariableId)
 
 
 data TypeAnnotation

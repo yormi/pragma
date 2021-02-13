@@ -2,12 +2,11 @@ module Parser3.Module
     ( moduleParser
     ) where
 
-import Data.List.NonEmpty (NonEmpty)
-
 import AST3.Identifier (DataId)
-import qualified AST3.Expression as Expression
-import AST3.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
-import qualified AST.TypeAnnotation as T
+-- import qualified AST3.Expression as Expression
+-- import AST3.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
+import AST3.Module (Module(..), TopLevel(..))
+import qualified AST3.TypeAnnotation as Annotation
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
 import qualified Parser3.Expression as Expression
@@ -17,7 +16,8 @@ import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Model.Error as Error
 import qualified Parser3.Model.Quote as Quote
 import qualified Parser3.Parser as Parser
-import qualified Utils.NonEmpty as NonEmpty
+-- import Utils.NonEmpty (NonEmpty)
+-- import qualified Utils.NonEmpty as NonEmpty
 
 moduleParser :: Parser Module
 moduleParser = do
@@ -36,47 +36,47 @@ moduleParser = do
 
 -- record :: Parser TopLevel
 -- record = do
---     from <- Parser.position
---     Parser.reserved "type"
---     Parser.reserved "alias"
+--     from <- Parser.getPosition
+--     Lexeme.reserved "type"
+--     Lexeme.reserved "alias"
 -- 
 --     typeName <-
---         Parser.typeIdentifier
+--         Identifier.type_
 --             |> Parser.unconsumeOnFailure
 --             |> orFailWithPosition (TypeAliasInvalid TypeNameInvalid)
 -- 
 --     typeVariables <-
---         Parser.manyUntil
---             (Parser.reservedOperator "=")
---             (Parser.typeVariableIdentifier
+--         C.manyUntil
+--             (Lexeme.operator "=")
+--             (Identifier.typeVariable
 --                 |> orFailWithPosition (TypeAliasInvalid TypeVariableInvalid)
 --             )
 -- 
 --     fields <- recordDefinition
 -- 
---     Parser.oneOf
---         [ Parser.topLevel
---         , Parser.endOfFile
+--     C.oneOf
+--         [ Indentation.topLevel
+--         , C.endOfFile
 --         ]
 --         |> orFailWithPosition (RecordInvalid TrailingCharacter)
 -- 
 --     to <- Parser.endPosition
---     let codeQuote = CodeQuote.fromPositions from to
+--     let codeQuote = Quote.fromPositions from to
 --     return <| Record codeQuote typeName typeVariables fields
 -- 
 -- 
 -- recordDefinition :: Parser (NonEmpty Field)
 -- recordDefinition = do
---     Parser.reservedOperator "{"
+--     Lexeme.operator "{"
 --     firstField <- field
 -- 
 --     otherFields <-
---         Parser.many <| do
---             position <- Parser.position
---             Parser.reservedOperator ","
+--         C.many <| do
+--             position <- Parser.getPosition
+--             Lexeme.operator ","
 --             field
 --                 |> orFail (RecordInvalid ExtraComma position)
---     Parser.reservedOperator "}"
+--     Lexeme.operator "}"
 -- 
 --     NonEmpty.build firstField otherFields
 --         |> return
@@ -84,11 +84,11 @@ moduleParser = do
 -- 
 -- field :: Parser Field
 -- field = do
---     from <- Parser.position
+--     from <- Parser.getPosition
 -- 
---     fieldName <- Parser.dataIdentifier
+--     fieldName <- Identifier.data_
 -- 
---     Parser.reservedOperator ":"
+--     Lexeme.operator ":"
 --         |> orFail (FieldInvalid DefinitionMustUseColon from)
 -- 
 --     annotation <-
@@ -97,7 +97,7 @@ moduleParser = do
 -- 
 --     to <- Parser.endPosition
 -- 
---     let codeQuote = CodeQuote.fromPositions from to
+--     let codeQuote = Quote.fromPositions from to
 --     Field codeQuote fieldName annotation
 --         |> return
 -- 
@@ -159,22 +159,16 @@ function = do
     from <- Parser.getPosition
     Indentation.topLevel
 
-    let typeLine = Nothing
-    -- typeLine <-
-    --     C.maybe typeLineParser
+    typeLine <- C.maybe typeLineParser
 
     functionName <- Identifier.data_
     params <- C.many Identifier.data_
     _ <- Lexeme.operator "="
 
-    --body <- Identation.withPositionReference Expression.expressionParser
+    body <- Indentation.withPositionReference Expression.expressionParser
     to <- Parser.getPosition
 
     let quote = Quote.fromPositions from to
-
-    let body =
-            Expression.Int quote 3
-                |> Expression.Value
 
     case typeLine of
         Just (typeLineName, type_) ->
@@ -187,55 +181,52 @@ function = do
         Nothing ->
             Error.FunctionMustHaveTypeSignature quote
                 |> Parser.fail
--- 
--- 
--- typeLineParser :: Parser (DataId, T.TypeAnnotation)
--- typeLineParser = do
---     functionName <- Parser.dataIdentifier
---     Parser.reservedOperator ":"
---     type_ <- typeAnnotationParser
---     return (functionName, type_)
--- 
--- 
--- typeAnnotationParser :: Parser T.TypeAnnotation
--- typeAnnotationParser =
---     let
---         functionTypeParser =
---             Parser.unconsumeOnFailure <|
---                 do -- careful not to start with typeParser.
---                    -- It creates an infinite loop =/
---                     arg <- simpleTypeParser
---                     Parser.reservedOperator "->"
---                     returnType <- typeAnnotationParser
---                     return <| T.Function arg returnType
---     in
---     Parser.oneOf [ functionTypeParser, simpleTypeParser ]
--- 
--- 
--- simpleTypeParser :: Parser T.TypeAnnotation
--- simpleTypeParser =
---     Parser.oneOf
---         [ map (const T.Bool) <| Parser.reserved "Bool"
---         , map (const T.Int) <| Parser.reserved "Int"
---         , map (const T.Float) <| Parser.reserved "Float"
---         , map (const T.Char) <| Parser.reserved "Char"
---         , map (const T.String) <| Parser.reserved "String"
---         , do
---             Parser.reservedOperator "("
---             t <- typeAnnotationParser
---             Parser.reservedOperator ")"
---             return t
--- 
---         , Parser.unconsumeOnFailure <|
---             Parser.withPositionReference <| do
---                 id <- Parser.typeIdentifier
---                 args <-
---                     Parser.many <| do
---                         Parser.sameLine
---                         simpleTypeParser
---                 T.Custom id args
---                     |> return
--- 
---         , Parser.unconsumeOnFailure <| map (T.Variable) <|
---             Parser.typeVariableIdentifier
---         ]
+
+
+typeLineParser :: Parser (DataId, Annotation.TypeAnnotation)
+typeLineParser = do
+    functionName <- Identifier.data_
+    _ <- Lexeme.operator ":"
+    type_ <- typeAnnotationParser
+    return (functionName, type_)
+
+
+typeAnnotationParser :: Parser Annotation.TypeAnnotation
+typeAnnotationParser =
+    let
+        functionTypeParser =
+            Parser.unconsumeOnFailure <|
+                do -- careful not to start with typeParser.
+                   -- It creates an infinite loop =/
+                    arg <- simpleTypeParser
+                    _ <- Lexeme.operator "->"
+                    returnType <- typeAnnotationParser
+                    return <| Annotation.Function arg returnType
+    in
+    C.oneOf [ functionTypeParser, simpleTypeParser ]
+
+
+simpleTypeParser :: Parser Annotation.TypeAnnotation
+simpleTypeParser =
+    C.oneOf
+        [ map (const Annotation.Bool) <| Lexeme.reserved "Bool"
+        , map (const Annotation.Int) <| Lexeme.reserved "Int"
+        , map (const Annotation.Float) <| Lexeme.reserved "Float"
+        , map (const Annotation.Char) <| Lexeme.reserved "Char"
+        , map (const Annotation.String) <| Lexeme.reserved "String"
+
+        , Lexeme.parenthesized typeAnnotationParser
+
+        , Parser.unconsumeOnFailure <|
+            Indentation.withPositionReference <| do
+                id <- Identifier.type_
+                args <-
+                    C.many <| do
+                        Indentation.sameLine
+                        simpleTypeParser
+                Annotation.Custom id args
+                    |> return
+
+        , Parser.unconsumeOnFailure <| map Annotation.Variable <|
+            Identifier.typeVariable
+        ]

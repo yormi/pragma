@@ -2,6 +2,8 @@ module Parser3.ExpressionSpec where
 
 import Test.Hspec hiding (context)
 
+import Sample.AST (trueExpression)
+
 import qualified AST3.Expression as Expression
 import qualified AST3.Identifier as Identifier
 import Parser3.Model.Position (Position(..))

@@ -10,7 +10,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Parser3.Model.Quote (Quote)
 import AST3.Expression (Expression)
 import AST3.Identifier (ConstructorId, DataId, TypeId, TypeVariableId)
-import AST.TypeAnnotation (TypeAnnotation)
+import AST3.TypeAnnotation (TypeAnnotation)
 import Utils.OrderedSet (OrderedSet)
 
 

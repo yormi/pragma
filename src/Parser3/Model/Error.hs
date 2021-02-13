@@ -30,6 +30,8 @@ data Error
 
     -- IDENTIFIER
     | DataIdMustStartWithLowerCase Quote
+    | TypeIdMustStartWithUpperCase Quote
+    | TypeVariableIdMustStartWithLowerCase Quote
 
     -- VALUE
     | CharExpected Position

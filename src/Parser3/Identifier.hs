@@ -1,11 +1,15 @@
 module Parser3.Identifier
     ( data_
     , reference
+    , type_
+    , typeVariable
     ) where
 
 import AST3.Identifier
     ( DataId
     , ReferenceId
+    , TypeId
+    , TypeVariableId
     )
 import qualified AST3.Identifier as Identifier
 import qualified Parser3.Model.Error as Error
@@ -28,3 +32,21 @@ reference :: Parser ReferenceId
 reference = do
     (quote, id) <- Lexeme.identifier
     return <| Identifier.referenceId quote id
+
+
+type_ :: Parser TypeId
+type_ = do
+    (quote, id) <- Lexeme.identifier
+    Identifier.typeId quote id
+        |> map return
+        |> Maybe.withDefault
+            (Parser.fail <| Error.TypeIdMustStartWithUpperCase quote )
+
+
+typeVariable :: Parser TypeVariableId
+typeVariable = do
+    (quote, id) <- Lexeme.identifier
+    Identifier.typeVariableId quote id
+        |> map return
+        |> Maybe.withDefault
+            (Parser.fail <| Error.TypeVariableIdMustStartWithLowerCase quote )

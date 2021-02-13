@@ -25,7 +25,8 @@ data Expression
         , whenFalse :: Expression
         }
     | LetIn
-        { definitions :: NonEmpty Definition
+        { fromPosition :: Position
+        , definitions :: NonEmpty Definition
         , body :: Expression
         }
     | CaseOf

@@ -20,7 +20,7 @@ data Quote =
         , toLine :: Int
         , toColumn :: Int
         }
-        deriving (Eq)
+        deriving (Eq, Ord)
 
 
 instance Show Quote where

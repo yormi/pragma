@@ -6,7 +6,7 @@ module Utils.NonEmpty
     ) where
 
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
-import Data.List.NonEmpty as X (NonEmpty(..), last, tail, toList)
+import Data.List.NonEmpty as X (NonEmpty(..), head, last, tail, toList)
 
 
 build :: a -> [a] -> NonEmpty a

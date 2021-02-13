@@ -34,6 +34,10 @@ EOF
     stack test --coverage
     ;;
 
+  clean )
+    stack clean --full
+    ;;
+
   loc )
     cloc src
     ;;
@@ -47,6 +51,7 @@ Usage: $(pwd)
   god test
   god coverage
 
+  god clean
   god loc
 EOF
     ;;

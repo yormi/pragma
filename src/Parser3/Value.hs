@@ -98,7 +98,6 @@ stringLiteral = do
                                 |> Maybe.withDefault from
                                 |> Quote.fromPositions from
                     in
-                    trace "ERROR" <|
                     Error.StringMustBeOnSingleLine errorQuote
                 )
 
