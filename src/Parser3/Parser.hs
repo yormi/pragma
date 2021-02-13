@@ -1,5 +1,7 @@
 module Parser3.Parser
     ( Parser
+    , SourceCode
+    , bug
     , catch
     , consumeChar
     , consumeString
@@ -24,7 +26,7 @@ import Control.Monad.Trans.Except (Except)
 import qualified Control.Monad.Trans.Except as Except
 
 import Parser3.Model.Error (Error)
-import qualified Parser3.Model.Error as E
+import qualified Parser3.Model.Error as Error
 import Parser3.Model.Position (Position(..))
 import Parser3.Model.Quote (Quote)
 import qualified Parser3.Model.Quote as Quote
@@ -52,6 +54,13 @@ data State
 fail :: Error -> Parser a
 fail = do
     Except.throwE >> lift
+
+
+bug :: String -> Parser a
+bug explanation = do
+    from <- getPosition
+    Error.ThisIsABug from explanation
+        |> fail
 
 
 
@@ -220,9 +229,7 @@ consumeString str =
                     consume rest
 
                 [] -> do
-                    position <- getPosition
-                    E.ThisIsABug position "Desired string can't be empty"
-                        |> fail
+                    bug "Desired string can't be empty"
     in do
     from <- getPosition
     to <- consume str

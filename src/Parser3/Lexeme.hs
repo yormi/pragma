@@ -5,6 +5,8 @@ module Parser3.Lexeme
     , operator
     ) where
 
+import qualified Control.Monad as Monad
+
 import qualified Parser3.Combinator as C
 import Parser3.Model.Error (Error(..))
 import Parser3.Model.Position (Position(..))
@@ -13,7 +15,7 @@ import Parser3.Model.Quote (Quote(..))
 import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
 import qualified Utils.List as List
-import qualified Utils.String as String
+import qualified Utils.NonEmpty as NonEmpty
 
 
 -- *********************************************
@@ -123,26 +125,29 @@ operators =
 operator :: String -> Parser Quote
 operator desiredString = do
     C.someSpace
-    from <- Parser.getPosition
 
-    if String.isEmpty desiredString then
-        "The required operator should not be empty"
-            |> ThisIsABug from
-            |> Parser.fail
-    else
-        Parser.unconsumeOnFailure <| do
-            (quote, parsedString) <- C.string
+    case desiredString of
+        "" ->
+            Parser.bug "The required operator should not be empty"
 
-            if not <| isAnOperator desiredString then
-                desiredString ++ " is not an operator"
-                    |> ThisIsABug from
-                    |> Parser.fail
-
-            else if parsedString /= desiredString then
-                Parser.fail <| OperatorExpected from desiredString
+        c : rest ->
+            if isAnOperator desiredString then do
+                from <- Parser.getPosition
+                NonEmpty.build c rest
+                    |> Monad.mapM C.char
+                    |> map
+                        ( \positions ->
+                            let
+                                to =
+                                    NonEmpty.last positions
+                            in
+                            Quote.fromPositions from to
+                        )
+                    |> Parser.mapError
+                        (\_ -> OperatorExpected from desiredString)
 
             else
-                return quote
+                Parser.bug <| desiredString ++ " is not an operator"
 
 
 isAnOperator :: String -> Bool

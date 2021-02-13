@@ -34,7 +34,8 @@ data Expression
         , cases :: NonEmpty Case
         }
     | Lambda
-        { params :: NonEmpty DataId
+        { fromPosition :: Position
+        , params :: NonEmpty DataId
         , body :: Expression
         }
     | Application

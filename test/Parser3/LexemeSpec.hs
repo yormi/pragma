@@ -169,6 +169,21 @@ spec =
                 run parser sourceCode `shouldBe` expected
 
 
+            it "Returns the quote even if there is no spaces after the operator" <|
+                let
+                    sourceCode =
+                        "\\x -> f x"
+
+                    parser =
+                        Lexeme.operator "\\"
+
+                    expected =
+                        Quote aFilePath 1 1 1 1
+                            |> Right
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
             it "Fails given the provided word is not in the operator list" <|
                 let
                     typoed =

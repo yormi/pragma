@@ -2,7 +2,7 @@ module Parser3.Expression.LetInSpec where
 
 import Test.Hspec hiding (context)
 
-import Sample.AST (trueExpression)
+import qualified Parser3.Utils as Utils
 import qualified TestUtils as T
 
 import qualified AST3.Expression as Expression
@@ -42,13 +42,11 @@ spec =
 
                 expected definitionName =
                     Expression.LetIn
-                        (Position aFilePath 1 2)
-                        ( NonEmpty.singleton <|
-                            Expression.SimpleDefinition
-                                definitionName
-                                (trueExpression <| buildQuote 3 9 3 12)
+                        (Utils.position 1 2)
+                        ( Expression.SimpleDefinition definitionName (Utils.true 3 9)
+                            |> NonEmpty.singleton
                         )
-                        (trueExpression <| buildQuote 5 1 5 4)
+                        (Utils.true 5 1)
                         |> Right
             in do
             definitionName <-
@@ -76,33 +74,23 @@ spec =
                     Expression.LetIn
                         (Position aFilePath 1 2)
                         ( NonEmpty.build
-                            ( Expression.SimpleDefinition
-                                firstDefinition
-                                (trueExpression <| buildQuote 3 9 3 12)
+                            ( Expression.SimpleDefinition firstDefinition
+                                (Utils.true 3 9)
                             )
-                            [ Expression.SimpleDefinition
-                                secondDefinition
-                                (trueExpression <| buildQuote 6 9 6 12)
+                            [ Expression.SimpleDefinition secondDefinition
+                                (Utils.true 6 9)
                             ]
                         )
-                        (trueExpression <| buildQuote 8 1 8 4)
+                        (Utils.true 8 1)
                         |> Right
             in do
-            firstDefinition <-
-                Identifier.dataId (buildQuote 2 5 2 5) "x"
-                    |> T.assumeJust
-            secondDefinition <-
-                Identifier.dataId (buildQuote 5 5 5 5) "y"
-                    |> T.assumeJust
+            firstDefinition <- Utils.dataId 2 5 "x"
+            secondDefinition <- Utils.dataId 5 5 "y"
             run source `shouldBe` expected firstDefinition secondDefinition
 
 
         describe "With first argument as" <|
             let
-                reference quote str =
-                    Identifier.referenceId quote str
-                        |> Expression.Reference
-
                 runForFirstDefinition source =
                     run source
                         |> map Expression.definitions
@@ -132,7 +120,7 @@ spec =
                                 Identifier.referenceId (buildQuote 3 9 3 10)
                                     "ff"
                             , args = NonEmpty.singleton
-                                (reference (buildQuote 3 12 3 13) "aa")
+                                (Utils.reference 3 12 "aa")
                             }
                             |> Right
                 in
@@ -161,8 +149,8 @@ spec =
                                 Identifier.referenceId (buildQuote 3 9 3 10)
                                     "ff"
                             , args = NonEmpty.build
-                                (reference (buildQuote 3 12 3 13) "aa")
-                                [reference (buildQuote 4 13 4 14) "bb"]
+                                (Utils.reference 3 12 "aa")
+                                [Utils.reference 4 13 "bb"]
                             }
                             |> Right
                 in do
@@ -171,10 +159,6 @@ spec =
 
         describe "With last argument as" <|
             let
-                reference quote str =
-                    Identifier.referenceId quote str
-                        |> Expression.Reference
-
                 runForFirstDefinition source =
                     run source
                         |> map Expression.definitions
@@ -205,7 +189,7 @@ spec =
                                     "ff"
                             , args =
                                 NonEmpty.singleton
-                                    (reference (buildQuote 6 12 6 13) "aa")
+                                    (Utils.reference 6 12 "aa")
                             }
                             |> Right
                 in
@@ -235,8 +219,8 @@ spec =
                                     "ff"
                             , args =
                                 NonEmpty.build
-                                    (reference (buildQuote 6 12 6 13) "aa")
-                                    [reference (buildQuote 7 13 7 14) "bb"]
+                                    (Utils.reference 6 12 "aa")
+                                    [Utils.reference 7 13 "bb"]
                             }
                             |> Right
                 in do

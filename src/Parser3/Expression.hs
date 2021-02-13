@@ -24,7 +24,7 @@ expressionParser =
         , letIn
         , Parser.unconsumeOnFailure application
         , reference
-        -- , lambda
+        , lambda
         ]
 
 
@@ -71,19 +71,16 @@ parenthesizedExpression =
 
 
 
--- -- LAMBDA
--- 
--- 
--- lambda :: Parser QuotedExpression
--- lambda =
---     (do
---         Parser.reservedOperator "\\"
---         params <- Parser.atLeastOne Parser.dataIdentifier
---         Parser.reservedOperator "->"
---         expr <- expressionParser
---         return <| Lambda params expr
---     )
---     |> exprParser
+-- LAMBDA
+
+
+lambda :: Parser Expression
+lambda = do
+    quote <- Lexeme.operator "\\"
+    params <- C.atLeastOne Identifier.data_
+    _ <- Lexeme.operator "->"
+    expr <- expressionParser
+    return <| Expression.Lambda (Quote.from quote) params expr
 
 
 
