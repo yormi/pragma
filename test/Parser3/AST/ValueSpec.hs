@@ -1,10 +1,10 @@
-module Parser3.ValueSpec where
+module Parser3.AST.ValueSpec where
 
 import Test.Hspec hiding (context)
 
 import AST3.Expression as Expression
 import qualified Parser3.Model.Error as Error
-import qualified Parser3.Value as Value
+import qualified Parser3.AST.Value as Value
 import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
 import qualified Utils.Either as Either

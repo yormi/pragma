@@ -1,4 +1,4 @@
-module Parser3.ExpressionSpec where
+module Parser3.AST.ExpressionSpec where
 
 import Test.Hspec hiding (context)
 
@@ -6,7 +6,7 @@ import qualified Parser3.Utils as Utils
 
 import qualified AST3.Expression as Expression
 import qualified AST3.Identifier as Identifier
-import qualified Parser3.Expression as Expression
+import qualified Parser3.AST.Expression as Expression
 import qualified Utils.Either as Either
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.String as String

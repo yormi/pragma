@@ -1,11 +1,11 @@
-module Parser3.Expression.LambdaSpec where
+module Parser3.AST.Expression.LambdaSpec where
 
 import Test.Hspec hiding (context)
 
 import qualified Parser3.Utils as Utils
 
 import qualified AST3.Expression as Expression
-import qualified Parser3.Expression as Expression
+import qualified Parser3.AST.Expression as Expression
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.String as String
 

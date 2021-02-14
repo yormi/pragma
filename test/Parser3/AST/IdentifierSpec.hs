@@ -1,4 +1,4 @@
-module Parser3.IdentifierSpec where
+module Parser3.AST.IdentifierSpec where
 
 import Test.Hspec hiding (context)
 
@@ -6,7 +6,7 @@ import qualified AST3.Identifier as Identifier
 import qualified Parser3.Model.Error as E
 import Parser3.Model.Quote (Quote(..))
 import qualified Parser3.Parser as Parser
-import qualified Parser3.Identifier as Identifier
+import qualified Parser3.AST.Identifier as Identifier
 
 
 spec :: Spec

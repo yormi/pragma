@@ -1,4 +1,4 @@
-module Parser3.Module.SumTypeSpec where
+module Parser3.AST.Module.SumTypeSpec where
 
 import Test.Hspec hiding (context)
 
@@ -7,7 +7,7 @@ import qualified Parser3.Utils as Utils
 
 import qualified AST3.Module as Module
 import qualified AST3.TypeAnnotation as Annotation
-import qualified Parser3.Module as Module
+import qualified Parser3.AST.Module as Module
 import qualified Utils.List as List
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.OrderedSet as OrderedSet

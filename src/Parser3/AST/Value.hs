@@ -1,4 +1,4 @@
-module Parser3.Value (parser) where
+module Parser3.AST.Value (parser) where
 
 import AST3.Expression (Value(..), BoolLiteral(..))
 import qualified AST3.Expression as Expression

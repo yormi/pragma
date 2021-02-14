@@ -1,4 +1,4 @@
-module Parser3.Module
+module Parser3.AST.Module
     ( moduleParser
     ) where
 
@@ -9,8 +9,8 @@ import AST3.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified AST3.TypeAnnotation as Annotation
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
-import qualified Parser3.Expression as Expression
-import qualified Parser3.Identifier as Identifier
+import qualified Parser3.AST.Expression as Expression
+import qualified Parser3.AST.Identifier as Identifier
 import qualified Parser3.Indentation as Indentation
 import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Model.Error as Error

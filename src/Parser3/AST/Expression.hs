@@ -1,4 +1,4 @@
-module Parser3.Expression
+module Parser3.AST.Expression
     ( expressionParser
     ) where
 
@@ -7,11 +7,11 @@ import qualified AST3.Expression as Expression
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
 import qualified Parser3.Lexeme as Lexeme
-import qualified Parser3.Identifier as Identifier
+import qualified Parser3.AST.Identifier as Identifier
 import qualified Parser3.Indentation as Indentation
 import qualified Parser3.Parser as Parser
 import qualified Parser3.Model.Quote as Quote
-import qualified Parser3.Value as Value
+import qualified Parser3.AST.Value as Value
 
 
 expressionParser :: Parser Expression

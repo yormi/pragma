@@ -1,4 +1,4 @@
-module Parser3.Identifier
+module Parser3.AST.Identifier
     ( constructor
     , data_
     , reference
