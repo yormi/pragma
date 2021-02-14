@@ -5,13 +5,14 @@ module AST.Expression
     , Expression(..)
     , Pattern(..)
     , Value(..)
+    , quote
     ) where
 
 
 import Data.List.NonEmpty (NonEmpty)
 
 import Parser.Model.Position (Position)
-import Parser.Model.Quote (Quote)
+import Parser.Model.Quote (Quote(..))
 import AST.Identifier (DataId, ReferenceId)
 
 
@@ -80,3 +81,7 @@ data BoolLiteral
     | FalseLiteral Quote
     deriving (Eq, Show)
 
+
+quote :: Expression -> Quote
+quote expression =
+    Quote "aFilePath" 1 1 1 1

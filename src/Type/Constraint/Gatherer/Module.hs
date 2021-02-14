@@ -23,7 +23,7 @@ gather :: M.TopLevel -> Gatherer ()
 gather topLevel =
     case topLevel of
         M.Function
-            { M.codeQuote
+            { M.quote
             , M.typeAnnotation
             , M.params
             , M.body
@@ -39,7 +39,7 @@ gather topLevel =
                     |> Gatherer.withData (Map.fromList paramTypes)
 
             Constraint.Function
-                { Constraint.codeQuote = codeQuote
+                { Constraint.quote = quote
                 , Constraint.signatureType = typeAnnotation
                 , Constraint.params = map snd paramTypes
                 , Constraint.body = bodyType

@@ -22,7 +22,7 @@ newtype Module =
 
 data TopLevel
     = Function
-        { codeQuote :: Quote
+        { quote :: Quote
         , typeAnnotation :: TypeAnnotation
         , functionName :: DataId
         , params :: [DataId]
@@ -35,7 +35,7 @@ data TopLevel
         , dataChoices :: NonEmpty DataChoice
         }
     | Record
-        { codeQuote :: Quote
+        { quote :: Quote
         , typeName :: TypeId
         , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
         , fields :: NonEmpty Field
@@ -45,7 +45,7 @@ data TopLevel
 
 data Field
     = Field
-        { codeQuote :: Quote
+        { quote :: Quote
         , name :: DataId
         , typeAnnotation :: TypeAnnotation
         }

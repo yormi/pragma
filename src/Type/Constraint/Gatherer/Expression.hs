@@ -4,7 +4,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
-import AST.CodeQuote (CodeQuote)
+import Parser.Model.Quote (Quote)
 import qualified AST.Expression as E
 import qualified Type.Model as T
 import qualified Type.Constraint.Gatherer.LetIn as LetIn
@@ -14,9 +14,9 @@ import qualified Type.Constraint.Model as Constraint
 import qualified Type.Constraint.Reference as Reference
 
 
-gather :: E.QuotedExpression -> Gatherer T.Type
+gather :: E.Expression -> Gatherer T.Type
 gather expression =
-    case E.expression expression of
+    case expression of
         E.Value v ->
             return <| valueType v
 
@@ -32,10 +32,10 @@ gather expression =
 
             ifType <- Gatherer.nextPlaceholder
 
-            let quote = (E.codeQuote :: E.QuotedExpression -> CodeQuote)
+            let quote = (E.quote :: E.Expression -> Quote)
 
             Constraint.IfThenElse
-                { Constraint.codeQuote = E.codeQuote expression
+                { Constraint.quote = E.quote expression
                 , Constraint.condition =
                     Constraint.QuotedType (quote condition) conditionType
                 , Constraint.whenTrue =
@@ -84,7 +84,7 @@ gather expression =
             placeholder <- Gatherer.nextPlaceholder
 
             Constraint.Application
-                { Constraint.codeQuote = E.codeQuote expression
+                { Constraint.quote = E.quote expression
                 , Constraint.functionName = functionName
                 , Constraint.args = args
                 , Constraint.functionReference = referenceType
@@ -105,14 +105,14 @@ valueType value =
         E.Bool _ ->
             T.Bool
 
-        E.Char _ ->
+        E.Char _ _ ->
             T.Char
 
-        E.Float _ ->
+        E.Float _ _ ->
             T.Float
 
-        E.Int _ ->
+        E.Int _ _ ->
             T.Int
 
-        E.String _ ->
+        E.String _ _ ->
             T.String

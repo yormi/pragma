@@ -1,4 +1,4 @@
-module Type.Constraint.Context.Constructor
+module Context.Constructor
     ( Context
     , asMap
     , context

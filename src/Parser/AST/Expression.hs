@@ -173,7 +173,7 @@ definition = do
 -- exprParser parser =
 --     map3
 --         (\from parsed to ->
---             CodeQuote.fromPositions from to
+--             Quote.fromPositions from to
 --                 |> (\q -> QuotedExpression q parsed)
 --         )
 --         Parser.position

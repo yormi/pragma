@@ -20,7 +20,7 @@ import qualified Utils.Maybe as Maybe
 
 
 type ExpressionGatherer =
-    E.QuotedExpression -> Gatherer T.Type
+    E.Expression -> Gatherer T.Type
 
 
 type DefinitionWithPlaceholder =
@@ -30,7 +30,7 @@ type DefinitionWithPlaceholder =
 gatherer
     :: ExpressionGatherer
     -> NonEmpty E.Definition
-    -> E.QuotedExpression
+    -> E.Expression
     -> Gatherer T.Type
 gatherer expressionGatherer definitions body = do
     referencesInScope <- Gatherer.referencesInScope
@@ -165,8 +165,8 @@ hasDependencies =
     not << List.isEmpty << Set.toList
 
 
-referencesInExpression :: E.QuotedExpression -> Set Reference
-referencesInExpression (E.QuotedExpression { expression }) =
+referencesInExpression :: E.Expression -> Set Reference
+referencesInExpression expression =
     case expression of
         E.Reference r ->
             Reference.fromReferenceId r

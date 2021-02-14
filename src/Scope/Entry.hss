@@ -1,0 +1,36 @@
+module Scope.Entry
+    ( scope
+    ) where
+
+import Control.Monad.Trans.Except (ExceptT)
+import Control.Monad.Trans.Reader (ReaderT)
+import Control.Monad.Trans.Writer (Writer)
+
+
+type Scope a =
+    ExceptT Error
+        (ReaderT AvailableReferences
+            (Writer [ScopedExpression])
+        )
+        a
+
+data Error =
+    NameClash
+        { name :: ReferenceId
+        , previously :: Quote
+        , now :: Quote
+        }
+        deriving (Eq, Show)
+
+
+type ScopedExpression =
+    ( AvailableReferences, Expression)
+
+
+type AvailableReferences =
+    Map ReferenceId (Quote, Placeholder)
+
+
+scope :: Scope ()
+scope =
+    return ()

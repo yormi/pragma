@@ -11,6 +11,7 @@ module AST.Identifier
     , typeId
     , typeVariableId
 
+    , generateTypeVariableId
     , typeVariableQuote
 
     , dataOrConstructor
@@ -24,7 +25,7 @@ module AST.Identifier
 
 import qualified Data.Char as Char
 
-import Parser.Model.Quote (Quote)
+import Parser.Model.Quote (Quote(..))
 import qualified Utils.List as List
 
 
@@ -35,7 +36,7 @@ data ConstructorId
 
 data DataId
     = DataId Quote String
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 
 data ReferenceId
@@ -45,7 +46,7 @@ data ReferenceId
 
 data TypeId
     = TypeId Quote String
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 
 data TypeVariableId
@@ -118,6 +119,11 @@ typeVariableId quote str =
 typeVariableQuote :: TypeVariableId -> Quote
 typeVariableQuote (TypeVariableId quote _) =
     quote
+
+
+generateTypeVariableId :: Int -> TypeVariableId
+generateTypeVariableId next =
+    TypeVariableId (Quote "afile" 1 1 1 1) ("a" ++ show next) -- TODO
 
 
 

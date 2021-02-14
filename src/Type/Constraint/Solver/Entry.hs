@@ -7,7 +7,7 @@ module Type.Constraint.Solver.Entry
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 
-import AST.CodeQuote (CodeQuote)
+import Parser.Model.Quote (Quote)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
 import qualified Type.Constraint.Model as Constraint
@@ -33,7 +33,7 @@ solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
         IfThenElse
-            { codeQuote, condition, whenTrue, whenFalse, placeholder }
+            { quote, condition, whenTrue, whenFalse, placeholder }
             -> do
             precisedCondition <-
                 Constraint.quotedType condition
@@ -43,7 +43,7 @@ solveConstraint constraint =
                 precisedCondition
                 I.Bool
                 (IfConditionMustBeABool
-                    ((Constraint.codeQuote :: QuotedType -> CodeQuote)
+                    ((Constraint.quote :: QuotedType -> Quote)
                         condition
                     )
                     precisedCondition
@@ -59,7 +59,7 @@ solveConstraint constraint =
                 precisedWhenTrue
                 precisedWhenFalse
                 (BothIfAlternativesMustHaveSameType
-                    codeQuote
+                    quote
                     precisedWhenTrue
                     precisedWhenFalse
                 )
@@ -73,7 +73,7 @@ solveConstraint constraint =
 
 
         Application
-            { codeQuote
+            { quote
             , functionName
             , functionReference
             , argTypes
@@ -88,14 +88,14 @@ solveConstraint constraint =
                 referenceType
                 functionType
                 (BadApplication
-                    codeQuote
+                    quote
                     functionName
                     referenceType
                     functionType
                 )
 
 
-        Function { codeQuote, signatureType, params, body } -> do
+        Function { quote, signatureType, params, body } -> do
             definition <- buildFunction params body
             instancedSignature <- Instantiate.fromTypeAnnotation signatureType
 
@@ -103,7 +103,7 @@ solveConstraint constraint =
                 instancedSignature
                 definition
                 (FunctionDefinitionMustMatchType
-                    codeQuote
+                    quote
                     signatureType
                     definition
                 )

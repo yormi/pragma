@@ -1,0 +1,140 @@
+module Context
+    ( topLevelContext
+    ) where
+
+
+type TopLevelContext =
+    Map Reference (Quote, TypeAnnotation, Placeholder)
+
+
+type Runner =
+    Writer 
+
+
+-- Will be use to create Constraint
+
+-- Gather the references declared in the module top-level
+topLevelContext :: [M.TopLevel] -> TopLevelContext
+topLevelContext topLevels = do
+    constructors
+    functions
+
+
+constructors :: [M.TopLevel] -> Context
+constructors topLevels =
+    List.foldl
+        ( \resultingContext topLevel ->
+            case topLevel of
+                M.SumType { M.typeName, M.typeVariables, M.dataChoices } -> do
+                    sumType typeName typeVariables dataChoices resultingContext
+
+--                 M.Record {} -> do
+--                     resultingContext -- TODO
+
+                M.Function {} ->
+                    resultingContext
+
+        )
+        initialContext
+        topLevels
+
+
+sumType
+    :: TypeId
+    -> OrderedSet TypeVariableId
+    -> NonEmpty M.DataChoice
+    -> Context
+    -> Context
+sumType typeId typeVariableIds dataChoices (Context c) =
+    let
+        finalAnnotation =
+            typeVariableIds
+                |> OrderedSet.toList
+                |> map TA.Variable
+                |> TA.Custom typeId
+    in
+    dataChoices
+        |> NonEmpty.toList
+        |> List.foldl
+            (\resultingContext M.DataChoice { tag, args } ->
+                let
+                    typeAnnotation =
+                        constructorAnnotation args finalAnnotation
+                in
+                Map.insert tag typeAnnotation resultingContext
+            )
+            c
+        |> Context
+
+
+constructorAnnotation :: [TypeAnnotation] -> TypeAnnotation -> TypeAnnotation
+constructorAnnotation args finalAnnotation =
+    let
+        functionFromArgs argAnnotations =
+            case argAnnotations of
+                [] ->
+                    finalAnnotation
+
+                argAnnotation : rest ->
+                    functionFromArgs rest
+                        |> TA.Function argAnnotation
+    in
+    functionFromArgs args
+
+
+-- withContext :: Context -> Gatherer a -> Gatherer a
+-- withContext context gatherer = do
+--     data_ <-
+--         context
+--             |> Context.data_
+--             |> DataContext.asMap
+--             |> Map.toList
+--             |> traverse
+--                 (\(dataId, typeInfo) ->
+--                     let
+--                         reference =
+--                             Reference.fromDataId dataId
+--                     in do
+--                     p <- nextPlaceholder
+--                     case typeInfo of
+--                         DataContext.TopLevel typeAnnotation ->
+--                             Constraint.TopLevelDefinition
+--                                 reference
+--                                 typeAnnotation
+--                                 p
+--                                 |> addConstraint
+-- 
+--                         DataContext.LetDefinition _ ->
+--                             return ()
+-- 
+--                     return (reference, p)
+--                 )
+-- 
+--     constructors <-
+--         context
+--             |> Context.constructor
+--             |> ConstructorContext.asMap
+--             |> Map.toList
+--             |> traverse
+--                 (\(constructorId, typeAnnotation) ->
+--                     let
+--                         reference =
+--                             Reference.fromConstructorId constructorId
+--                     in do
+--                     p <- nextPlaceholder
+--                     Constraint.TopLevelDefinition reference typeAnnotation p
+--                         |> addConstraint
+-- 
+--                     return (reference, p)
+--                 )
+-- 
+-- 
+--     let referenceContext =
+--             data_ ++ constructors
+--                 |> List.foldl
+--                     (\result (reference, placeholder) ->
+--                         Map.insert reference (T.Placeholder placeholder) result
+--                     )
+--                     baseReferences
+--     RWST.local (Map.union referenceContext) gatherer
+--

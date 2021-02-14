@@ -13,8 +13,8 @@ import qualified Type.Constraint.Gatherer.Model as Gatherer
 
 
 gather
-    :: (E.QuotedExpression -> Gatherer T.Type)
-    -> E.QuotedExpression
+    :: (E.Expression -> Gatherer T.Type)
+    -> E.Expression
     -> NonEmpty E.Case
     -> Gatherer T.Type
 gather _ _ _ = do

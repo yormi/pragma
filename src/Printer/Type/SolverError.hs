@@ -1,7 +1,7 @@
 module Printer.Type.SolverError (print) where
 
-import AST.CodeQuote (CodeQuote)
-import qualified AST.CodeQuote as CodeQuote
+import Parser.Model.Quote (Quote)
+import qualified Parser.Model.Quote as Quote
 import qualified AST.Identifier as Identifier
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import qualified Printer.Console as Console
@@ -33,11 +33,11 @@ print sourceCode e =
             "TODO --- " ++ show e
 
 
-        Solver.IfConditionMustBeABool { codeQuote, type_, solutionSoFar } ->
+        Solver.IfConditionMustBeABool { quote, type_, solutionSoFar } ->
             formatError
             solutionSoFar
                 sourceCode
-                codeQuote
+                quote
                 "The type of the condition between the 'if' and the 'then' must be a Bool."
                 [ "\tExpected:"
                 , ""
@@ -50,7 +50,7 @@ print sourceCode e =
 
 
         Solver.BothIfAlternativesMustHaveSameType
-            { codeQuote
+            { quote
             , whenTrue
             , whenFalse
             , solutionSoFar
@@ -59,7 +59,7 @@ print sourceCode e =
             formatError
                 solutionSoFar
                 sourceCode
-                codeQuote
+                quote
                 "The if expressions must return the same type for both alternatives."
                 [ "\tTrue:"
                 , ""
@@ -80,7 +80,7 @@ print sourceCode e =
 
 
         Solver.BadApplication
-            { codeQuote
+            { quote
             , functionName
             , referenceType
             , functionType
@@ -92,7 +92,7 @@ print sourceCode e =
                     formatError
                         solutionSoFar
                         sourceCode
-                        codeQuote
+                        quote
                         ("Arguments type must match with the type of "
                             ++ Identifier.formatReferenceId functionName
                             ++ " signature."
@@ -110,13 +110,13 @@ print sourceCode e =
                     formatError
                         solutionSoFar
                         sourceCode
-                        codeQuote
+                        quote
                         (Identifier.formatReferenceId functionName
                             ++ " must be a function if you want to pass arguments to it.")
                         [ "\tActual :\t" ++ InstancedTypePrinter.print functionType ]
 
         Solver.FunctionDefinitionMustMatchType
-            { codeQuote
+            { quote
             , signatureType
             , definitionType
             , solutionSoFar
@@ -125,7 +125,7 @@ print sourceCode e =
             formatError
                 solutionSoFar
                 sourceCode
-                codeQuote
+                quote
                 "The function signature and the function definition types must be the same."
                 [ "\tSignature Type:"
                 , ""
@@ -170,15 +170,15 @@ printComparedFunction reference toPrint =
     in
     f reference toPrint
 
-formatError :: Solution -> String -> CodeQuote -> String -> [String] -> String
-formatError solutionSoFar sourceCode codeQuote whatItShouldBe errorExplaination =
+formatError :: Solution -> String -> Quote -> String -> [String] -> String
+formatError solutionSoFar sourceCode quote whatItShouldBe errorExplaination =
     [ [ SolutionPrinter.print solutionSoFar ]
     ,
         [ ""
         , ""
         , "TYPE MISMATCH"
         , ""
-        , "File: " ++ CodeQuote.filename (codeQuote :: CodeQuote)
+        , "File: " ++ Quote.filePath (quote :: Quote)
         , ""
         , ""
         , whatItShouldBe
@@ -188,25 +188,25 @@ formatError solutionSoFar sourceCode codeQuote whatItShouldBe errorExplaination 
     ,
         errorExplaination
     , [ "", "", "" ]
-    , formatCodeQuote sourceCode codeQuote
+    , formatQuote sourceCode quote
     ]
         |> List.concat
         |> map (\s -> "\t" ++ s)
         |> String.mergeLines
 
 
-formatCodeQuote :: String -> CodeQuote -> [String]
-formatCodeQuote sourceCode codeQuote =
+formatQuote :: String -> Quote -> [String]
+formatQuote sourceCode quote =
     let
         toZeroBased n =
             n - 1
 
         firstLine =
-            CodeQuote.fromLine codeQuote
+            Quote.fromLine quote
                 |> toZeroBased
 
         lastLine =
-            CodeQuote.toLine codeQuote
+            Quote.toLine quote
                 |> toZeroBased
 
     in

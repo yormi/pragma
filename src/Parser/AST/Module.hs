@@ -66,8 +66,8 @@ moduleParser = do
 --         |> orFailWithPosition (RecordInvalid TrailingCharacter)
 -- 
 --     to <- Parser.endPosition
---     let codeQuote = Quote.fromPositions from to
---     return <| Record codeQuote typeName typeVariables fields
+--     let quote = Quote.fromPositions from to
+--     return <| Record quote typeName typeVariables fields
 -- 
 -- 
 -- recordDefinition :: Parser (NonEmpty Field)
@@ -102,8 +102,8 @@ moduleParser = do
 -- 
 --     to <- Parser.endPosition
 -- 
---     let codeQuote = Quote.fromPositions from to
---     Field codeQuote fieldName annotation
+--     let quote = Quote.fromPositions from to
+--     Field quote fieldName annotation
 --         |> return
 -- 
 -- 
@@ -113,7 +113,7 @@ moduleParser = do
 -- 
 -- 
 -- orFailWithPosition
---     :: (CodeQuote.Position -> ParserError) -> Parser a -> Parser a
+--     :: (Quote.Position -> ParserError) -> Parser a -> Parser a
 -- orFailWithPosition errorBuilder parser = do
 --     position <- Parser.position
 --     let error = errorBuilder position
