@@ -15,8 +15,8 @@ import qualified AST.Module as M
 import Compiler (Compiler, CompilerError(..))
 import qualified Compiler
 import qualified Generator
-import qualified Parser.Model as Parser
-import qualified Parser.Module as Module
+import qualified Parser.Parser as Parser
+import qualified Parser.AST.Module as Module
 import qualified Printer.AST.Module as ModulePrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter
 import qualified Printer.Type.Context as ContextPrinter
@@ -57,8 +57,7 @@ parse printPreferences filePath fileContent =
     printSectionHeader "PARSING"
 
     parsedModule <-
-        Parser.runParser parser filePath fileContent
-            |> Either.mapLeft List.singleton
+        Parser.run filePath fileContent parser
             |> Either.mapLeft ParsingError
             |> Compiler.fromEither
 
@@ -78,6 +77,9 @@ validateTypeAnnotation parsedModule = do
         |> map (Either.mapLeft TypeValidationError)
         |> Compiler.fromEithers
         |> void
+
+
+-- TYPE CHECK
 
 
 typeCheck :: PrintPreferences -> M.Module -> Compiler ()
@@ -104,6 +106,10 @@ analyzeContext printPreferences parsedModule@(M.Module topLevels)= do
         (ModulePrinter.print parsedModule)
 
     return context
+
+
+
+-- CONSTRAINT
 
 
 constraintGathering
@@ -187,6 +193,10 @@ formatConstraints =
     map ConstraintPrinter.print
         >> List.intersperse ""
         >> String.mergeLines
+
+
+
+-- GENERATE
 
 
 generateCode :: PrintPreferences -> M.Module -> Compiler GeneratedCode

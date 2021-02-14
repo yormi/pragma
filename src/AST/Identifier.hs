@@ -11,11 +11,7 @@ module AST.Identifier
     , typeId
     , typeVariableId
 
-    , dataIdForTest
-    , typeIdForTest
-    , typeVariableIdForTest
-
-    , generateTypeVariableId
+    , typeVariableQuote
 
     , dataOrConstructor
     , formatConstructorId
@@ -26,45 +22,45 @@ module AST.Identifier
     )
     where
 
-import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Char as Char
 
+import Parser.Model.Quote (Quote)
 import qualified Utils.List as List
 
 
-newtype ConstructorId
-    = ConstructorId String
+data ConstructorId
+    = ConstructorId Quote String
     deriving (Eq, Ord, Show)
 
 
-newtype DataId
-    = DataId String
-    deriving (Eq, Generic, Ord, Show, FromJSON, ToJSON)
+data DataId
+    = DataId Quote String
+    deriving (Eq, Show)
 
 
-newtype ReferenceId
-    = ReferenceId String
+data ReferenceId
+    = ReferenceId Quote String
+    deriving (Eq, Show)
+
+
+data TypeId
+    = TypeId Quote String
+    deriving (Eq, Show)
+
+
+data TypeVariableId
+    = TypeVariableId Quote String
     deriving (Eq, Ord, Show)
 
 
-newtype TypeId
-    = TypeId String
-    deriving (Eq, Ord, Show)
-
-
-newtype TypeVariableId
-    = TypeVariableId String
-    deriving (Eq, Ord, Show)
-
-
-constructorId :: String -> Maybe ConstructorId
-constructorId str =
+constructorId :: Quote -> String -> Maybe ConstructorId
+constructorId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isUpper firstChar then
-                    Just <| ConstructorId str
+                    Just <| ConstructorId quote str
 
                 else
                     Nothing
@@ -72,104 +68,91 @@ constructorId str =
 
 
 
-dataId :: String -> Maybe DataId
-dataId str =
+dataId :: Quote -> String -> Maybe DataId
+dataId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isLower firstChar then
-                    Just <| DataId str
+                    Just <| DataId quote str
 
                 else
                     Nothing
             )
 
 
-referenceId :: String -> ReferenceId
+referenceId :: Quote -> String -> ReferenceId
 referenceId =
     ReferenceId
 
 
-typeId :: String -> Maybe TypeId
-typeId str =
+typeId :: Quote -> String -> Maybe TypeId
+typeId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isUpper firstChar then
-                    Just <| TypeId str
+                    Just <| TypeId quote str
 
                 else
                     Nothing
             )
 
 
-typeVariableId :: String -> Maybe TypeVariableId
-typeVariableId str =
+typeVariableId :: Quote -> String -> Maybe TypeVariableId
+typeVariableId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isLower firstChar then
-                    Just <| TypeVariableId str
+                    Just <| TypeVariableId quote str
 
                 else
                     Nothing
             )
 
 
-dataIdForTest :: String -> DataId
-dataIdForTest =
-    DataId
+typeVariableQuote :: TypeVariableId -> Quote
+typeVariableQuote (TypeVariableId quote _) =
+    quote
 
-
-typeIdForTest :: String -> TypeId
-typeIdForTest =
-    TypeId
-
-
-typeVariableIdForTest :: String -> TypeVariableId
-typeVariableIdForTest =
-    TypeVariableId
-
-
-generateTypeVariableId :: Int -> TypeVariableId
-generateTypeVariableId n =
-    TypeVariableId <| "a" ++ show n
 
 
 --- FORMAT ---
 
 
 formatConstructorId :: ConstructorId -> String
-formatConstructorId (ConstructorId str) =
+formatConstructorId (ConstructorId _ str) =
     str
 
+
 formatDataId :: DataId -> String
-formatDataId (DataId str) =
+formatDataId (DataId _ str) =
     str
 
 
 formatReferenceId :: ReferenceId -> String
-formatReferenceId (ReferenceId str) =
+formatReferenceId (ReferenceId _ str) =
     str
 
 
 formatTypeId :: TypeId -> String
-formatTypeId (TypeId str) =
+formatTypeId (TypeId _ str) =
     str
 
 
 formatTypeVariableId :: TypeVariableId -> String
-formatTypeVariableId (TypeVariableId str) =
+formatTypeVariableId (TypeVariableId _ str) =
     str
 
 
 --- SPECIALIZE ---
 
 dataOrConstructor :: ReferenceId -> Either ConstructorId DataId
-dataOrConstructor (ReferenceId str) =
+dataOrConstructor (ReferenceId quote str) =
     let
         firstChar =
             List.head str
@@ -177,10 +160,12 @@ dataOrConstructor (ReferenceId str) =
     case firstChar of
         Just c ->
             if Char.isUpper c then
-                Left <| ConstructorId str
+                Left <| ConstructorId quote str
 
             else
-                Right <| DataId str
+                Right <| DataId quote str
 
         Nothing ->
-            Left <| ConstructorId str -- Swallow this case since it should not happen
+            -- Swallow this case since the parser should have errored
+            -- on empty string
+            Left <| ConstructorId quote str

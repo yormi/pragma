@@ -17,7 +17,7 @@ import AST.TypeAnnotation (TypeAnnotation)
 import qualified Type.Model as T
 
 
-data Context
+newtype Context
     = Context (Map DataId DataTypeInfo)
     deriving (Eq, Show)
 

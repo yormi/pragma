@@ -8,12 +8,11 @@ module Type.Constraint.Context.Type
 import qualified Control.Monad as Monad
 import qualified Data.Map as Map
 
-import AST.CodeQuote (CodeQuote)
+import Parser.Model.Quote (Quote(..))
 import AST.Identifier (TypeId, TypeVariableId)
 import qualified AST.Module as M
 import qualified Type.Model as T
 import Utils.OrderedSet (OrderedSet)
-import qualified Utils.OrderedSet as OrderedSet
 
 
 newtype Context
@@ -23,7 +22,7 @@ newtype Context
 
 data Error
     = TypeNameAlreadyExists
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , typeId :: TypeId
         }
         deriving (Eq, Show)
@@ -39,8 +38,9 @@ context =
     Monad.foldM
         ( \typeContext topLevel ->
             case topLevel of
-                M.SumType { M.codeQuote, M.typeName, M.typeVariables } -> do
-                    sumType codeQuote typeName typeVariables typeContext
+                M.SumType { M.typeName, M.typeVariables } -> do
+                    let aQuote = Quote "aFilePath" 1 1 1 1
+                    sumType aQuote typeName typeVariables typeContext
 
                 _ ->
                     return typeContext
@@ -50,18 +50,18 @@ context =
 
 
 sumType
-    :: CodeQuote
+    :: Quote
     -> TypeId
     -> OrderedSet TypeVariableId
     -> Context
     -> Either Error Context
-sumType codeQuote typeId typeVariables (Context typeContext) =
+sumType quote typeId typeVariables (Context typeContext) =
     if Map.member typeId typeContext then
-        TypeNameAlreadyExists codeQuote typeId
+        TypeNameAlreadyExists quote typeId
             |> Left
 
     else
-        OrderedSet.toList typeVariables
+        typeVariables
             |> \tvs -> T.Kind tvs typeId
             |> \kind -> Map.insert typeId kind typeContext
             |> Context

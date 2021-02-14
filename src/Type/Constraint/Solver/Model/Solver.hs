@@ -16,10 +16,10 @@ import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ReferenceId, TypeVariableId)
 import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
+import Parser.Model.Quote (Quote)
 import Type.Constraint.Solver.Model.Instanced (InstancedType(..))
 import qualified Type.Constraint.Solver.Model.Instanced as I
 import Type.Constraint.Solver.Model.Solution (Solution, SolutionType(..))
@@ -45,25 +45,25 @@ data SolvingError
         SolutionType
         Solution
     | IfConditionMustBeABool
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , type_ :: InstancedType
         , solutionSoFar :: Solution
         }
     | BothIfAlternativesMustHaveSameType
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , whenTrue :: InstancedType
         , whenFalse :: InstancedType
         , solutionSoFar :: Solution
         }
     | BadApplication
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , functionName :: ReferenceId
         , referenceType :: InstancedType
         , functionType :: InstancedType
         , solutionSoFar :: Solution
         }
     | FunctionDefinitionMustMatchType
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , signatureType :: TypeAnnotation
         , definitionType :: InstancedType
         , solutionSoFar :: Solution

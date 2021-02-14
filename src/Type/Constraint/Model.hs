@@ -2,32 +2,32 @@ module Type.Constraint.Model (Constraint(..), QuotedType(..)) where
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ReferenceId)
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.Expression as E
+import Parser.Model.Quote (Quote)
 import qualified Type.Model as T
 import Type.Constraint.Reference (Reference)
 
 
 data Constraint
     = IfThenElse
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , condition :: QuotedType
         , whenTrue :: QuotedType
         , whenFalse :: QuotedType
         , placeholder :: T.TypePlaceholder
         }
     | Application
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , functionName :: ReferenceId
-        , args :: NonEmpty E.QuotedExpression
+        , args :: NonEmpty E.Expression
         , functionReference :: T.Type
         , argTypes :: NonEmpty T.Type
         , placeholder :: T.TypePlaceholder
         }
     | Function
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , signatureType :: TypeAnnotation
         , params :: [T.Type]
         , body :: T.Type
@@ -48,7 +48,7 @@ data Constraint
 
 data QuotedType =
     QuotedType
-        { codeQuote :: CodeQuote
+        { quote :: Quote
         , quotedType :: T.Type
         }
     deriving (Eq, Show)

@@ -11,28 +11,26 @@ import AST.Expression
     ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
-    , QuotedExpression
     , Expression(..)
     , Pattern(..)
     , Value(..)
     )
-import qualified AST.Expression as Expression
 import AST.Identifier (DataId)
 import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
 import qualified Utils.String as String
 
 
-print :: QuotedExpression -> String
-print e =
-    case Expression.expression e of
+print :: Expression -> String
+print expression =
+    case expression of
         Value v ->
             printValue v
 
         Reference r ->
             Identifier.formatReferenceId r
 
-        If condition whenTrue whenFalse ->
+        If _ condition whenTrue whenFalse ->
             [ "if " ++ print condition ++ " then"
             , Utils.indent <| print whenTrue
             , ""
@@ -41,7 +39,7 @@ print e =
             ]
                 |> String.mergeLines
 
-        LetIn { Expression.definitions, Expression.body } ->
+        LetIn { definitions, body } ->
             "let\n"
                 ++
                     ( definitions
@@ -65,17 +63,17 @@ print e =
                     )
 
 
-        Lambda { Expression.params, Expression.body } ->
+        Lambda { params, body } ->
             "\\" ++ (printParams <| NonEmpty.toList <| params)
                 ++ " -> " ++ print body
 
-        Application { Expression.functionName, args } ->
+        Application { functionName, args } ->
             Identifier.formatReferenceId functionName ++ " " ++ printArgs args
 
 
 printCase :: Case -> String
-printCase (Case pattern expr) =
-    printPattern pattern ++ " ->\n"
+printCase (Case pattern_ expr) =
+    printPattern pattern_ ++ " ->\n"
         ++ (Utils.indent <| print expr)
 
 
@@ -103,7 +101,7 @@ printDefinition def =
                 ++ (Utils.indent <| print expr)
 
 
-printArgs :: NonEmpty QuotedExpression -> String
+printArgs :: NonEmpty Expression -> String
 printArgs =
     NonEmpty.toList
         >> map print
@@ -119,21 +117,21 @@ printParams =
 
 printValue :: Value -> String
 printValue v = case v of
-        Bool TrueLiteral ->
+        Bool (TrueLiteral _) ->
             "True"
 
-        Bool FalseLiteral ->
+        Bool (FalseLiteral _) ->
             "False"
 
-        Char c ->
+        Char _ c ->
             [ c ]
 
-        Float f ->
+        Float _ f ->
             show f
 
-        Int n ->
+        Int _ n ->
             show n
 
-        String s ->
+        String _ s ->
             "\"" ++ s ++ "\""
 

@@ -2,6 +2,7 @@ module Generator (generate) where
 
 import qualified Data.List.NonEmpty as NonEmpty
 
+import AST.Expression (Expression)
 import qualified AST.Expression as E
 import AST.Identifier (DataId)
 import qualified AST.Identifier as Identifier
@@ -49,7 +50,7 @@ generateTopLevel topLevel =
 
 
 generateConstructor :: M.DataChoice -> [String]
-generateConstructor (M.DataChoice { tag, args }) =
+generateConstructor M.DataChoice { tag, args } =
     let
         argNames =
             List.indexedMap
@@ -87,9 +88,9 @@ generateConstructor (M.DataChoice { tag, args }) =
         (Maybe.toList paramLine ++ Utils.indentLines object)
 
 
-generateExpression :: E.QuotedExpression -> [String]
-generateExpression quotedExpression =
-    case E.expression quotedExpression of
+generateExpression :: E.Expression -> [String]
+generateExpression expression =
+    case expression of
         E.Value value ->
             [generateValue value]
 
@@ -125,7 +126,7 @@ generateExpression quotedExpression =
             generateLet (NonEmpty.toList definitions) body
 
         E.CaseOf {} ->
-            ["TODO :\t" ++ show (E.expression quotedExpression)]
+            ["TODO :\t" ++ show expression]
 
         E.Lambda { params , body } ->
             generateFunction (NonEmpty.toList params) body
@@ -147,7 +148,7 @@ generateExpression quotedExpression =
             ]
 
 
-generateLet :: [E.Definition] -> E.QuotedExpression -> [String]
+generateLet :: [E.Definition] -> Expression -> [String]
 generateLet definitions body =
     let
         generateLetDefinition def =
@@ -174,7 +175,7 @@ generateLet definitions body =
 
 
 
-generateFunction :: [DataId] -> E.QuotedExpression -> [String]
+generateFunction :: [DataId] -> Expression -> [String]
 generateFunction params body =
     if List.isEmpty params then
         generateExpression body
@@ -186,7 +187,7 @@ generateFunction params body =
             paramLine =
                 Utils.formatParamLine formattedParams
         in
-        case E.expression body of
+        case body of
             E.Value v ->
                 paramLine
                     ++ generateValue v
@@ -194,7 +195,7 @@ generateFunction params body =
 
             E.Reference identifier ->
                 paramLine
-                    ++ (Identifier.formatReferenceId identifier)
+                    ++ Identifier.formatReferenceId identifier
                     |> List.singleton
 
             _ ->
@@ -211,20 +212,20 @@ generateFunction params body =
 generateValue :: E.Value -> String
 generateValue value =
     case value of
-        E.Bool E.TrueLiteral ->
+        E.Bool (E.TrueLiteral _) ->
             "true"
 
-        E.Bool E.FalseLiteral ->
+        E.Bool (E.FalseLiteral _) ->
             "false"
 
-        E.Char c ->
+        E.Char _ c ->
             [c]
 
-        E.Float n ->
+        E.Float _ n ->
             show n
 
-        E.Int n ->
+        E.Int _ n ->
             show n
 
-        E.String str ->
+        E.String _ str ->
             Utils.formatString str

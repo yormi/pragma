@@ -11,7 +11,7 @@ import Utils.OrderedSet (OrderedSet)
 
 data Kind
     = Kind
-        { typeVariables :: [TypeVariableId]
+        { typeVariables :: OrderedSet TypeVariableId
         , typeId :: TypeId
         }
     deriving (Eq, Show)
@@ -30,11 +30,11 @@ data Type
         }
     | Placeholder TypePlaceholder
     | Custom TypeId (OrderedSet Type)
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 
 data FunctionType = FunctionType Type Type
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 
 newtype TypePlaceholder

@@ -9,11 +9,11 @@ import qualified Data.Map as Map
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
 
-import AST.CodeQuote (CodeQuote)
 import AST.Identifier (ConstructorId, TypeId, TypeVariableId)
 import qualified AST.Module as M
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.TypeAnnotation as TA
+import Parser.Model.Quote (Quote)
 import qualified Utils.List as List
 import Utils.OrderedSet (OrderedSet)
 import qualified Utils.OrderedSet as OrderedSet
@@ -25,7 +25,7 @@ newtype Context
 
 data Error
     = ConstructorNameAlreadyExists
-        { codeQuote :: CodeQuote
+        { codeQuote :: Quote
         , typeId :: TypeId
         }
         deriving (Eq, Show)

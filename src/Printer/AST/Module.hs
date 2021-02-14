@@ -2,9 +2,9 @@ module Printer.AST.Module (print, printTopLevel) where
 
 import qualified Data.List.NonEmpty as NonEmpty
 
+import qualified AST.Identifier as Identifier
 import AST.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified Printer.AST.Expression as ExpressionPrinter
-import qualified AST.Identifier as Identifier
 import qualified Printer.AST.TypeAnnotation as TypeAnnotation
 import qualified Printer.Utils as Utils
 import qualified Utils.List as List
@@ -74,7 +74,7 @@ printTopLevel element =
 
 
 printDataChoice :: DataChoice -> String
-printDataChoice (DataChoice _ tag args) =
+printDataChoice (DataChoice tag args) =
     if List.isEmpty args then
         Identifier.formatConstructorId tag
     else

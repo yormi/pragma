@@ -73,6 +73,7 @@ printKind Kind { typeVariables,  typeId } =
         ++ " "
         ++
             (typeVariables
+                |> OrderedSet.toList
                 |> map Identifier.formatTypeVariableId
                 |> String.mergeWords
             )

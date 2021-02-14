@@ -7,34 +7,35 @@ module AST.Module
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.CodeQuote (CodeQuote)
-import AST.Expression (QuotedExpression)
+import Parser.Model.Position (Position)
+import Parser.Model.Quote (Quote)
+import AST.Expression (Expression)
 import AST.Identifier (ConstructorId, DataId, TypeId, TypeVariableId)
 import AST.TypeAnnotation (TypeAnnotation)
 import Utils.OrderedSet (OrderedSet)
 
 
-data Module =
+newtype Module =
     Module [ TopLevel ]
     deriving (Eq, Show)
 
 
 data TopLevel
     = Function
-        { codeQuote :: CodeQuote
+        { codeQuote :: Quote
         , typeAnnotation :: TypeAnnotation
         , functionName :: DataId
         , params :: [DataId]
-        , body :: QuotedExpression
+        , body :: Expression
         }
     | SumType
-        { codeQuote :: CodeQuote
+        { fromPosition :: Position
         , typeName :: TypeId
-        , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
+        , typeVariables :: OrderedSet TypeVariableId
         , dataChoices :: NonEmpty DataChoice
         }
     | Record
-        { codeQuote :: CodeQuote
+        { codeQuote :: Quote
         , typeName :: TypeId
         , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
         , fields :: NonEmpty Field
@@ -44,7 +45,7 @@ data TopLevel
 
 data Field
     = Field
-        { codeQuote :: CodeQuote
+        { codeQuote :: Quote
         , name :: DataId
         , typeAnnotation :: TypeAnnotation
         }
@@ -53,8 +54,7 @@ data Field
 
 data DataChoice
     = DataChoice
-        { codeQuote :: CodeQuote
-        , tag :: ConstructorId
+        { tag :: ConstructorId
         , args :: [TypeAnnotation]
         }
         deriving (Eq, Show)

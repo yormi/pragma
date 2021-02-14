@@ -2,7 +2,6 @@ module AST.Expression
     ( BoolLiteral(..)
     , Case(..)
     , Definition(..)
-    , QuotedExpression(..)
     , Expression(..)
     , Pattern(..)
     , Value(..)
@@ -11,52 +10,51 @@ module AST.Expression
 
 import Data.List.NonEmpty (NonEmpty)
 
-import AST.CodeQuote (CodeQuote)
+import Parser.Model.Position (Position)
+import Parser.Model.Quote (Quote)
 import AST.Identifier (DataId, ReferenceId)
-
-
-data QuotedExpression =
-    QuotedExpression
-        { codeQuote :: CodeQuote
-        , expression :: Expression
-        }
-        deriving (Eq, Show)
 
 
 data Expression
     = Value Value
     | Reference ReferenceId
     | If
-        { condition :: QuotedExpression
-        , whenTrue :: QuotedExpression
-        , whenFalse :: QuotedExpression
+        { fromPosition :: Position
+        , condition :: Expression
+        , whenTrue :: Expression
+        , whenFalse :: Expression
         }
     | LetIn
-        { definitions :: NonEmpty Definition
-        , body :: QuotedExpression
+        { fromPosition :: Position
+        , definitions :: NonEmpty Definition
+        , body :: Expression
         }
     | CaseOf
-        { element :: QuotedExpression
+        { element :: Expression
         , cases :: NonEmpty Case
         }
     | Lambda
-        { params :: NonEmpty DataId
-        , body :: QuotedExpression
+        { fromPosition :: Position
+        , params :: NonEmpty DataId
+        , body :: Expression
         }
     | Application
         { functionName :: ReferenceId
-        , args :: NonEmpty QuotedExpression
+        , args :: NonEmpty Expression
         }
     deriving (Eq, Show)
 
 
 data Definition
-    = SimpleDefinition DataId QuotedExpression
+    = SimpleDefinition DataId Expression
     deriving (Eq, Show)
 
 
 data Case
-    = Case { pattern :: Pattern, caseBody :: QuotedExpression }
+    = Case
+        { pattern_ :: Pattern
+        , caseBody :: Expression
+        }
     deriving (Eq, Show)
 
 
@@ -70,15 +68,15 @@ data Pattern
 
 data Value
     = Bool BoolLiteral
-    | Char Char
-    | Float Double
-    | Int Integer
-    | String String
+    | Char Quote Char
+    | Float Quote Double
+    | Int Quote Int
+    | String Quote String
     deriving (Eq, Show)
 
 
 data BoolLiteral
-    = TrueLiteral
-    | FalseLiteral
+    = TrueLiteral Quote
+    | FalseLiteral Quote
     deriving (Eq, Show)
 

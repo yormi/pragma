@@ -1,369 +1,305 @@
 module Parser.Parser
-    ( atLeastOne
-    , between
-    , charLiteral
-    , constructorIdentifier
-    , dataIdentifier
-    , endOfFile
-    , endPosition
-    , identifier
-    , indented
-    , many
-    , manyUntil
-    , maybe
-    , numberLiteral
-    , position
-    , oneOf
-    , referenceIdentifier
-    , reserved
-    , reservedOperator
-    , sameLine
-    , sameLineOrIndented
-    , stringLiteral
-    , topLevel
-    , typeIdentifier
-    , typeVariableIdentifier
+    ( Parser
+    , SourceCode
+    , bug
+    , catch
+    , consumeChar
+    , consumeString
+    , debug
+    , fail
+    , getPosition
+    , getReferencePosition
+    , getRemaining
+    , lookAhead
+    , map3
+    , mapError
+    , recoverParser
+    , run
+    , setReferencePosition
     , unconsumeOnFailure
-    , withPositionReference
-    ) where
-
-
-import qualified Data.Char as Char
-import Data.List.NonEmpty (NonEmpty)
-import qualified Text.Parsec as Parsec
-import qualified Text.Parsec.Indent as Indent
-import qualified Text.Parsec.Token as Token
-
-import AST.CodeQuote (Position(..))
-import qualified AST.CodeQuote as CodeQuote
-import AST.Identifier
-    ( ConstructorId
-    , DataId
-    , ReferenceId
-    , TypeId
-    , TypeVariableId
     )
-import qualified AST.Identifier as Identifier
-import Parser.Error
-import Parser.Model
-import qualified Utils.Either as Either
+    where
+
+import qualified Control.Applicative as Applicative
+import Control.Monad.Trans.State (StateT)
+import qualified Control.Monad.Trans.State as State
+import Control.Monad.Trans.Except (Except)
+import qualified Control.Monad.Trans.Except as Except
+
+import Parser.Model.Error (Error)
+import qualified Parser.Model.Error as Error
+import Parser.Model.Position (Position(..))
+import Parser.Model.Quote (Quote)
+import qualified Parser.Model.Quote as Quote
 import qualified Utils.List as List
-import qualified Utils.Maybe as Maybe
-import qualified Utils.NonEmpty as NonEmpty
-import qualified Utils.String as String
+import qualified Utils.Tuple as Tuple
 
 
-languageDefinition :: Monad m => Token.GenLanguageDef String State m
-languageDefinition = Token.LanguageDef
-  { Token.commentStart    = "{-"
-  , Token.commentEnd      = "-}"
-  , Token.commentLine     = "--"
-  , Token.nestedComments  = True
-  , Token.identStart      = Parsec.letter
-  , Token.identLetter     = Parsec.choice [ Parsec.alphaNum, Parsec.oneOf "_'" ]
-  , Token.opStart         = Parsec.oneOf "=!+-*/><|\\:"
-  , Token.opLetter        = Parsec.oneOf "=!+-*/><|\\:"
-  , Token.reservedNames   =
-    [ "type", "alias"
-    , "if", "then", "else"
-    , "let", "in"
-    , "case", "of"
-    , "False", "True"
-    ]
-  , Token.reservedOpNames =
-    [ "="
-    , ":"
-    , "\\", "->"
-    , "_"
-    , ">>", "<<", "|>", "<|"
-    ]
-  , Token.caseSensitive   = True
-  }
+type Parser a
+    = StateT State (Except Error) a
 
 
-lexer :: Monad m => Token.GenTokenParser String State m
-lexer =
-    Token.makeTokenParser languageDefinition
+type SourceCode =
+    String
 
 
-constructorIdentifier :: Parser ConstructorId
-constructorIdentifier = do
-    from <- position
-    id <- identifier
-    to <- position
-    let codeQuote = CodeQuote.fromPositions from to
-    case Identifier.constructorId id of
-        Just constructorId ->
-            return constructorId
-
-        Nothing ->
-            fail <| SumTypeConstructorMustStartWithUpper codeQuote
+data State
+    = State
+        { remainingSourceCode :: SourceCode
+        , currentPosition :: Position
+        , referencePosition :: Position
+        }
+        deriving (Eq, Show)
 
 
-dataIdentifier :: Parser DataId
-dataIdentifier = do
-    from <- position
-    id <- identifier
-    to <- position
-    let codeQuote = CodeQuote.fromPositions from to
-    case Identifier.dataId id of
-        Just dataId ->
-            return dataId
+run :: FilePath -> SourceCode -> Parser a -> Either Error a
+run filePath sourceCode parser =
+    let
+        initialPosition =
+            Position
+                { filePath = filePath
+                , line = 1
+                , column = 1
+                }
 
-        Nothing ->
-            fail <| DataNameMustStartWithLowerCase codeQuote
+        initialState =
+            State sourceCode initialPosition initialPosition
+    in
+    State.evalStateT parser initialState
+        |> Except.runExcept
+
+
+fail :: Error -> Parser a
+fail = do
+    Except.throwE >> lift
+
+
+bug :: String -> Parser a
+bug explanation = do
+    from <- getPosition
+    Error.ThisIsABug from explanation
+        |> fail
 
 
 
-referenceIdentifier :: Parser ReferenceId
-referenceIdentifier = do
-    identifier
-        |> map Identifier.referenceId
+-- CATCH
 
 
-typeIdentifier :: Parser TypeId
-typeIdentifier = do
-    from <- position
-    id <- identifier
-    to <- position
-    let codeQuote = CodeQuote.fromPositions from to
-    case Identifier.typeId id of
-        Just typeId ->
-            return typeId
-
-        Nothing ->
-            fail <| TypeNameMustStartWithUpperCase codeQuote
+catch :: Parser a -> Parser (Either Error a)
+catch parser =
+    fromExcept <|
+        \state ->
+            let
+                except =
+                    toExcept state parser
+                        |> map (Tuple.mapFirst Right)
+            in do
+            Except.catchE except (\e -> return (Left e, state))
 
 
-typeVariableIdentifier :: Parser TypeVariableId
-typeVariableIdentifier = do
-    from <- position
-    id <- identifier
-    to <- position
-    let codeQuote = CodeQuote.fromPositions from to
-    case Identifier.typeVariableId id of
-        Just variableId ->
-            return variableId
 
-        Nothing ->
-            fail <| TypeVariableMustStartWithLowerCase codeQuote
+-- EXCEPT
 
 
-toParser :: Indent.IndentParser String State a -> Parser a
-toParser =
-    map Right >> Parser
+fromExcept :: (State -> Except Error (a, State)) -> Parser a
+fromExcept =
+    State.StateT
 
 
-identifier :: Parser String
-identifier =
-    Token.identifier lexer
-        |> toParser
+toExcept :: State -> Parser a -> Except Error (a, State)
+toExcept state parser =
+    State.runStateT parser state
 
 
-reserved :: String -> Parser ()
-reserved =
-    Token.reserved lexer
-        >> toParser
-
-
-reservedOperator :: String -> Parser ()
-reservedOperator =
-    Token.reservedOp lexer
-        >> toParser
-
-
-charLiteral :: Parser Char
-charLiteral =
-    Token.charLiteral lexer
-        |> toParser
-
-
-numberLiteral :: Parser (Either Integer Double)
-numberLiteral =
-    Token.naturalOrFloat lexer
-        |> toParser
-
-
-stringLiteral :: Parser String
-stringLiteral =
-    Token.stringLiteral lexer
-        |> toParser
-
-
-maybe :: Parser a -> Parser (Maybe a)
-maybe (Parser p) =
-    Parsec.try p
-        |> map Either.toMaybe
-        |> Parsec.optionMaybe
-        |> map join
-        |> toParser
-
-
-many :: Parser a -> Parser [a]
-many (Parser p) =
-    Parsec.many p
-        |> map sequence
-        |> Parser
-
-
-manyUntil :: Parser b -> Parser a -> Parser [a]
-manyUntil (Parser end) (Parser p) =
-    Parsec.manyTill p end
-        |> map sequence
-        |> Parser
-
-
-atLeastOne :: Parser a -> Parser (NonEmpty a)
-atLeastOne (Parser a) =
-    (do
-        either <-
-            Parsec.many1 a
-                |> map sequence
-
-        Parsec.try <|
-            case either of
-                Right (x : rest) ->
-                    NonEmpty.build x rest
-                        |> Right
-                        |> return
-
-                Right [] ->
-                    Parsec.unexpected "There should be at least one element to parse"
-
-                Left e ->
-                    return <| Left e
-    )
-        |> Parser
-
-
-oneOf :: [Parser a] -> Parser a
-oneOf parsers =
-    parsers
-        |> map (\(Parser p) -> p)
-        |> Parsec.choice
-        |> Parser
-
-
-between :: Parser () -> Parser () -> Parser c -> Parser c
-between before after mainParser = do
-    before
-    x <- mainParser
-    after
-    return x
+--
 
 
 unconsumeOnFailure :: Parser a -> Parser a
-unconsumeOnFailure (Parser p) =
-    Parsec.try p
-        |> Parser
+unconsumeOnFailure p =
+    fromExcept <|
+        \state ->
+            let
+                except =
+                    toExcept state p
+            in
+            Except.catchE except Except.throwE
 
 
-endOfFile :: Parser ()
-endOfFile =
-    Parsec.eof
-        |> toParser
+recoverParser :: Parser a -> Parser a -> Parser a
+recoverParser recoveringParser p =
+    fromExcept <|
+        \state ->
+            toExcept state p
+                |> recoverExcept (toExcept state recoveringParser)
 
 
--- Position
+recoverExcept :: Except a b -> Except a b -> Except a b
+recoverExcept recoveringExcept except =
+    Except.catchE except (const recoveringExcept)
 
 
-position :: Parser Position
-position =
-    Parsec.getPosition
-        |> map
-            (\sourcePosition ->
-                Position
-                    (Parsec.sourceName sourcePosition)
-                    (Parsec.sourceLine sourcePosition)
-                    (Parsec.sourceColumn sourcePosition)
-            )
-        |> toParser
+lookAhead :: Parser a -> Parser a
+lookAhead parser = do
+    previousState <- State.get
+    result <- parser
+    State.put previousState
+    return result
 
 
-endPosition :: Parser Position
-endPosition = do
-    state <- getState
-    let fileContentWithNewLine =
-        -- To allow differentiating last file char from position bumped
-        -- too far after last lexeme parsing
-            fileContent state ++ "\n"
-    Position filename currentLine currentColumn <- position
 
-    let beforePosition =
-            cutFrom currentLine currentColumn fileContentWithNewLine
-    beforePosition
-        |> List.dropWhileEnd (not << Char.isSpace)
-        |> List.dropWhileEnd Char.isSpace
-        |> (\str ->
-                Position
-                    filename
-                    (countLine str)
-                    (countColumn str)
-            )
+-- STATE
+
+
+getRemaining :: Parser SourceCode
+getRemaining =
+    State.get
+        |> map remainingSourceCode
+
+
+getPosition :: Parser Position
+getPosition =
+    State.get
+        |> map currentPosition
+
+
+getReferencePosition :: Parser Position
+getReferencePosition =
+    State.get
+        |> map referencePosition
+
+
+setReferencePosition :: Position -> Parser ()
+setReferencePosition position =
+    State.modify (\state -> state { referencePosition = position })
+
+
+
+updateRemaining :: Parser ()
+updateRemaining =
+    State.modify
+        (\state ->
+            remainingSourceCode state
+                |> List.drop 1
+                |> (\r -> state { remainingSourceCode = r })
+        )
+
+
+updatePosition :: Char -> Parser ()
+updatePosition c =
+    State.modify (\state ->
+        let
+            Position { filePath, line, column } =
+                currentPosition state
+
+            tabWidth =
+                4
+
+            newPosition =
+                case c of
+                    '\n' ->
+                        Position filePath (line + 1) 1
+                    '\t' ->
+                        Position
+                            filePath
+                            line
+                            (column + tabWidth - ((column-1) `mod` tabWidth))
+                    _ ->
+                        Position filePath line (column + 1)
+        in
+        state { currentPosition = newPosition }
+    )
+
+
+consumeChar :: Char -> Parser Position
+consumeChar c = do
+    position <- getPosition
+    updateRemaining
+    updatePosition c
+    return position
+
+
+consumeString :: String -> Parser Quote
+consumeString str =
+    let
+        consume remainingString =
+            case remainingString of
+                [c] -> do
+                    to <- getPosition
+                    _ <- consumeChar c
+                    return to
+
+
+                c : rest -> do
+                    _ <- consumeChar c
+                    consume rest
+
+                [] -> do
+                    bug "Desired string can't be empty"
+    in do
+    from <- getPosition
+    to <- consume str
+    Quote.fromPositions from to
         |> return
 
 
-cutFrom :: Int -> Int -> String -> String
-cutFrom lineNumber columnNumber =
-    String.splitLines
-        >> (\lines -> lines ++ [ "" ])
-        >> List.indexedMap
-            (\index line ->
-                if index + 1 < lineNumber then
-                    Just line
 
-                else if index + 1 == lineNumber then
-                    List.take columnNumber line
-                        |> Just
-
-                else
-                    Nothing
-            )
-        >> Maybe.values
-        >> String.mergeLines
+-- MAP
 
 
-countLine :: String -> Int
-countLine =
-        String.splitLines >> List.length
+map3 :: Applicative f => (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+map3 =
+    Applicative.liftA3
 
 
-countColumn :: String -> Int
-countColumn =
-    String.splitLines
-        >> List.last
-        >> map List.length
-        >> Maybe.withDefault 1
-
-
--- Indentation
-
-topLevel :: Parser ()
-topLevel =
-    Indent.topLevel
-        |> toParser
-
-
-withPositionReference :: Parser a -> Parser a
-withPositionReference (Parser p) =
-    Indent.withPos p
-        |> Parser
+mapError :: (Error -> Error) -> Parser a -> Parser a
+mapError f parser =
+    fromExcept <|
+        \state ->
+            toExcept state parser
+                |> Except.withExcept f
 
 
 
-indented :: Parser ()
-indented =
-    Indent.indented
-        |> toParser
+-- DEBUG
 
 
-sameLine :: Parser ()
-sameLine =
-    Indent.same
-        |> toParser
+debug :: String -> Parser ()
+debug str = do
+    printInput str
+    printPosition str
+    -- printRefPosition str
+    printNewLine
+    trace "---" (return ())
 
 
-sameLineOrIndented :: Parser ()
-sameLineOrIndented =
-    Indent.sameOrIndented
-        |> toParser
+print :: String -> String -> String -> Parser ()
+print what section content =
+    trace
+        (what ++ " - " ++ section ++ ": " ++ content)
+        (return ())
+
+
+printInput :: String -> Parser ()
+printInput str = do
+    remaining <- getRemaining
+    print "INPUT" str <| List.take 6 remaining
+
+
+printPosition :: String -> Parser ()
+printPosition str = do
+    p <- getPosition
+    print "POS" str <| show p
+
+
+-- printRefPosition :: String -> Parser ()
+-- printRefPosition str = do
+--     a <-
+--         Reader.ask
+--             |> map Right
+--             |> Parser
+--     print "REF" str <| show a
+
+
+printNewLine :: Parser ()
+printNewLine =
+    trace "\n" <| return ()

@@ -10,7 +10,7 @@ import AST.Identifier (ConstructorId, DataId, ReferenceId)
 import qualified AST.Identifier as Identifier
 
 
-data Reference
+newtype Reference
     = Reference String
     deriving (Eq, Ord, Show)
 

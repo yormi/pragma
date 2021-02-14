@@ -68,6 +68,10 @@ data ConstraintError
     deriving (Eq, Show)
 
 
+
+-- EXECUTE
+
+
 gatherConstraints
     :: Context -> Gatherer a -> Either ConstraintError [Constraint]
 gatherConstraints context =
@@ -87,7 +91,7 @@ fail =
 run :: Context -> Gatherer a -> Either ConstraintError (a, [Constraint])
 run context gatherer =
     let
-        firstTypeVariable =
+        firstTypePlaceholder =
             T.TypePlaceholder 0
 
 
@@ -97,7 +101,11 @@ run context gatherer =
     RWST.evalRWST
         (withContext context gatherer)
         references
-        firstTypeVariable
+        firstTypePlaceholder
+
+
+
+-- TOP-LEVEL CONTEXT
 
 
 withContext :: Context -> Gatherer a -> Gatherer a
@@ -157,6 +165,10 @@ withContext context gatherer = do
     RWST.local (Map.union referenceContext) gatherer
 
 
+
+-- REFERENCE
+
+
 lookupReference :: ReferenceId -> Gatherer T.Type
 lookupReference referenceId =
     let
@@ -180,6 +192,10 @@ referencesInScope = do
         |> return
 
 
+
+-- IN-FUNCTION DEFINITION
+
+
 withData :: Map Reference T.Type -> Gatherer a -> Gatherer a
 withData newReferences gatherer = do
     context <- RWST.ask
@@ -201,6 +217,7 @@ withData newReferences gatherer = do
 
         Left e ->
             fail e
+
 
 
 --- TYPE VARIABLE ---
