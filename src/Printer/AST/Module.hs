@@ -8,6 +8,7 @@ import qualified AST.Identifier as Identifier
 import qualified Printer.AST.TypeAnnotation as TypeAnnotation
 import qualified Printer.Utils as Utils
 import qualified Utils.List as List
+import qualified Utils.OrderedSet as OrderedSet
 import qualified Utils.String as String
 
 
@@ -53,6 +54,7 @@ printTopLevel element =
                 ++ " "
                 ++
                     (typeVariables
+                        |> OrderedSet.toList
                         |> map Identifier.formatTypeVariableId
                         |> String.mergeWords
                     )

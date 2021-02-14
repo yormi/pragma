@@ -2,10 +2,10 @@ module Parser3.Module
     ( moduleParser
     ) where
 
-import AST3.Identifier (DataId)
+import AST3.Identifier (DataId, TypeVariableId, typeVariableQuote)
 -- import qualified AST3.Expression as Expression
 -- import AST3.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
-import AST3.Module (Module(..), TopLevel(..))
+import AST3.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified AST3.TypeAnnotation as Annotation
 import Parser3.Parser (Parser)
 import qualified Parser3.Combinator as C
@@ -16,17 +16,22 @@ import qualified Parser3.Lexeme as Lexeme
 import qualified Parser3.Model.Error as Error
 import qualified Parser3.Model.Quote as Quote
 import qualified Parser3.Parser as Parser
+import qualified Utils.List as List
+import qualified Utils.Maybe as Maybe
 -- import Utils.NonEmpty (NonEmpty)
--- import qualified Utils.NonEmpty as NonEmpty
+import qualified Utils.NonEmpty as NonEmpty
+import Utils.OrderedSet (OrderedSet)
+import qualified Utils.OrderedSet as OrderedSet
+
 
 moduleParser :: Parser Module
 moduleParser = do
     module_ <-
         C.oneOf
-            [ -- record
+            -- [ record
             -- [ Parser.unconsumeOnFailure record
-            -- , sumType
-             function
+            [ sumType
+            , function
             ]
             |> C.many
             |> map Module
@@ -113,47 +118,59 @@ moduleParser = do
 --     position <- Parser.position
 --     let error = errorBuilder position
 --     orFail error parser
--- 
--- 
--- sumType :: Parser TopLevel
--- sumType = do
---     from <- Parser.position
---     Parser.reserved "type"
---     typeName <- Parser.typeIdentifier
--- 
---     typeVariables <- Parser.many Parser.typeVariableIdentifier
--- 
---     Parser.reservedOperator "="
---     firstChoice <- dataChoice
--- 
---     otherChoices <-
---         Parser.many <| do
---             Parser.reservedOperator "|"
---             dataChoice
--- 
---     to <- Parser.position
---     let codeQuote = CodeQuote.fromPositions from to
---     let dataChoices =
---             NonEmpty.build firstChoice otherChoices
---     return <| SumType codeQuote typeName typeVariables dataChoices
--- 
--- 
--- dataChoice :: Parser DataChoice
--- dataChoice = do
---     Parser.withPositionReference <| do
---         from <- Parser.position
---         tag <- Parser.constructorIdentifier
--- 
---         args <-
---             Parser.many <| do
---                 Parser.sameLineOrIndented
---                 typeAnnotationParser
---         to <- Parser.position
--- 
---         let codeQuote = CodeQuote.fromPositions from to
---         return <| DataChoice codeQuote tag args
--- 
--- 
+
+
+sumType :: Parser TopLevel
+sumType = do
+    from <- Parser.getPosition
+    _ <- Lexeme.reserved "type"
+    typeName <- Identifier.type_
+
+    typeVariables <- typeVariableDeclaration
+
+    _ <- Lexeme.operator "="
+    firstChoice <- dataChoice
+
+    otherChoices <-
+        C.many <| do
+            _ <- Lexeme.operator "|"
+            dataChoice
+
+    let dataChoices = NonEmpty.build firstChoice otherChoices
+    return <| SumType from typeName typeVariables dataChoices
+
+
+typeVariableDeclaration :: Parser (OrderedSet TypeVariableId)
+typeVariableDeclaration = do
+    C.someSpace
+    from <- Parser.getPosition
+
+    typeVariables <- C.many Identifier.typeVariable
+
+    let areThereDupplicates = List.unique typeVariables /= typeVariables
+    if areThereDupplicates then
+        let
+            quote =
+                typeVariables
+                    |> map typeVariableQuote
+                    |> map Quote.to
+                    |> List.last
+                    |> Maybe.withDefault from
+                    |> Quote.fromPositions from
+        in
+        Parser.fail <| Error.TypeVariableIdMustBeUniqueInDeclaration quote
+
+    else
+        return <| OrderedSet.fromList typeVariables
+
+
+dataChoice :: Parser DataChoice
+dataChoice = do
+    tag <- Identifier.constructor
+    args <- C.many <| typeAnnotationParser
+    return <| DataChoice tag args
+
+
 function :: Parser TopLevel
 function = do
     from <- Parser.getPosition

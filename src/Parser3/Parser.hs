@@ -5,6 +5,7 @@ module Parser3.Parser
     , catch
     , consumeChar
     , consumeString
+    , debug
     , fail
     , getPosition
     , getReferencePosition
@@ -252,3 +253,49 @@ mapError f parser =
         \state ->
             toExcept state parser
                 |> Except.withExcept f
+
+
+
+-- DEBUG
+
+
+debug :: String -> Parser ()
+debug str = do
+    printInput str
+    printPosition str
+    -- printRefPosition str
+    printNewLine
+    trace "---" (return ())
+
+
+print :: String -> String -> String -> Parser ()
+print what section content =
+    trace
+        (what ++ " - " ++ section ++ ": " ++ content)
+        (return ())
+
+
+printInput :: String -> Parser ()
+printInput str = do
+    remaining <- getRemaining
+    print "INPUT" str <| List.take 6 remaining
+
+
+printPosition :: String -> Parser ()
+printPosition str = do
+    p <- getPosition
+    print "POS" str <| show p
+
+
+-- printRefPosition :: String -> Parser ()
+-- printRefPosition str = do
+--     a <-
+--         Reader.ask
+--             |> map Right
+--             |> Parser
+--     print "REF" str <| show a
+
+
+printNewLine :: Parser ()
+printNewLine =
+    trace "\n" <| return ()

@@ -1,5 +1,6 @@
 module Parser3.Utils
     ( aFilePath
+    , constructorId
     , dataId
     , false
     , int
@@ -9,9 +10,11 @@ module Parser3.Utils
     , referenceId
     , run
     , true
+    , typeId
+    , typeVariableId
     ) where
 
-import qualified TestUtils
+import qualified Test.Utils as TestUtils
 
 import AST3.Expression (Expression)
 import qualified AST3.Expression as Expression
@@ -58,6 +61,16 @@ quoteFromLenght fromLine fromColumn str =
 -- IDENTIFIER
 
 
+constructorId :: Int -> Int -> String -> IO Identifier.ConstructorId
+constructorId fromLine fromColumn str =
+    let
+        idQuote =
+            quoteFromLenght fromLine fromColumn str
+    in
+    Identifier.constructorId idQuote str
+        |> TestUtils.assumeJust
+
+
 dataId :: Int -> Int -> String -> IO Identifier.DataId
 dataId fromLine fromColumn str =
     let
@@ -74,10 +87,32 @@ referenceId fromLine fromColumn str =
         idQuote =
             quoteFromLenght fromLine fromColumn str
     in
-    Identifier.referenceId idQuote "ff"
+    Identifier.referenceId idQuote str
+
+
+typeId :: Int -> Int -> String -> IO Identifier.TypeId
+typeId fromLine fromColumn str =
+    let
+        idQuote =
+            quoteFromLenght fromLine fromColumn str
+    in
+    Identifier.typeId idQuote str
+        |> TestUtils.assumeJust
+
+
+typeVariableId :: Int -> Int -> String -> IO Identifier.TypeVariableId
+typeVariableId fromLine fromColumn str =
+    let
+        idQuote =
+            quoteFromLenght fromLine fromColumn str
+    in
+    Identifier.typeVariableId idQuote str
+        |> TestUtils.assumeJust
+
 
 
 -- EXPRESSION
+
 
 reference :: Int -> Int -> String -> Expression
 reference fromLine fromColumn str =

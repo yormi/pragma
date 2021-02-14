@@ -29,6 +29,7 @@ data Error
     | SameLineOrIndentedExpected Position
 
     -- IDENTIFIER
+    | ConstructorIdMustStartWithUpperCase Quote
     | DataIdMustStartWithLowerCase Quote
     | TypeIdMustStartWithUpperCase Quote
     | TypeVariableIdMustStartWithLowerCase Quote
@@ -42,5 +43,6 @@ data Error
     -- MODULE
     | FunctionMustHaveTypeSignature Quote
     | TypeSignatureNameMismatch Quote
+    | TypeVariableIdMustBeUniqueInDeclaration Quote
 
     deriving (Eq, Show)

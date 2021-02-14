@@ -5,6 +5,7 @@ module Type.Constraint.Solver.Model.Instanced
 
 import AST.Identifier (TypeId, TypeVariableId)
 import qualified Type.Model as T
+import qualified Utils.OrderedSet as OrderedSet
 
 
 data InstancedType
@@ -58,7 +59,9 @@ fromType type_ =
             Function argAnnotation returnAnnotation
 
         T.Custom typeName args ->
-            map fromType args
+            args
+                |> OrderedSet.toList
+                |> map fromType
                 |> Custom typeName
 
         T.Placeholder p ->

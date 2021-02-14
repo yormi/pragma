@@ -3,7 +3,7 @@ module Parser3.Expression.LetInSpec where
 import Test.Hspec hiding (context)
 
 import qualified Parser3.Utils as Utils
-import qualified TestUtils as T
+import qualified Test.Utils as TestUtils
 
 import qualified AST3.Expression as Expression
 import qualified AST3.Identifier as Identifier
@@ -51,7 +51,7 @@ spec =
             in do
             definitionName <-
                 Identifier.dataId (buildQuote 2 5 2 5) "x"
-                    |> T.assumeJust
+                    |> TestUtils.assumeJust
             run source `shouldBe` expected definitionName
 
 

@@ -4,6 +4,7 @@ import qualified AST.Identifier as Identifier
 import qualified Printer.Utils as Utils
 import Type.Model (Kind(..), Type)
 import qualified Type.Model as Type
+import qualified Utils.OrderedSet as OrderedSet
 import qualified Utils.String as String
 
 
@@ -50,6 +51,7 @@ print type_ =
                 ++ " "
                 ++
                     (typeVariables
+                        |> OrderedSet.toList
                         |> map print
                         |> String.mergeWords
                     )
@@ -66,7 +68,7 @@ printAsParam type_ =
 
 
 printKind :: Kind -> String
-printKind (Kind { typeVariables,  typeId }) =
+printKind Kind { typeVariables,  typeId } =
     Identifier.formatTypeId typeId
         ++ " "
         ++

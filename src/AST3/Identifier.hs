@@ -11,6 +11,8 @@ module AST3.Identifier
     , typeId
     , typeVariableId
 
+    , typeVariableQuote
+
     , dataOrConstructor
     , formatConstructorId
     , formatDataId
@@ -26,8 +28,8 @@ import Parser3.Model.Quote (Quote)
 import qualified Utils.List as List
 
 
-newtype ConstructorId
-    = ConstructorId String
+data ConstructorId
+    = ConstructorId Quote String
     deriving (Eq, Ord, Show)
 
 
@@ -51,14 +53,14 @@ data TypeVariableId
     deriving (Eq, Ord, Show)
 
 
-constructorId :: String -> Maybe ConstructorId
-constructorId str =
+constructorId :: Quote -> String -> Maybe ConstructorId
+constructorId quote str =
     str
         |> List.head
         |> bind
             (\firstChar ->
                 if Char.isUpper firstChar then
-                    Just <| ConstructorId str
+                    Just <| ConstructorId quote str
 
                 else
                     Nothing
@@ -113,12 +115,17 @@ typeVariableId quote str =
             )
 
 
+typeVariableQuote :: TypeVariableId -> Quote
+typeVariableQuote (TypeVariableId quote _) =
+    quote
+
+
 
 --- FORMAT ---
 
 
 formatConstructorId :: ConstructorId -> String
-formatConstructorId (ConstructorId str) =
+formatConstructorId (ConstructorId _ str) =
     str
 
 
@@ -153,10 +160,12 @@ dataOrConstructor (ReferenceId quote str) =
     case firstChar of
         Just c ->
             if Char.isUpper c then
-                Left <| ConstructorId str
+                Left <| ConstructorId quote str
 
             else
                 Right <| DataId quote str
 
         Nothing ->
-            Left <| ConstructorId str -- Swallow this case since it should not happen
+            -- Swallow this case since the parser should have errored
+            -- on empty string
+            Left <| ConstructorId quote str

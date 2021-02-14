@@ -16,6 +16,7 @@ import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.TypeAnnotation as TA
 import qualified Utils.List as List
 import Utils.OrderedSet (OrderedSet)
+import qualified Utils.OrderedSet as OrderedSet
 
 
 newtype Context
@@ -68,7 +69,10 @@ sumType
 sumType typeId typeVariableIds dataChoices (Context c) =
     let
         finalAnnotation =
-            TA.Custom typeId (map TA.Variable typeVariableIds)
+            typeVariableIds
+                |> OrderedSet.toList
+                |> map TA.Variable
+                |> TA.Custom typeId
     in
     dataChoices
         |> NonEmpty.toList

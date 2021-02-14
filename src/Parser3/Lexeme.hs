@@ -80,6 +80,7 @@ reservedWords =
     , "if", "then", "else"
     , "case", "of"
     , "True", "False"
+    , "Bool", "Char", "Int", "Float", "String"
     ]
 
 
@@ -112,13 +113,14 @@ reserved desiredString = do
 
 operators :: [String]
 operators =
-    [ "\\", "->"
-    , "_"
-    , ">>", "<<", "|>", "<|"
-    , "{", "}", ":", "=", ","
-    , "[", "]"
-    , "==", "/=", ">=", "<=", ">", "<"
-    , "+", "-", "*", "/", "//"
+    [ "\\", "->" -- Lambda & Case
+    , "_" -- Wildcard
+    , ">>", "<<", "|>", "<|" -- Pipe
+    , "{", "}", ":", "=", "," -- Field
+    , "[", "]" -- List
+    , "==", "/=", ">=", "<=", ">", "<" -- Comparison
+    , "+", "-", "*", "/", "//" -- Arithmetic
+    , "|" -- Sum type
     ]
 
 

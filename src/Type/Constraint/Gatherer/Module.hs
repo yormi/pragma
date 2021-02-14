@@ -16,6 +16,7 @@ import qualified Type.Constraint.Model as Constraint
 import Type.Constraint.Reference (Reference)
 import qualified Type.Constraint.Reference as Reference
 import qualified Utils.List as List
+import qualified Utils.OrderedSet as OrderedSet
 
 
 gather :: M.TopLevel -> Gatherer ()
@@ -105,7 +106,7 @@ toType mapping annotation =
 
         TA.Custom { typeName, args } -> do
             argTypes <- traverse (toType mapping) args
-            T.Custom typeName argTypes
+            T.Custom typeName (OrderedSet.fromList argTypes)
                 |> return
 
         TA.Variable variableId ->

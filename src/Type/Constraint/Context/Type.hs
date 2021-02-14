@@ -12,6 +12,8 @@ import AST.CodeQuote (CodeQuote)
 import AST.Identifier (TypeId, TypeVariableId)
 import qualified AST.Module as M
 import qualified Type.Model as T
+import Utils.OrderedSet (OrderedSet)
+import qualified Utils.OrderedSet as OrderedSet
 
 
 newtype Context
@@ -50,7 +52,7 @@ context =
 sumType
     :: CodeQuote
     -> TypeId
-    -> [TypeVariableId]
+    -> OrderedSet TypeVariableId
     -> Context
     -> Either Error Context
 sumType codeQuote typeId typeVariables (Context typeContext) =
@@ -59,7 +61,9 @@ sumType codeQuote typeId typeVariables (Context typeContext) =
             |> Left
 
     else
-        Map.insert typeId (T.Kind typeVariables typeId) typeContext
+        OrderedSet.toList typeVariables
+            |> \tvs -> T.Kind tvs typeId
+            |> \kind -> Map.insert typeId kind typeContext
             |> Context
             |> Right
 

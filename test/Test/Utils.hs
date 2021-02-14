@@ -1,4 +1,4 @@
-module TestUtils
+module Test.Utils
     ( assumeJust
     ) where
 

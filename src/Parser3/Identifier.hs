@@ -1,12 +1,14 @@
 module Parser3.Identifier
-    ( data_
+    ( constructor
+    , data_
     , reference
     , type_
     , typeVariable
     ) where
 
 import AST3.Identifier
-    ( DataId
+    ( ConstructorId
+    , DataId
     , ReferenceId
     , TypeId
     , TypeVariableId
@@ -17,6 +19,15 @@ import Parser3.Parser (Parser)
 import qualified Parser3.Parser as Parser
 import qualified Parser3.Lexeme as Lexeme
 import Utils.Maybe as Maybe
+
+
+constructor :: Parser ConstructorId
+constructor = do
+    (quote, id) <- Lexeme.identifier
+    Identifier.constructorId quote id
+        |> map return
+        |> Maybe.withDefault
+            (Parser.fail <| Error.ConstructorIdMustStartWithUpperCase quote )
 
 
 data_ :: Parser DataId
