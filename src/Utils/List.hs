@@ -21,6 +21,7 @@ import Data.List as X
     , dropWhileEnd
     , filter
     , foldl
+    , groupBy
     , intercalate
     , intersperse
     , length

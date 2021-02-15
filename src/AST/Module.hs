@@ -3,12 +3,13 @@ module AST.Module
     , Field(..)
     , Module(..)
     , TopLevel(..)
+    , topLevelQuote
     ) where
 
 import Data.List.NonEmpty (NonEmpty)
 
 import Parser.Model.Position (Position)
-import Parser.Model.Quote (Quote)
+import Parser.Model.Quote (Quote(..))
 import AST.Expression (Expression)
 import AST.Identifier (ConstructorId, DataId, TypeId, TypeVariableId)
 import AST.TypeAnnotation (TypeAnnotation)
@@ -58,3 +59,8 @@ data DataChoice
         , args :: [TypeAnnotation]
         }
         deriving (Eq, Show)
+
+
+topLevelQuote :: TopLevel -> Quote
+topLevelQuote _ =
+    Quote "aFile" 1 1 1 1

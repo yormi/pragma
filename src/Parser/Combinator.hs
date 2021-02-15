@@ -35,9 +35,15 @@ until stopWith parser =
     )
         |> Parser.recoverParser
             (do
-                xAgain <- parser
-                xs <- until stopWith parser
-                return (xAgain : xs)
+                xAgain <- maybe parser
+                case xAgain of
+                    Just x ->
+                        until stopWith parser
+                            |> Parser.recoverParser (return [])
+                            |> map (\xs -> x : xs)
+
+                    Nothing ->
+                        return []
             )
 
 

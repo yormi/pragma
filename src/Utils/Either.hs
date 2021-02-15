@@ -12,7 +12,7 @@ import qualified Control.Monad as Monad
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Either (either)
-import Data.Either as X (lefts, isLeft, rights)
+import Data.Either as X (lefts, isLeft, isRight, rights)
 
 
 fold :: (a -> c) -> (b -> c) -> Either a b -> c

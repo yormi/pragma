@@ -2,6 +2,8 @@ module Test.Parser.CombinatorSpec where
 
 import Test.Hspec hiding (context)
 
+import qualified Test.Parser.Utils as Utils
+
 import qualified Parser.Combinator as C
 import qualified Parser.Model.Error as E
 import Parser.Model.Position (Position(..))
@@ -301,6 +303,84 @@ spec =
                     expected =
                         (Quote aFilePath 1 1 1 2, "yo")
                             |> Just
+                            |> Right
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+        describe "until" <| do
+            it "Returns an empty list given the stopping parser succeeds on first attempt" <|
+                let
+                    sourceCode =
+                        "abc"
+
+                    parser =
+                        C.until (C.char 'a') C.anyChar
+
+                    expected =
+                        Right []
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Returns a list with one element given the stopping parser succeeds on second attempt" <|
+                let
+                    sourceCode =
+                        "abc"
+
+                    parser =
+                        C.until (C.char 'b') C.anyChar
+
+                    expected =
+                        Right [ (Utils.position 1 1, 'a') ]
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Returns an empty list given the element parser fails on first attempt" <|
+                let
+                    sourceCode =
+                        ""
+
+                    parser =
+                        C.until (C.char 'z') C.anyChar
+
+                    expected =
+                        Right []
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Returns a list with all the parsed elements given the element parser fails before the stopping parser" <|
+                let
+                    sourceCode =
+                        "abc"
+
+                    parser =
+                        C.until (C.char 'z') (C.anyCharBut ['c'])
+
+                    expected =
+                        [ (Utils.position 1 1, 'a')
+                        , (Utils.position 1 2, 'b')
+                        ]
+                            |> Right
+                in do
+                run parser sourceCode `shouldBe` expected
+
+
+            it "Returns a list with all elements given end of file reached before the stopping parser succeeded" <|
+                let
+                    sourceCode =
+                        "abc"
+
+                    parser =
+                        C.until (C.char 'z') C.anyChar
+
+                    expected =
+                        [ (Utils.position 1 1, 'a')
+                        , (Utils.position 1 2, 'b')
+                        , (Utils.position 1 3, 'c')
+                        ]
                             |> Right
                 in do
                 run parser sourceCode `shouldBe` expected

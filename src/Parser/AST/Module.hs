@@ -3,6 +3,7 @@ module Parser.AST.Module
     ) where
 
 import AST.Identifier (DataId, TypeVariableId, typeVariableQuote)
+import qualified AST.Identifier as Identifier
 -- import qualified AST.Expression as Expression
 -- import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import AST.Module (DataChoice(..), Module(..), TopLevel(..))
@@ -167,12 +168,18 @@ typeVariableDeclaration = do
 dataChoice :: Parser DataChoice
 dataChoice = do
     tag <- Identifier.constructor
-    args <- C.many <| typeAnnotationParser
+    args <- C.until
+        (do
+            _ <- Identifier.data_
+            Lexeme.operator ":"
+        )
+        typeAnnotationParser
     return <| DataChoice tag args
 
 
 function :: Parser TopLevel
 function = do
+    C.someSpace
     from <- Parser.getPosition
     Indentation.topLevel
 
@@ -189,13 +196,20 @@ function = do
 
     case typeLine of
         Just (typeLineName, type_) ->
-            if typeLineName == functionName then
+            let
+                signatureName =
+                    Identifier.formatDataId typeLineName
+
+                definitionName =
+                    Identifier.formatDataId functionName
+            in
+            if signatureName == definitionName then do
                 return <| Function quote type_ functionName params body
-            else
+            else do
                 Error.TypeSignatureNameMismatch quote
                     |> Parser.fail
 
-        Nothing ->
+        Nothing -> do
             Error.FunctionMustHaveTypeSignature quote
                 |> Parser.fail
 

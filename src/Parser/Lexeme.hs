@@ -113,7 +113,7 @@ reserved desiredString = do
 
 operators :: [String]
 operators =
-    [ "\\", "->" -- Lambda & Case
+    [ "\\", "->" -- Lambda & Case & Type
     , "_" -- Wildcard
     , ">>", "<<", "|>", "<|" -- Pipe
     , "{", "}", ":", "=", "," -- Field
