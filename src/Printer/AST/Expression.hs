@@ -133,5 +133,5 @@ printValue v = case v of
             show n
 
         String _ s ->
-            "\"" ++ s ++ "\""
+            show s
 

@@ -17,6 +17,8 @@ module Parser.Parser
     , run
     , setReferencePosition
     , unconsumeOnFailure
+
+    , until
     )
     where
 
@@ -32,6 +34,7 @@ import Parser.Model.Position (Position(..))
 import Parser.Model.Quote (Quote)
 import qualified Parser.Model.Quote as Quote
 import qualified Utils.List as List
+import qualified Utils.String as String
 import qualified Utils.Tuple as Tuple
 
 
@@ -303,3 +306,56 @@ printPosition str = do
 printNewLine :: Parser ()
 printNewLine =
     trace "\n" <| return ()
+
+
+
+-- SUB-PARSE
+
+
+until :: Parser a -> Parser b -> Parser b
+until stopper parser =
+    let
+        setRemaining str =
+            State.modify (\state -> state { remainingSourceCode = str })
+    in do
+        from <- getPosition
+        initialRemaining <- getRemaining
+        lengthToParse <- lengthBeforeStopper stopper
+        let toParse = List.take lengthToParse initialRemaining
+        let after = List.drop lengthToParse initialRemaining
+
+        setRemaining toParse
+        result <- parser
+        hasConsumedEverything <- getRemaining |> map String.isEmpty
+
+        if hasConsumedEverything then do
+            setRemaining after
+            return result
+
+        else
+            fail <| Error.ThisIsABug from "TODO"
+
+
+lengthBeforeStopper :: Parser a -> Parser Int
+lengthBeforeStopper parser =
+    let
+        recursive initialRemaining = do
+            current <- getRemaining
+            parser
+                |> map
+                    (\_ ->
+                        String.length initialRemaining - String.length current
+                    )
+                |> recoverParser
+                    (case current of
+                        c : _ -> do
+                            _ <- consumeChar c
+                            recursive initialRemaining
+
+                        [] ->
+                            return <| String.length initialRemaining
+                    )
+    in do
+    initialRemaining <- getRemaining
+    recursive initialRemaining
+        |> lookAhead

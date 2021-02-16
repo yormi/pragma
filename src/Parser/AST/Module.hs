@@ -23,6 +23,7 @@ import qualified Utils.Maybe as Maybe
 import qualified Utils.NonEmpty as NonEmpty
 import Utils.OrderedSet (OrderedSet)
 import qualified Utils.OrderedSet as OrderedSet
+import qualified Utils.String as String
 
 
 moduleParser :: Parser Module
@@ -183,14 +184,26 @@ function = do
     from <- Parser.getPosition
     Indentation.topLevel
 
-    typeLine <- C.maybe typeLineParser
+    typeLine <-
+        Parser.until
+            (do
+                _ <- C.char '\n'
+                _ <- C.many <| C.oneOf [ C.char ' ', C.char '\t' ]
+                _ <- Identifier.data_
+                _ <- C.many <| C.anyCharBut [ '=', '\n' ]
+                C.char '='
+            )
+            (C.maybe typeLineParser)
+
+
+    -- typeLine <- C.maybe typeLineParser
 
     functionName <- Identifier.data_
     params <- C.many Identifier.data_
     _ <- Lexeme.operator "="
 
     body <- Indentation.withPositionReference Expression.expressionParser
-    to <- Parser.getPosition
+    to <- Parser.getPosition -- FIXME
 
     let quote = Quote.fromPositions from to
 
