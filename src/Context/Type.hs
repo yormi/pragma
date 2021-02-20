@@ -1,4 +1,4 @@
-module Type.Constraint.Context.Type
+module Context.Type
     ( Error(..)
     , asMap
     , Context

@@ -24,10 +24,10 @@ import qualified Data.Set as Set
 import AST.Identifier (ReferenceId)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..))
-import Type.Constraint.Context.Model (Context)
-import qualified Type.Constraint.Context.Data as DataContext
-import qualified Type.Constraint.Context.Constructor as ConstructorContext
-import qualified Type.Constraint.Context.Model as Context
+import Context.Model (Context)
+import qualified Context.Data as DataContext
+import qualified Context.Constructor as ConstructorContext
+import qualified Context.Model as Context
 import qualified Type.Constraint.Model as Constraint
 import Type.Constraint.Reference (Reference)
 import qualified Type.Constraint.Reference as Reference

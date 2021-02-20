@@ -8,11 +8,11 @@ import qualified AST.Identifier as Identifier
 import qualified Printer.Type.Model as TypePrinter
 import qualified Printer.AST.TypeAnnotation as TypeAnnotationPrinter
 import Printer.Utils (tab, indentAlign)
-import Type.Constraint.Context.Model (Context)
-import qualified Type.Constraint.Context.Model as Context
-import qualified Type.Constraint.Context.Data as Data
-import qualified Type.Constraint.Context.Constructor as Constructor
-import qualified Type.Constraint.Context.Type as Type
+import Context.Model (Context)
+import qualified Context.Model as Context
+import qualified Context.Data as Data
+import qualified Context.Constructor as Constructor
+import qualified Context.Type as Type
 import qualified Type.Model as T
 import qualified Utils.String as String
 
@@ -24,7 +24,7 @@ alignTabNumber =
 
 print :: Context -> String
 print context =
-    ([ "Types"
+    [ "Types"
     , "------"
     ]
         ++
@@ -93,4 +93,3 @@ print context =
                     )
             )
         |> String.mergeLines
-    )

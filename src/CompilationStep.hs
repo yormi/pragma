@@ -21,8 +21,8 @@ import qualified Printer.AST.Module as ModulePrinter
 import qualified Printer.Type.Constraint as ConstraintPrinter
 import qualified Printer.Type.Context as ContextPrinter
 import qualified Printer.Type.Solution as TypeSolutionPrinter
-import qualified Type.Constraint.Context.Model as Context
-import Type.Constraint.Context.Model (Context)
+import qualified Context.Model as Context
+import Context.Model (Context)
 import Type.Constraint.Model (Constraint)
 import qualified Type.Constraint.Gatherer.Model as Gatherer
 import qualified Type.Constraint.Gatherer.Module as Module

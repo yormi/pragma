@@ -1,4 +1,4 @@
-module Type.Constraint.Context.Model
+module Context.Model
     ( Context(..)
     , Error(..)
     , addLetDefinition
@@ -10,9 +10,9 @@ import AST.Identifier (DataId, ReferenceId)
 import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
 import qualified Type.Model as T
-import qualified Type.Constraint.Context.Data as Data
-import qualified Type.Constraint.Context.Type as Type
-import qualified Type.Constraint.Context.Constructor as Constructor
+import qualified Context.Data as Data
+import qualified Context.Type as Type
+import qualified Context.Constructor as Constructor
 import qualified Utils.Either as Either
 
 
