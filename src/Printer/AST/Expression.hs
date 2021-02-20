@@ -52,7 +52,7 @@ print expression =
                 ++ print body
 
 
-        CaseOf element cases ->
+        CaseOf { element, cases } ->
             "case " ++ print element ++ " of\n"
                 ++
                     ( cases

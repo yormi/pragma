@@ -12,6 +12,7 @@ module AST.Identifier
     , typeVariableId
 
     , generateTypeVariableId
+    , referenceQuote
     , typeVariableQuote
 
     , dataOrConstructor
@@ -114,6 +115,11 @@ typeVariableId quote str =
                 else
                     Nothing
             )
+
+
+referenceQuote :: ReferenceId -> Quote
+referenceQuote (ReferenceId quote _) =
+    quote
 
 
 typeVariableQuote :: TypeVariableId -> Quote

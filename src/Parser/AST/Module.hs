@@ -4,7 +4,7 @@ module Parser.AST.Module
 
 import AST.Identifier (DataId, TypeVariableId, typeVariableQuote)
 import qualified AST.Identifier as Identifier
--- import qualified AST.Expression as Expression
+import qualified AST.Expression as Expression
 -- import AST.Module (DataChoice(..), Field(..), Module(..), TopLevel(..))
 import AST.Module (DataChoice(..), Module(..), TopLevel(..))
 import qualified AST.TypeAnnotation as Annotation
@@ -203,9 +203,11 @@ function = do
     _ <- Lexeme.operator "="
 
     body <- Indentation.withPositionReference Expression.expressionParser
-    to <- Parser.getPosition -- FIXME
 
-    let quote = Quote.fromPositions from to
+    let quote =
+            Expression.quote body
+                |> Quote.to
+                |> Quote.fromPositions from
 
     case typeLine of
         Just (typeLineName, type_) ->

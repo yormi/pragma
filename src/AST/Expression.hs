@@ -13,7 +13,10 @@ import Data.List.NonEmpty (NonEmpty)
 
 import Parser.Model.Position (Position)
 import Parser.Model.Quote (Quote(..))
+import qualified Parser.Model.Quote as Quote
 import AST.Identifier (DataId, ReferenceId)
+import qualified AST.Identifier as Identifier
+import qualified Utils.NonEmpty as NonEmpty
 
 
 data Expression
@@ -31,7 +34,8 @@ data Expression
         , body :: Expression
         }
     | CaseOf
-        { element :: Expression
+        { fromPosition :: Position
+        , element :: Expression
         , cases :: NonEmpty Case
         }
     | Lambda
@@ -84,4 +88,68 @@ data BoolLiteral
 
 quote :: Expression -> Quote
 quote expression =
-    Quote "aFilePath" 1 1 1 1
+    case expression of
+        Value value ->
+            valueQuote value
+
+        Reference referenceId ->
+            Identifier.referenceQuote referenceId
+
+        If { fromPosition, whenFalse } ->
+            quote whenFalse
+                |> Quote.to
+                |> Quote.fromPositions fromPosition
+
+        LetIn { fromPosition, body } ->
+            quote body
+                |> Quote.to
+                |> Quote.fromPositions fromPosition
+
+        CaseOf { fromPosition, cases } ->
+            cases
+                |> NonEmpty.last
+                |> caseBody
+                |> quote
+                |> Quote.to
+                |> Quote.fromPositions fromPosition
+
+        Lambda { fromPosition, body } ->
+            quote body
+                |> Quote.to
+                |> Quote.fromPositions fromPosition
+
+        Application { functionName, args } ->
+            let
+                from =
+                    Identifier.referenceQuote functionName
+                        |> Quote.from
+
+                to =
+                    args
+                        |> NonEmpty.last
+                        |> quote
+                        |> Quote.to
+            in
+            Quote.fromPositions from to
+
+
+valueQuote :: Value -> Quote
+valueQuote value =
+    case value of
+        Bool (FalseLiteral q) ->
+            q
+
+        Bool (TrueLiteral q) ->
+            q
+
+        Char q _ ->
+            q
+
+        Float q _ ->
+            q
+
+        Int q _ ->
+            q
+
+        String q _ ->
+            q
