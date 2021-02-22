@@ -30,6 +30,6 @@ data Arranged
         }
 
 
-arrange :: ReplaceReference.Expression -> [Arranged]
-arrange expression =
+arrange :: ReplaceReference.TopLevelData -> [Arranged]
+arrange topLevelData =
     [Ordered]

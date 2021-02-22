@@ -23,9 +23,9 @@ typeCheck module_@(Module topLevels) =
     topLevels
         |> map
             (Replace.replaceReference moduleContext
-                >> Arrange.arrange
-                >> Deduce.deduceType
-                >> Monad.mapM Check.check
+                >> map Arrange.arrange
+                >> map Deduce.deduceType
+                >> bind (Monad.mapM Check.check)
             )
         |> Maybe.values
         |> join
