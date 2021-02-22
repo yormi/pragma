@@ -63,10 +63,8 @@ gatherer expressionGatherer definitions body = do
 findDefinition :: NonEmpty E.Definition -> Reference -> Maybe E.Definition
 findDefinition definitions reference =
     List.find
-        (\d ->
-            case d of
-                E.SimpleDefinition dataId _ ->
-                    Reference.fromDataId dataId == reference
+        (\(E.SimpleDefinition dataId _) ->
+            Reference.fromDataId dataId == reference
         )
         definitions
 
@@ -149,13 +147,10 @@ defineGraph
 defineGraph referencesInScope =
     NonEmpty.toList
         >> map
-            (\d ->
-                case d of
-                    E.SimpleDefinition dataId expression ->
-                        referencesInExpression expression
-                            |> Set.filter
-                                (\r -> not <| Set.member r referencesInScope)
-                            |> (\rs -> (Reference.fromDataId dataId, rs))
+            (\(E.SimpleDefinition dataId expression) ->
+                referencesInExpression expression
+                    |> Set.filter (\r -> not <| Set.member r referencesInScope)
+                    |> (\rs -> (Reference.fromDataId dataId, rs))
             )
         >> Map.fromList
 

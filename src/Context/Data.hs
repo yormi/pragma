@@ -48,9 +48,6 @@ context topLevels =
 
                 M.SumType {} -> do
                     return resultingContext
-
-                M.Record {} -> do
-                    return resultingContext
         )
         initialContext
         topLevels

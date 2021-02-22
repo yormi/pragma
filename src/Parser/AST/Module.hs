@@ -21,9 +21,7 @@ import qualified Utils.List as List
 import qualified Utils.Maybe as Maybe
 -- import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
-import Utils.OrderedSet (OrderedSet)
 import qualified Utils.OrderedSet as OrderedSet
-import qualified Utils.String as String
 
 
 moduleParser :: Parser Module
@@ -139,10 +137,11 @@ sumType = do
             dataChoice
 
     let dataChoices = NonEmpty.build firstChoice otherChoices
-    return <| SumType from typeName typeVariables dataChoices
+    SumType from typeName (OrderedSet.fromList typeVariables) dataChoices
+        |> return
 
 
-typeVariableDeclaration :: Parser (OrderedSet TypeVariableId)
+typeVariableDeclaration :: Parser [TypeVariableId]
 typeVariableDeclaration = do
     C.someSpace
     from <- Parser.getPosition
@@ -163,7 +162,7 @@ typeVariableDeclaration = do
         Parser.fail <| Error.TypeVariableIdMustBeUniqueInDeclaration quote
 
     else
-        return <| OrderedSet.fromList typeVariables
+        return typeVariables
 
 
 dataChoice :: Parser DataChoice

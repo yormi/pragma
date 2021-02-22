@@ -32,6 +32,7 @@ import qualified Type.Constraint.Model as Constraint
 import Type.Constraint.Reference (Reference)
 import qualified Type.Constraint.Reference as Reference
 import qualified Utils.List as List
+import qualified Utils.Tuple as Tuple
 
 
 type Gatherer a =
@@ -75,17 +76,12 @@ data ConstraintError
 gatherConstraints
     :: Context -> Gatherer a -> Either ConstraintError [Constraint]
 gatherConstraints context =
-    run context >> map snd
+    run context >> map Tuple.second
 
 
 eval :: Context -> Gatherer a -> Either ConstraintError a
 eval context =
-    run context >> map fst
-
-
-fail :: ConstraintError -> Gatherer a
-fail =
-    lift << Left
+    run context >> map Tuple.first
 
 
 run :: Context -> Gatherer a -> Either ConstraintError (a, [Constraint])
@@ -166,6 +162,15 @@ withContext context gatherer = do
 
 
 
+-- FAILURE
+
+
+fail :: ConstraintError -> Gatherer a
+fail =
+    lift << Left
+
+
+
 -- REFERENCE
 
 
@@ -220,7 +225,7 @@ withData newReferences gatherer = do
 
 
 
---- TYPE VARIABLE ---
+-- PLACEHOLDER
 
 
 nextPlaceholder :: Gatherer T.TypePlaceholder
@@ -250,7 +255,7 @@ recordingGeneratedPlaceholder gatherer =
     return (generated, result)
 
 
---- CONSTRAINT ---
+-- CONSTRAINT
 
 
 addConstraint :: Constraint -> Gatherer ()

@@ -1,9 +1,9 @@
 module AST.Identifier
-    ( ConstructorId
-    , DataId
-    , ReferenceId
-    , TypeId
-    , TypeVariableId
+    ( ConstructorId(..)
+    , DataId(..)
+    , ReferenceId(..)
+    , TypeId(..)
+    , TypeVariableId(..)
 
     , constructorId
     , dataId
@@ -14,6 +14,8 @@ module AST.Identifier
     , generateTypeVariableId
     , referenceQuote
     , typeVariableQuote
+
+    , dataToReference
 
     , dataOrConstructor
     , formatConstructorId
@@ -125,6 +127,11 @@ referenceQuote (ReferenceId quote _) =
 typeVariableQuote :: TypeVariableId -> Quote
 typeVariableQuote (TypeVariableId quote _) =
     quote
+
+
+dataToReference :: DataId -> ReferenceId
+dataToReference (DataId quote str) =
+    ReferenceId quote str
 
 
 generateTypeVariableId :: Int -> TypeVariableId

@@ -7,6 +7,7 @@ module Type.Constraint.Solver.Entry
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Set as Set
 
+-- import Context.Model (Context)
 import Parser.Model.Quote (Quote)
 import qualified Type.Model as T
 import Type.Constraint.Model (Constraint(..), QuotedType(..))
@@ -24,10 +25,45 @@ import qualified Utils.List as List
 
 
 solve :: T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
-solve nextAvailableTypeVariable constraints =
+solve nextAvailablePlaceholder constraints =
     traverse solveConstraint constraints
-        |> Solver.processSolution nextAvailableTypeVariable
+        |> Solver.processSolution nextAvailablePlaceholder
 
+
+-- solve :: Context -> T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
+-- solve context nextAvailablePlaceholder constraints =
+--     let
+--         contextConstraints =
+--             buildContext context
+--     in
+--     traverse solveConstraint constraints
+--         |> Solver.processSolution nextAvailablePlaceholder
+-- 
+-- 
+-- buildContext :: Context -> T.TypePlaceholder -> [Constraint]
+-- buildContext context nextAvailablePlaceholder =
+--     context
+--         |> Context.data_
+--         |> DataContext.asMap
+--         |> Map.toList
+--         |> bind
+--             (\(dataId, typeInfo) ->
+--                 let
+--                     reference =
+--                         Reference.fromDataId dataId
+--                 in do
+--                 p <- nextPlaceholder
+--                 case typeInfo of
+--                     DataContext.TopLevel typeAnnotation ->
+--                         [ Constraint.TopLevelDefinition
+--                             reference
+--                             typeAnnotation
+--                             p
+--                         ]
+-- 
+--                     DataContext.LetDefinition _ ->
+--                        []
+--             )
 
 solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
@@ -87,12 +123,7 @@ solveConstraint constraint =
             solveSimple
                 referenceType
                 functionType
-                (BadApplication
-                    quote
-                    functionName
-                    referenceType
-                    functionType
-                )
+                (BadApplication quote functionName referenceType functionType)
 
 
         Function { quote, signatureType, params, body } -> do
@@ -102,11 +133,7 @@ solveConstraint constraint =
             solveSimple
                 instancedSignature
                 definition
-                (FunctionDefinitionMustMatchType
-                    quote
-                    signatureType
-                    definition
-                )
+                (FunctionDefinitionMustMatchType quote signatureType definition)
 
 
         TopLevelDefinition { reference, typeAnnotation, placeholder } -> do

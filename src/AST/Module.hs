@@ -35,13 +35,14 @@ data TopLevel
         , typeVariables :: OrderedSet TypeVariableId
         , dataChoices :: NonEmpty DataChoice
         }
-    | Record
-        { quote :: Quote
-        , typeName :: TypeId
-        , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
-        , fields :: NonEmpty Field
-        }
         deriving (Eq, Show)
+
+    --  Record
+    --     { quote :: Quote
+    --     , typeName :: TypeId
+    --     , typeVariables :: OrderedSet TypeVariableId -- TODO - Make sure to prevent if a type variable appear more than once `SumType a a`
+    --     , fields :: NonEmpty Field
+    --     }
 
 
 data Field

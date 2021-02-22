@@ -69,10 +69,6 @@ printTopLevel element =
             |> String.mergeLines
 
 
---         Record {} ->
---             "TODO"
-
-
 printDataChoice :: DataChoice -> String
 printDataChoice (DataChoice tag args) =
     if List.isEmpty args then
@@ -84,5 +80,3 @@ printDataChoice (DataChoice tag args) =
                     |> map TypeAnnotation.print
                     |> String.mergeWords
                 )
-
-

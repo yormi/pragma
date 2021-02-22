@@ -59,7 +59,7 @@ paramsWithTypes
     :: TypeAnnotation -> [Reference] -> Gatherer [(Reference, T.Type)]
 paramsWithTypes annotation params = do
     mapping <- variableMapping annotation
-    signatureType <- toType mapping annotation
+    signatureType <- annotationToType mapping annotation
     deduceParamTypes signatureType params
 
 
@@ -78,9 +78,9 @@ variableMapping annotation =
         |> return
 
 
-toType
+annotationToType
     :: Map TypeVariableId T.TypePlaceholder -> TypeAnnotation -> Gatherer T.Type
-toType mapping annotation =
+annotationToType mapping annotation =
     case annotation of
         TA.Bool ->
             return <| T.Bool
@@ -98,14 +98,14 @@ toType mapping annotation =
             return <| T.String
 
         TA.Function { arg, returnType } -> do
-            argType <- toType mapping arg
-            returningType <- toType mapping returnType
+            argType <- annotationToType mapping arg
+            returningType <- annotationToType mapping returnType
             T.FunctionType argType returningType
                 |> T.Function
                 |> return
 
         TA.Custom { typeName, args } -> do
-            argTypes <- traverse (toType mapping) args
+            argTypes <- traverse (annotationToType mapping) args
             T.Custom typeName (OrderedSet.fromList argTypes)
                 |> return
 

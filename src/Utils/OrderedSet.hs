@@ -3,6 +3,7 @@ module Utils.OrderedSet
     , empty
     , fromList
     , toList
+    , singleton
     ) where
 
 import qualified Utils.List as List
@@ -26,3 +27,8 @@ fromList =
 toList :: OrderedSet a -> [a]
 toList (OrderedSet xs) =
     xs
+
+
+singleton :: a -> OrderedSet a
+singleton x =
+    OrderedSet [x]
