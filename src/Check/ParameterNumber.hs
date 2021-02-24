@@ -1,4 +1,4 @@
-module Check.TypeArgument
+module Check.ParameterNumber
     ( Error(..)
     , validate
     ) where

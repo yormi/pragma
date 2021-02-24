@@ -3,14 +3,9 @@ module Check.Type.DeduceType
     , deduceType
     ) where
 
-import AST.Module (TopLevel)
-import AST.Expression (Expression)
-import qualified AST.Expression as Expression
-import Check.Type.ArrangeResolution (Arranged)
-import Context.Model (Context)
+import qualified Check.Type.Arrange as A
 import Parser.Model.Quote (Quote)
-import Type.Model (Type, TypePlaceholder)
-import Utils.NonEmpty (NonEmpty)
+import Check.Type.Model (Type)
 
 
 data Constraint
@@ -23,6 +18,6 @@ data Constraint
 
 
 -- Handle Instanciation
-deduceType :: [Arranged] -> [Constraint]
+deduceType :: [A.Expression] -> [Constraint]
 deduceType resolutions =
     []
