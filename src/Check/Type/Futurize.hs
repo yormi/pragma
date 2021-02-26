@@ -56,7 +56,7 @@ data Value
 
 newtype Placeholder =
     Placeholder Int
-        deriving (Eq, Show)
+        deriving (Eq, Ord, Show)
 
 
 type Replacer a =

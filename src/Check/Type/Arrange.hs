@@ -1,6 +1,6 @@
 module Check.Type.Arrange
     ( Expression(..)
-    , LinkPlaceholder(..)
+    , Link(..)
     , Value(..)
     , arrange
     ) where
@@ -10,39 +10,41 @@ import qualified Control.Monad.Trans.Writer as Writer
 
 import qualified Check.Type.Futurize as F
 import Parser.Model.Quote (Quote)
+import qualified Check.Type.Cycle as Cycle
 import Check.Type.Model (Type)
 import qualified Utils.List as List
 import qualified Utils.NonEmpty as NonEmpty
+import qualified Utils.Set as Set
 
 
-newtype LinkPlaceholder =
-    LinkPlaceholder Int
+newtype Link =
+    Link Int
         deriving (Eq, Show)
 
 
 data Expression
     = Value
-        { link :: LinkPlaceholder
+        { link :: Link
         , value :: Value
         }
     | ContextReference
-        { link :: LinkPlaceholder
+        { link :: Link
         , type_ :: Type
         }
     | Future
-        { link :: LinkPlaceholder
+        { link :: Link
         , future :: F.Placeholder
         }
     | Definition
-        { link :: LinkPlaceholder
+        { link :: Link
         , futurePlaceholder :: F.Placeholder
-        , body :: LinkPlaceholder
+        , body :: Link
         }
     | OrderedIf
-        { condition :: LinkPlaceholder
-        , whenTrue :: LinkPlaceholder
-        , whenFalse :: LinkPlaceholder
-        , returns :: LinkPlaceholder
+        { condition :: Link
+        , whenTrue :: Link
+        , whenFalse :: Link
+        , returns :: Link
         }
         deriving (Eq, Show)
 
@@ -58,13 +60,13 @@ type Arranger a =
 
 
 type NextLink =
-    LinkPlaceholder
+    Link
 
 
-nextLink :: Arranger LinkPlaceholder
+nextLink :: Arranger Link
 nextLink = do
-    next@(LinkPlaceholder n) <- lift <| State.get
-    lift <| State.put <| LinkPlaceholder (n + 1)
+    next@(Link n) <- lift <| State.get
+    lift <| State.put <| Link (n + 1)
     return next
 
 
@@ -80,14 +82,14 @@ arrange :: F.Expression -> [Expression]
 arrange futurized =
     let
         initialState =
-            LinkPlaceholder 0
+            Link 0
     in
     arranger futurized
         |> Writer.execWriterT
         |> flip State.evalState initialState
 
 
-arranger :: F.Expression -> Arranger LinkPlaceholder
+arranger :: F.Expression -> Arranger Link
 arranger futurized =
     case futurized of
         F.Value (F.Int quote n) -> do
@@ -109,15 +111,59 @@ arranger futurized =
                 |> arrangeNext
             return link
 
-        F.LetIn { definitions, body } -> do
-            definitions
-                |> NonEmpty.toList
-                |> traverse
-                    (\F.Definition { placeholder=future, body=definitionBody } -> do
-                        bodyLink <- arranger definitionBody
-                        link <- nextLink
-                        Definition link future bodyLink
-                            |> arrangeNext
-                    )
-                |> void
+        F.LetIn { definitions, body } ->
+            let
+                letFutures =
+                    [] -- TODO
+
+                dependancesOnCurrentLetDefinitions futurized =
+                    case futurized of
+                        F.Value _ ->
+                            Set.empty
+
+                        F.ContextReference _ ->
+                            Set.empty
+
+                        F.Future future ->
+                            if Set.contains future letFutures then
+                                Set.singleton future
+
+                            else
+                                Set.empty
+
+                        F.LetIn {} ->
+                            Set.empty
+                            -- TODO - dependenceOnCurrentLetDefinitions
+
+                graph =
+                    definitions
+                        |> NonEmpty.toList
+                        |> map
+                            (\F.Definition
+                                { placeholder=future, body=definitionBody } ->
+                                ( future
+                                , dependancesOnCurrentLetDefinitions
+                                    definitionBody
+                                    |> Set.filter (\f -> f /= future)
+                                )
+                            )
+                        |> Cycle.defineGraph
+            in do
+            case Cycle.dependencySort graph of
+                Right dependencySorted ->
+                    dependencySorted
+                        |> traverse
+                            (\F.Definition
+                                { placeholder=future, body=definitionBody }
+                                -> do
+                                bodyLink <- arranger definitionBody
+                                link <- nextLink
+                                Definition link future bodyLink
+                                    |> arrangeNext
+                            )
+                        |> void
+
+                Left _ ->
+                    fail
+
             arranger body

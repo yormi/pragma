@@ -1,6 +1,7 @@
 module Utils.Either
     ( module X
     , fold
+    , fromMaybe
     , map2
     , mapLeft
     , mapRight
@@ -12,7 +13,12 @@ import qualified Control.Monad as Monad
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Either (either)
-import Data.Either as X (lefts, isLeft, isRight, rights)
+import Data.Either as X
+    ( isLeft
+    , isRight
+    , lefts
+    , rights
+    )
 
 
 fold :: (a -> c) -> (b -> c) -> Either a b -> c
@@ -33,6 +39,16 @@ mapLeft =
 mapRight :: (b -> c) -> Either a b -> Either a c
 mapRight  =
     Bifunctor.second
+
+
+fromMaybe :: a -> Maybe b -> Either a b
+fromMaybe defaultLeft maybe =
+    case maybe of
+        Just x ->
+            Right x
+
+        Nothing ->
+            Left defaultLeft
 
 
 toMaybe :: Either a b -> Maybe b

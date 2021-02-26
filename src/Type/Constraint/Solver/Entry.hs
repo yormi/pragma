@@ -30,41 +30,6 @@ solve nextAvailablePlaceholder constraints =
         |> Solver.processSolution nextAvailablePlaceholder
 
 
--- solve :: Context -> T.TypePlaceholder -> [Constraint] -> Either SolvingError Solution
--- solve context nextAvailablePlaceholder constraints =
---     let
---         contextConstraints =
---             buildContext context
---     in
---     traverse solveConstraint constraints
---         |> Solver.processSolution nextAvailablePlaceholder
--- 
--- 
--- buildContext :: Context -> T.TypePlaceholder -> [Constraint]
--- buildContext context nextAvailablePlaceholder =
---     context
---         |> Context.data_
---         |> DataContext.asMap
---         |> Map.toList
---         |> bind
---             (\(dataId, typeInfo) ->
---                 let
---                     reference =
---                         Reference.fromDataId dataId
---                 in do
---                 p <- nextPlaceholder
---                 case typeInfo of
---                     DataContext.TopLevel typeAnnotation ->
---                         [ Constraint.TopLevelDefinition
---                             reference
---                             typeAnnotation
---                             p
---                         ]
--- 
---                     DataContext.LetDefinition _ ->
---                        []
---             )
-
 solveConstraint :: Constraint -> Solver ()
 solveConstraint constraint =
     case constraint of
