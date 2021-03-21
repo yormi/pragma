@@ -18,7 +18,6 @@ data Type
         { name :: String
         , instanceType :: InstancedType
         }
-    -- | Placeholder TypePlaceholder
     | Custom
         { name :: String
         , args :: [Type]

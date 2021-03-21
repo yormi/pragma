@@ -38,6 +38,7 @@ spec =
                             (A.Link 0)
                         , A.Future (A.Link 2) (F.Placeholder 0)
                         ]
+                            |> Right
                 in
                 A.arrange expression `shouldBe` expected
 
@@ -72,6 +73,7 @@ spec =
                             }
                         , A.Future (A.Link 4) (F.Placeholder 1)
                         ]
+                            |> Right
                 in do
                 it "First definition depends on the second one" <|
                     let
@@ -99,3 +101,30 @@ spec =
                                 }
                     in
                     A.arrange expression `shouldBe` expected
+
+
+            it "fails on a definition dependency cycle" <|
+                let
+                    dependantDefinition1 =
+                        F.Placeholder 0
+                            |> F.Future
+                            |> F.Definition "x" (F.Placeholder 1)
+
+                    dependantDefinition2 =
+                        F.Placeholder 1
+                            |> F.Future
+                            |> F.Definition "y" (F.Placeholder 0)
+
+                    expression =
+                        F.LetIn
+                            { definitions =
+                                NonEmpty.build
+                                    dependantDefinition1
+                                    [ dependantDefinition2 ]
+                            , body = F.Future <| F.Placeholder 1
+                            }
+
+                    expected =
+                        Left A.CycleInLetDefinitionDependencies
+                in
+                A.arrange expression `shouldBe` expected

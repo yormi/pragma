@@ -1,5 +1,6 @@
 module Check.Type.Cycle
-    ( defineGraph
+    ( Error(..)
+    , defineGraph
     , dependencySort
     ) where
 

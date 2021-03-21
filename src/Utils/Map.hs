@@ -6,10 +6,13 @@ module Utils.Map
 import qualified Data.Map as Map
 
 import Data.Map as X
-    ( filter
+    ( empty
+    , filter
     , fromList
     , keys
+    , lookup
     , toList
+    , unions
     )
 
 

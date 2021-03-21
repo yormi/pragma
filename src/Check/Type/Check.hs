@@ -4,7 +4,7 @@ module Check.Type.Check
     ) where
 
 import qualified AST.Expression as Expression
-import Check.Type.DeduceType (Constraint)
+import Check.Type.Constraint (Constraint)
 import Context.Model (Context)
 import Parser.Model.Quote (Quote)
 import Type.Model (Type, TypePlaceholder)

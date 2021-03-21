@@ -32,6 +32,9 @@ import Data.List as X
     , zip
     , zip3
     )
+import Data.Foldable as X
+    ( find
+    )
 
 
 contains :: Eq a => a -> [a] -> Bool

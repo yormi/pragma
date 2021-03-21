@@ -21,7 +21,7 @@ spec =
                 expression =
                     R.LetIn
                         { definitions =
-                            R.Int aQuote 3
+                            R.Int aQuote
                                 |> R.Value
                                 |> R.SimpleDefinition (DataId aQuote "x")
                                 |> NonEmpty.singleton
@@ -31,7 +31,7 @@ spec =
                 expected =
                     F.LetIn
                         { definitions =
-                            F.Int aQuote 3
+                            F.Int aQuote
                                 |> F.Value
                                 |> F.Definition "x" (F.Placeholder 0)
                                 |> NonEmpty.singleton
@@ -49,7 +49,7 @@ spec =
                     R.LetIn
                         { definitions =
                             NonEmpty.build
-                                (R.Int aQuote 3
+                                (R.Int aQuote
                                     |> R.Value
                                     |> R.SimpleDefinition (DataId aQuote "x")
                                 )
@@ -63,7 +63,7 @@ spec =
                     F.LetIn
                         { definitions =
                             NonEmpty.build
-                                (F.Int aQuote 3
+                                (F.Int aQuote
                                     |> F.Value
                                     |> F.Definition "x" (F.Placeholder 0)
                                 )

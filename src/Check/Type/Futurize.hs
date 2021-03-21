@@ -14,9 +14,9 @@ import qualified Control.Monad.Trans.State as State
 import qualified Data.Map as Map
 import qualified GHC.Err as GHC
 
+import AST.TypeAnnotation (TypeAnnotation)
 import qualified Check.Type.ReplaceTopLevel as R
 import AST.Identifier (DataId(..), ReferenceId(..))
-import Check.Type.Model (Type)
 import Parser.Model.Quote (Quote)
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
@@ -29,7 +29,7 @@ newtype Error =
 
 data Expression
     = Value Value
-    | ContextReference Type
+    | ContextReference TypeAnnotation
     | Future Placeholder
     | LetIn
         { definitions :: NonEmpty Definition
@@ -48,8 +48,8 @@ data Definition =
 
 
 data Value
-    = Int Quote Int
-    | Float Quote Float
+    = Int Quote
+    | Float Quote
         deriving (Eq, Show)
 
 
@@ -119,8 +119,8 @@ futurize expression =
 replaceInExpression :: R.Expression -> Replacer Expression
 replaceInExpression expression =
     case expression of
-        R.Value (R.Int quote n) ->
-            Int quote n
+        R.Value (R.Int quote) ->
+            Int quote
                 |> Value
                 |> return
 

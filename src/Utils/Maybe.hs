@@ -1,5 +1,6 @@
 module Utils.Maybe
-    ( map2
+    ( module X
+    , map2
     , toList
     , values
     , withDefault
@@ -7,6 +8,9 @@ module Utils.Maybe
 
 import qualified Control.Monad as Monad
 import qualified Data.Maybe as Maybe
+import Data.Maybe as X
+    ( isJust
+    )
 
 
 map2 :: (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c

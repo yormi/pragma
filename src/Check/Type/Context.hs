@@ -1,12 +1,12 @@
 module Check.Type.Context
     ( Context
     , build
+    , lookupReference
     ) where
 
 import qualified Control.Monad as Monad
 import Control.Monad.State (State)
 import qualified Control.Monad.State as State
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified GHC.Err as GHC
 
@@ -18,6 +18,7 @@ import qualified AST.TypeAnnotation as TA
 import Check.Type.Model (Type)
 import qualified Check.Type.Model as T
 import qualified Utils.List as List
+import qualified Utils.Map as Map
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
 import Utils.OrderedSet (OrderedSet)
@@ -42,6 +43,11 @@ type NextInstancedType =
 
 type VariableMapping =
     Map TypeVariableId T.InstancedType
+
+
+lookupReference :: Reference -> Context -> Maybe  T.Type
+lookupReference =
+    Map.lookup
 
 
 build :: M.Module -> Context

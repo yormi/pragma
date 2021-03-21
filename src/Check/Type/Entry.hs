@@ -13,8 +13,12 @@ import qualified AST.Module as Module
 import Check.Type.Check (TypeError)
 import qualified Check.Type.Arrange as Arrange
 import qualified Check.Type.Check as Check
+import Check.Type.Constraint (Constraint)
+import qualified Check.Type.Constraint as Constraint
+import Check.Type.Context (Context)
 import qualified Check.Type.Context as Context
-import qualified Check.Type.DeduceType as Deduce
+import Check.Type.Deduce (Deduced)
+import qualified Check.Type.Deduce as Deduce
 import qualified Check.Type.Futurize as Futurize
 import qualified Check.Type.ReplaceTopLevel as ReplaceTopLevel
 import qualified Check.Type.Model as T
@@ -27,6 +31,9 @@ import GHC.Err as GHC
 
 data Error
     = FuturizeError Futurize.Error
+    | ArrangeError Arrange.Error
+    | DeduceError Deduce.Error
+    | ConstraintError Constraint.Error
     | TypeCheckErrors [TypeError]
 
 
@@ -46,25 +53,49 @@ typeCheck module_@(Module topLevels) =
             Context.build module_
     in
     topLevels
-        |> map (topLevelData moduleContext)
-        |> Maybe.values
+        |> filterTopLevelData moduleContext
         |> map
-            (\TopLevelData { paramTypes, body } -> do
-                deduced <-
-                    ReplaceTopLevel.replace moduleContext paramTypes body
-                        |> Futurize.futurize
-                        |> Either.mapLeft FuturizeError
-                        |> map Arrange.arrange
-                        |> map Deduce.deduceType
-
-                case Monad.mapM Check.check deduced of
-                    Just e ->
-                        Left <| TypeCheckErrors e
-
-                    Nothing ->
-                        Right ()
+            (\topLevel -> do
+                arranged <- arrange moduleContext topLevel
+                deduced <- deduce arranged
+                constraints <- buildConstraint deduced arranged
+                check constraints
             )
         |> Either.lefts
+
+
+arrange :: Context -> TopLevelData -> Either Error [ Arrange.Expression ]
+arrange moduleContext TopLevelData { paramTypes, body } =
+    ReplaceTopLevel.replace moduleContext paramTypes body
+        |> Futurize.futurize
+        |> Either.mapLeft FuturizeError
+        |> bind (Arrange.arrange >> Either.mapLeft ArrangeError)
+
+
+deduce :: [ Arrange.Expression ] -> Either Error Deduced
+deduce =
+    Deduce.deduceType >> Either.mapLeft DeduceError
+
+
+buildConstraint
+    :: Deduced -> [ Arrange.Expression ] -> Either Error [ Constraint ]
+buildConstraint deduced =
+    Constraint.build deduced
+        >> Either.mapLeft ConstraintError
+
+
+check :: [ Constraint ] -> Either Error ()
+check deduced =
+    Monad.mapM Check.check deduced
+        |> map TypeCheckErrors
+        |> Either.fromMaybeError
+
+
+
+filterTopLevelData :: Context.Context -> [TopLevel] -> [ TopLevelData ]
+filterTopLevelData context =
+    map (topLevelData context)
+        >> Maybe.values
 
 
 topLevelData :: Context.Context -> TopLevel -> Maybe TopLevelData

@@ -2,6 +2,7 @@ module Utils.Either
     ( module X
     , fold
     , fromMaybe
+    , fromMaybeError
     , map2
     , mapLeft
     , mapRight
@@ -49,6 +50,16 @@ fromMaybe defaultLeft maybe =
 
         Nothing ->
             Left defaultLeft
+
+
+fromMaybeError :: Maybe error -> Either error ()
+fromMaybeError maybe =
+    case maybe of
+        Just error ->
+            Left error
+
+        Nothing ->
+            Right ()
 
 
 toMaybe :: Either a b -> Maybe b

@@ -10,7 +10,9 @@ import qualified Data.Map as Map
 import qualified AST.Expression as E
 import AST.Identifier (DataId(..), ReferenceId)
 import qualified AST.Identifier as Identifier
+import AST.TypeAnnotation (TypeAnnotation)
 import Check.Type.Context (Context)
+import qualified Check.Type.Context as Context
 import Check.Type.Model (Type)
 import Parser.Model.Quote (Quote)
 import Utils.NonEmpty (NonEmpty)
@@ -21,7 +23,7 @@ import qualified Utils.Tuple as Tuple
 data Expression
     = Value Value
     | Reference ReferenceId
-    | ContextReference Type
+    | ContextReference TypeAnnotation
     | LetIn
         { definitions :: NonEmpty Definition
         , body :: Expression
@@ -35,8 +37,8 @@ data Definition
 
 
 data Value
-    = Int Quote Int
-    | Float Quote Float
+    = Int Quote
+    | Float Quote
         deriving (Eq, Show)
 
 
@@ -55,14 +57,15 @@ replace moduleContext params expression =
 replaceWithContext :: Context -> E.Expression -> Expression
 replaceWithContext context expression =
     case expression of
-        E.Value (E.Int quote n) ->
-            Value <| Int quote n
+        E.Value (E.Int quote _) ->
+            Value <| Int quote
 
 
         E.Reference referenceId ->
             let
                 referenceType =
-                    Map.lookup (Identifier.formatReferenceId referenceId)
+                    Context.lookupReference
+                        (Identifier.formatReferenceId referenceId)
                         context
             in
             referenceType
