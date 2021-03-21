@@ -26,7 +26,7 @@ import qualified Utils.OrderedSet as OrderedSet
 
 
 type Context =
-    Map Reference Type
+    Map Reference TypeAnnotation
 
 
 type Reference =
@@ -45,7 +45,7 @@ type VariableMapping =
     Map TypeVariableId T.InstancedType
 
 
-lookupReference :: Reference -> Context -> Maybe  T.Type
+lookupReference :: Reference -> Context -> Maybe TypeAnnotation
 lookupReference =
     Map.lookup
 
@@ -66,9 +66,7 @@ dataInTopLevel :: M.TopLevel -> Builder Context
 dataInTopLevel topLevel =
     case topLevel of
         M.Function { typeAnnotation, functionName } -> do
-            mapping <- variableMapping typeAnnotation
-            type_ <- annotationToType mapping typeAnnotation
-            ( Identifier.formatDataId functionName, type_ )
+            ( Identifier.formatDataId functionName, typeAnnotation )
                 |> List.singleton
                 |> Map.fromList
                 |> return
@@ -90,7 +88,6 @@ sumType typeId typeVariableIds dataChoices =
                 |> map TA.Variable
                 |> TA.Custom typeId
     in do
-    mapping <- variableMapping finalAnnotation
     dataChoices
         |> NonEmpty.toList
         |> traverse
@@ -99,9 +96,8 @@ sumType typeId typeVariableIds dataChoices =
                     annotation =
                         constructorAnnotation args finalAnnotation
                 in do
-                type_ <- annotationToType mapping annotation
                 let constructorName = Identifier.formatConstructorId tag
-                return (constructorName, type_)
+                return (constructorName, annotation)
             )
         |> map Map.fromList
 

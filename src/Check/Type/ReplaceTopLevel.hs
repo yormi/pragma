@@ -42,7 +42,7 @@ data Value
         deriving (Eq, Show)
 
 
-replace :: Context -> [ (DataId, Type) ] -> E.Expression -> Expression
+replace :: Context -> [ (DataId, TypeAnnotation) ] -> E.Expression -> Expression
 replace moduleContext params expression =
     let
         contextWithParams =

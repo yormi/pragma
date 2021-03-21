@@ -22,7 +22,7 @@ spec =
                     expression =
                         F.LetIn
                             { definitions =
-                                F.Int aQuote 3
+                                F.Int aQuote
                                     |> F.Value
                                     |> F.Definition "x" (F.Placeholder 0)
                                     |> NonEmpty.singleton
@@ -31,12 +31,12 @@ spec =
                             }
 
                     expected =
-                        [ A.Value (A.Link 0) <| A.Int aQuote 3
+                        [ A.Value (A.Link 0) <| A.Int aQuote
                         , A.Definition
                             (A.Link 1)
                             (F.Placeholder 0)
                             (A.Link 0)
-                        , A.Future (A.Link 2) (F.Placeholder 0)
+                        , A.Future (A.Link 1)
                         ]
                             |> Right
                 in
@@ -51,7 +51,7 @@ spec =
                             |> F.Definition "y" (F.Placeholder 1)
 
                     independantDefinition =
-                        F.Int aQuote 3
+                        F.Int aQuote
                             |> F.Value
                             |> F.Definition "x" (F.Placeholder 0)
 
@@ -59,19 +59,19 @@ spec =
                         F.Future <| F.Placeholder 1
 
                     expected =
-                        [ A.Value (A.Link 0) <| A.Int aQuote 3
+                        [ A.Value (A.Link 0) <| A.Int aQuote
                         , A.Definition
                             { link = A.Link 1
                             , futurePlaceholder = F.Placeholder 0
                             , body = A.Link 0
                             }
-                        , A.Future (A.Link 2) (F.Placeholder 0)
+                        , A.Future (A.Link 1)
                         , A.Definition
                             { link = A.Link 3
                             , futurePlaceholder = F.Placeholder 1
                             , body = A.Link 2
                             }
-                        , A.Future (A.Link 4) (F.Placeholder 1)
+                        , A.Future (A.Link 3)
                         ]
                             |> Right
                 in do

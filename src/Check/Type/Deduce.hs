@@ -49,17 +49,17 @@ deduceType arrangedExpressions =
 deducer :: A.Expression -> Deducer ()
 deducer arrangedExpression =
     case arrangedExpression of
-        A.Value link (A.Int _ _) ->
+        A.Value link (A.Int _) ->
             addDeduction link T.Int
 
-        A.Value link (A.Float _ _) ->
+        A.Value link (A.Float _) ->
             addDeduction link T.Float
 
-        A.ContextReference link type_ ->
+        A.ContextReference link annotation ->
             addDeduction link type_
 
-        A.Future link future ->
-            addDeduction link type_
+        -- A.Future link  ->
+        --     addDeduction link type_
 
         -- Definition
         --   { link :: Link
