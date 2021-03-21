@@ -9,6 +9,7 @@ import Data.Map as X
     ( empty
     , filter
     , fromList
+    , insert
     , keys
     , lookup
     , toList

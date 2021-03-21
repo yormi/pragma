@@ -1,7 +1,6 @@
 module Check.Type.ReplaceTopLevel
     ( Definition(..)
     , Expression(..)
-    , Value(..)
     , replace
     ) where
 
@@ -13,7 +12,7 @@ import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
 import Check.Type.Context (Context)
 import qualified Check.Type.Context as Context
-import Check.Type.Model (Type)
+import qualified Check.Type.Model.PrimitiveType as Primitive
 import Parser.Model.Quote (Quote)
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.Maybe as Maybe
@@ -21,7 +20,7 @@ import qualified Utils.Tuple as Tuple
 
 
 data Expression
-    = Value Value
+    = Primitive Quote Primitive.Type
     | Reference ReferenceId
     | ContextReference TypeAnnotation
     | LetIn
@@ -33,12 +32,6 @@ data Expression
 
 data Definition
     = SimpleDefinition DataId Expression
-        deriving (Eq, Show)
-
-
-data Value
-    = Int Quote
-    | Float Quote
         deriving (Eq, Show)
 
 
@@ -58,7 +51,7 @@ replaceWithContext :: Context -> E.Expression -> Expression
 replaceWithContext context expression =
     case expression of
         E.Value (E.Int quote _) ->
-            Value <| Int quote
+            Primitive quote Primitive.Int
 
 
         E.Reference referenceId ->

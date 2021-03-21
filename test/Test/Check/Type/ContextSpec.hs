@@ -10,11 +10,8 @@ import qualified Test.Parser.Sample as ParserSample
 import qualified AST.Expression as E
 import qualified AST.Identifier as Identifier
 import qualified AST.Module as M
-import qualified AST.TypeAnnotation as Annotation
+import qualified AST.TypeAnnotation as TA
 import qualified Check.Type.Context as Context
-import qualified Check.Type.Model as Type
-import Parser.Model.Position (Position(..))
-import Parser.Model.Quote (Quote(..))
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.OrderedSet as OrderedSet
 
@@ -25,7 +22,7 @@ spec =
         aFunction =
             M.Function
                 { quote = ParserSample.aQuote
-                , typeAnnotation = Annotation.Int
+                , typeAnnotation = TA.Int
                 , functionName =
                     Identifier.DataId ParserSample.aQuote "functionName"
                 , params = []
@@ -53,7 +50,7 @@ spec =
                     Context.build module_
 
                 expected =
-                    Map.fromList [("functionName", Type.Int)]
+                    Map.fromList [("functionName", TA.Int)]
             in
             actual `shouldBe` expected
 
@@ -62,12 +59,12 @@ spec =
             let
                 module_ =
                     [ aFunction
-                        { M.typeAnnotation = Annotation.Int
+                        { M.typeAnnotation = TA.Int
                         , M.functionName =
                             Identifier.DataId ParserSample.aQuote "function1"
                         }
                     , aFunction
-                        { M.typeAnnotation = Annotation.String
+                        { M.typeAnnotation = TA.String
                         , M.functionName =
                             Identifier.DataId ParserSample.aQuote "function2"
                         }
@@ -79,8 +76,8 @@ spec =
 
                 expected =
                     Map.fromList
-                        [ ("function1", Type.Int)
-                        , ("function2", Type.String)
+                        [ ("function1", TA.Int)
+                        , ("function2", TA.String)
                         ]
             in
             actual `shouldBe` expected
@@ -97,8 +94,7 @@ spec =
 
                 expectedConstructor constructorName =
                     ( constructorName
-                    , Type.Custom "customTypeName"
-                        [Type.Unbound "a" <| Type.InstancedType 0]
+                    , TA.Custom (M.typeName aCustomType) []
                     )
 
                 expected =
@@ -120,15 +116,14 @@ spec =
 
                 expectedConstructor constructorName =
                     ( constructorName
-                    , Type.Custom "customTypeName"
-                        [Type.Unbound "a" <| Type.InstancedType 0]
+                    , TA.Custom (M.typeName aCustomType) []
                     )
 
                 expected =
                     Map.fromList
                         [ expectedConstructor "ctor1"
                         , expectedConstructor "ctor2"
-                        , ("functionName", Type.Int)
+                        , ("functionName", TA.Int)
                         ]
             in
             actual `shouldBe` expected

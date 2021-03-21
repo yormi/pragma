@@ -12,7 +12,7 @@ import Check.Type.Constraint (Constraint)
 import qualified Check.Type.Constraint as Constraint
 import Check.Type.Context (Context)
 import qualified Check.Type.Context as Context
-import Check.Type.Deduce (Deduced)
+import Check.Type.Deduce (Deductions)
 import qualified Check.Type.Deduce as Deduce
 import qualified Check.Type.Futurize as Futurize
 import qualified Check.Type.ReplaceTopLevel as ReplaceTopLevel
@@ -55,13 +55,13 @@ arrange moduleContext TopLevelData { paramTypes, body } =
         |> bind (Arrange.arrange >> Either.mapLeft ArrangeError)
 
 
-deduce :: [ Arrange.Expression ] -> Either Error Deduced
+deduce :: [ Arrange.Expression ] -> Either Error Deductions
 deduce =
     Deduce.deduceType >> Either.mapLeft DeduceError
 
 
 buildConstraint
-    :: Deduced -> [ Arrange.Expression ] -> Either Error [ Constraint ]
+    :: Deductions -> [ Arrange.Expression ] -> Either Error [ Constraint ]
 buildConstraint deduced =
     Constraint.build deduced
         >> Either.mapLeft ConstraintError

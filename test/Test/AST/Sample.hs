@@ -7,7 +7,6 @@ import qualified Test.Parser.Sample as ParserSample
 
 import qualified AST.Module as M
 import qualified AST.Identifier as Identifier
-import Parser.Model.Position (Position(..))
 import qualified Utils.NonEmpty as NonEmpty
 import qualified Utils.OrderedSet as OrderedSet
 

@@ -2,7 +2,6 @@ module Check.Type.Arrange
     ( Error(..)
     , Expression(..)
     , Link(..)
-    , Value(..)
     , arrange
     ) where
 
@@ -13,6 +12,7 @@ import qualified Control.Monad.Trans.Writer as Writer
 
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified Check.Type.Futurize as F
+import qualified Check.Type.Model.PrimitiveType as Primitive
 import Parser.Model.Quote (Quote)
 import qualified Check.Type.Cycle as Cycle
 import qualified Utils.Either as Either
@@ -30,9 +30,10 @@ newtype Link =
 
 
 data Expression
-    = Value
+    = Primitive
         { link :: Link
-        , value :: Value
+        , quote :: Quote
+        , primitiveType :: Primitive.Type
         }
     | ContextReference
         { link :: Link
@@ -52,12 +53,6 @@ data Expression
         , whenFalse :: Link
         , returns :: Link
         }
-        deriving (Eq, Show)
-
-
-data Value
-    = Int Quote
-    | Float Quote
         deriving (Eq, Show)
 
 
@@ -140,10 +135,9 @@ arrange futurized =
 arranger :: F.Expression -> Arranger Link
 arranger futurized =
     case futurized of
-        F.Value (F.Int quote) -> do
+        F.Primitive quote primitiveType -> do
             link <- nextLink
-            Int quote
-                |> Value link
+            Primitive link quote primitiveType
                 |> arrangeNext
             return link
 
@@ -205,7 +199,7 @@ dependencySortedDefinitions definitions =
 
         dependancesOnCurrentLetDefinitions futurized =
             case futurized of
-                F.Value _ ->
+                F.Primitive _ _ ->
                     Set.empty
 
                 F.ContextReference _ ->

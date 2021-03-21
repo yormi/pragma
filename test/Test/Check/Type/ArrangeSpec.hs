@@ -2,14 +2,11 @@ module Test.Check.Type.ArrangeSpec where
 
 import Test.Hspec hiding (context)
 
-import qualified Data.Map as Map
-
 import Test.Parser.Sample (aQuote)
 
-import AST.Identifier (DataId(..), ReferenceId(..))
 import qualified Check.Type.Arrange as A
 import qualified Check.Type.Futurize as F
-import qualified Check.Type.Model as Type
+import qualified Check.Type.Model.PrimitiveType as Primitive
 import qualified Utils.NonEmpty as NonEmpty
 
 
@@ -22,8 +19,7 @@ spec =
                     expression =
                         F.LetIn
                             { definitions =
-                                F.Int aQuote
-                                    |> F.Value
+                                F.Primitive aQuote Primitive.Int
                                     |> F.Definition "x" (F.Placeholder 0)
                                     |> NonEmpty.singleton
                             , body =
@@ -31,7 +27,7 @@ spec =
                             }
 
                     expected =
-                        [ A.Value (A.Link 0) <| A.Int aQuote
+                        [ A.Primitive (A.Link 0) aQuote Primitive.Int
                         , A.Definition
                             (A.Link 1)
                             (F.Placeholder 0)
@@ -51,15 +47,14 @@ spec =
                             |> F.Definition "y" (F.Placeholder 1)
 
                     independantDefinition =
-                        F.Int aQuote
-                            |> F.Value
+                        F.Primitive aQuote Primitive.Int
                             |> F.Definition "x" (F.Placeholder 0)
 
                     body =
                         F.Future <| F.Placeholder 1
 
                     expected =
-                        [ A.Value (A.Link 0) <| A.Int aQuote
+                        [ A.Primitive (A.Link 0) aQuote Primitive.Int
                         , A.Definition
                             { link = A.Link 1
                             , futurePlaceholder = F.Placeholder 0

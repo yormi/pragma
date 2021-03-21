@@ -3,7 +3,6 @@ module Check.Type.Futurize
     , Error(..)
     , Expression(..)
     , Placeholder(..)
-    , Value(..)
     , futurize
     ) where
 
@@ -17,6 +16,7 @@ import qualified GHC.Err as GHC
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified Check.Type.ReplaceTopLevel as R
 import AST.Identifier (DataId(..), ReferenceId(..))
+import qualified Check.Type.Model.PrimitiveType as Primitive
 import Parser.Model.Quote (Quote)
 import Utils.NonEmpty (NonEmpty)
 import qualified Utils.NonEmpty as NonEmpty
@@ -28,7 +28,7 @@ newtype Error =
 
 
 data Expression
-    = Value Value
+    = Primitive Quote Primitive.Type
     | ContextReference TypeAnnotation
     | Future Placeholder
     | LetIn
@@ -45,13 +45,6 @@ data Definition =
         , body :: Expression
         }
         deriving (Eq, Show)
-
-
-data Value
-    = Int Quote
-    | Float Quote
-        deriving (Eq, Show)
-
 
 
 newtype Placeholder =
@@ -119,9 +112,8 @@ futurize expression =
 replaceInExpression :: R.Expression -> Replacer Expression
 replaceInExpression expression =
     case expression of
-        R.Value (R.Int quote) ->
-            Int quote
-                |> Value
+        R.Primitive quote primitiveType ->
+            Primitive quote primitiveType
                 |> return
 
         R.Reference (ReferenceId quote name) -> do

@@ -29,6 +29,6 @@ newtype Error
 
 
 -- Handle Instanciation
-build :: D.Deduced -> [A.Expression] -> Either Error [Constraint]
-build deduced arrangedExpression =
+build :: D.Deductions -> [A.Expression] -> Either Error [Constraint]
+build deductions arrangedExpression =
     Right []

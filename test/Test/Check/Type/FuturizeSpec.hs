@@ -2,14 +2,12 @@ module Test.Check.Type.FuturizeSpec where
 
 import Test.Hspec hiding (context)
 
-import qualified Data.Map as Map
-
 import Test.Parser.Sample (aQuote)
 
 import AST.Identifier (DataId(..), ReferenceId(..))
 import qualified Check.Type.Futurize as F
 import qualified Check.Type.ReplaceTopLevel as R
-import qualified Check.Type.Model as Type
+import qualified Check.Type.Model.PrimitiveType as Primitive
 import qualified Utils.NonEmpty as NonEmpty
 
 
@@ -21,8 +19,7 @@ spec =
                 expression =
                     R.LetIn
                         { definitions =
-                            R.Int aQuote
-                                |> R.Value
+                            R.Primitive aQuote Primitive.Int
                                 |> R.SimpleDefinition (DataId aQuote "x")
                                 |> NonEmpty.singleton
                         , body = R.Reference (ReferenceId aQuote "x")
@@ -31,8 +28,7 @@ spec =
                 expected =
                     F.LetIn
                         { definitions =
-                            F.Int aQuote
-                                |> F.Value
+                            F.Primitive aQuote Primitive.Int
                                 |> F.Definition "x" (F.Placeholder 0)
                                 |> NonEmpty.singleton
                         , body =
@@ -49,8 +45,7 @@ spec =
                     R.LetIn
                         { definitions =
                             NonEmpty.build
-                                (R.Int aQuote
-                                    |> R.Value
+                                (R.Primitive aQuote Primitive.Int
                                     |> R.SimpleDefinition (DataId aQuote "x")
                                 )
                                 [R.Reference (ReferenceId aQuote "x")
@@ -63,8 +58,7 @@ spec =
                     F.LetIn
                         { definitions =
                             NonEmpty.build
-                                (F.Int aQuote
-                                    |> F.Value
+                                (F.Primitive aQuote Primitive.Int
                                     |> F.Definition "x" (F.Placeholder 0)
                                 )
                                 [F.Future (F.Placeholder 0)
