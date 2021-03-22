@@ -42,7 +42,10 @@ data Expression
     | Future
         { link :: Link
         }
-    | Definition Link
+    | Definition
+        { link :: Link
+        , bodyLink :: Link
+        }
     | OrderedIf
         { condition :: Link
         , whenTrue :: Link
@@ -242,5 +245,6 @@ dependencySortedDefinitions definitions =
 definitionArranger :: F.Definition -> Arranger ()
 definitionArranger F.Definition { placeholder, body } = do
     bodyLink <- arranger body
-    registerPlaceholder placeholder bodyLink
-    arrangeNext <| Definition bodyLink
+    next <- nextLink
+    registerPlaceholder placeholder next
+    arrangeNext <| Definition next bodyLink

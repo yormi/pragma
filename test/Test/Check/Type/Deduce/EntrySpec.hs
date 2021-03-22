@@ -1,4 +1,4 @@
-module Test.Check.Type.DeduceSpec where
+module Test.Check.Type.Deduce.EntrySpec where
 
 import Test.Hspec hiding (context)
 
@@ -6,9 +6,9 @@ import Test.Parser.Sample (aQuote)
 
 import qualified AST.TypeAnnotation as TA
 import qualified Check.Type.Arrange as A
-import qualified Check.Type.Deduce as D
-import qualified Check.Type.Model as T
+import qualified Check.Type.Deduce.Entry as D
 import qualified Check.Type.Model.PrimitiveType as Primitive
+import qualified Check.Type.Model.Type as T
 import qualified Utils.Map as Map
 
 

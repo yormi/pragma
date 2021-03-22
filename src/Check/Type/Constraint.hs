@@ -6,9 +6,9 @@ module Check.Type.Constraint
 
 
 import qualified Check.Type.Arrange as A
-import qualified Check.Type.Deduce as D
+import qualified Check.Type.Deduce.Entry as D
 import Parser.Model.Quote (Quote)
-import Check.Type.Model (Type)
+import Check.Type.Model.Type (Type)
 
 
 data Constraint
@@ -28,7 +28,6 @@ newtype Error
 -- ACTION
 
 
--- Handle Instanciation
 build :: D.Deductions -> [A.Expression] -> Either Error [Constraint]
-build deductions arrangedExpression =
+build _ _ =
     Right []

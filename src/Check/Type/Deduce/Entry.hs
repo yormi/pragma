@@ -1,10 +1,11 @@
-module Check.Type.Deduce
+module Check.Type.Deduce.Entry
     ( Deductions
     , Error
     , deduceType
     ) where
 
-import Control.Monad.State (StateT)
+import Control.Monad.Trans.Except (ExceptT)
+import qualified Control.Monad.Trans.Except as Except
 import qualified Control.Monad.State as State
 import qualified GHC.Err as GHC
 
@@ -13,16 +14,17 @@ import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.TypeAnnotation as TA
 import qualified Check.Type.Arrange as A
-import Check.Type.Model (Type)
+import qualified Check.Type.Deduce.Generalize as Generalize
 import qualified Check.Type.Model.PrimitiveType as Primitive
-import qualified Check.Type.Model as T
+import Check.Type.Model.Type (Type)
+import qualified Check.Type.Model.Type as T
 import qualified Utils.List as List
 import qualified Utils.Map as Map
 import qualified Utils.Set as Set
 
 
 type Deducer a =
-    StateT State (Either Error) a
+    ExceptT Error (State.State State) a
 
 
 data State =
@@ -56,6 +58,11 @@ addDeduction link type_ =
         )
 
 
+lookupDeduction :: A.Link -> Deducer (Maybe Type)
+lookupDeduction link =
+    lift <| State.gets (deductions >> Map.lookup link)
+
+
 generateInstancedType :: Deducer T.InstancedType
 generateInstancedType = do
     instancedType@(T.InstancedType n) <- State.gets nextInstancedType
@@ -63,6 +70,10 @@ generateInstancedType = do
     State.modify (\state -> state { nextInstancedType = next })
     return instancedType
 
+
+fail :: Error -> Deducer a
+fail =
+    Except.throwE
 
 -- ACTION
 
@@ -76,7 +87,9 @@ deduceType arrangedExpressions =
                 (T.InstancedType 0)
     in
     traverse deducer arrangedExpressions
-        |> flip State.execStateT initialState
+        |> Except.runExceptT
+        |> flip State.runState initialState
+        |> (\(either, ds) -> map (const ds) either)
         |> map deductions
 
 
@@ -84,39 +97,26 @@ deducer :: A.Expression -> Deducer ()
 deducer arrangedExpression =
     case arrangedExpression of
         A.Primitive link quote primitiveType ->
-            let
-                type_ =
-                    case primitiveType of
-                        Primitive.Bool ->
-                            T.Bool
-
-                        Primitive.Int ->
-                            T.Int
-
-                        Primitive.Float ->
-                            T.Float
-
-                        Primitive.Char ->
-                            T.Char
-
-                        Primitive.String ->
-                            T.String
-            in
-            addDeduction link type_
+            primitiveToType primitiveType
+                |> addDeduction link
 
         A.ContextReference link annotation -> do
             mapping <- variableMapping annotation
-            type_ <- annotationToType mapping annotation
+            type_ <- instantiateAnnotation mapping annotation
             addDeduction link type_
 
         -- A.Future link  ->
         --     addDeduction link type_
 
-        -- Definition
-        --   { link :: Link
-        --   , futurePlaceholder :: F.Placeholder
-        --   , body :: Link
-        --   }
+        A.Definition { link, bodyLink } -> do
+            deduction <- lookupDeduction bodyLink
+                |> generalize
+            case deduction of
+                Just d ->
+                    addDeduction link d
+
+                Nothing ->
+                    fail <| ThisIsABug "The deduction must have been done before hand"
             -- TODO - GENERALIZE !?
 
         -- OrderedIf
@@ -127,8 +127,27 @@ deducer arrangedExpression =
         --   }
 
 
-annotationToType :: VariableMapping -> TypeAnnotation -> Deducer Type
-annotationToType mapping annotation = do
+primitiveToType :: Primitive.Type -> Type
+primitiveToType primitive =
+    case primitive of
+        Primitive.Bool ->
+            T.Bool
+
+        Primitive.Int ->
+            T.Int
+
+        Primitive.Float ->
+            T.Float
+
+        Primitive.Char ->
+            T.Char
+
+        Primitive.String ->
+            T.String
+
+
+instantiateAnnotation :: VariableMapping -> TypeAnnotation -> Deducer Type
+instantiateAnnotation mapping annotation = do
     case annotation of
         TA.Bool ->
             return <| T.Bool
@@ -146,13 +165,13 @@ annotationToType mapping annotation = do
             return <| T.String
 
         TA.Function { arg, returnType } -> do
-            argType <- annotationToType mapping arg
-            returningType <- annotationToType mapping returnType
+            argType <- instantiateAnnotation mapping arg
+            returningType <- instantiateAnnotation mapping returnType
             T.Function argType returningType
                 |> return
 
         TA.Custom { typeName, args } -> do
-            argTypes <- traverse (annotationToType mapping) args
+            argTypes <- traverse (instantiateAnnotation mapping) args
             let name = Identifier.formatTypeId typeName
             T.Custom name argTypes
                 |> return

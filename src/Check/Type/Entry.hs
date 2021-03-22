@@ -12,8 +12,8 @@ import Check.Type.Constraint (Constraint)
 import qualified Check.Type.Constraint as Constraint
 import Check.Type.Context (Context)
 import qualified Check.Type.Context as Context
-import Check.Type.Deduce (Deductions)
-import qualified Check.Type.Deduce as Deduce
+import Check.Type.Deduce.Entry (Deductions)
+import qualified Check.Type.Deduce.Entry as Deduce
 import qualified Check.Type.Futurize as Futurize
 import qualified Check.Type.ReplaceTopLevel as ReplaceTopLevel
 import Check.Type.TopLevelData (TopLevelData(..))

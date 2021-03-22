@@ -1,4 +1,4 @@
-module Check.Type.Model
+module Check.Type.Model.Type
     ( InstancedType(..)
     , Type(..)
     ) where

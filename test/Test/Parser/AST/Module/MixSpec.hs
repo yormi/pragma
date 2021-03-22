@@ -2,15 +2,9 @@ module Test.Parser.AST.Module.MixSpec where
 
 import Test.Hspec hiding (context)
 
-import qualified Test.Utils as TestUtils
 import qualified Test.Parser.Utils as Utils
 
-import qualified AST.Module as Module
-import qualified AST.TypeAnnotation as Annotation
 import qualified Parser.AST.Module as Module
-import qualified Utils.List as List
-import qualified Utils.NonEmpty as NonEmpty
-import qualified Utils.OrderedSet as OrderedSet
 import qualified Utils.Either as Either
 import qualified Utils.String as String
 

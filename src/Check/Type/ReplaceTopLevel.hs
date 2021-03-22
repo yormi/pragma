@@ -50,8 +50,8 @@ replace moduleContext params expression =
 replaceWithContext :: Context -> E.Expression -> Expression
 replaceWithContext context expression =
     case expression of
-        E.Value (E.Int quote _) ->
-            Primitive quote Primitive.Int
+        E.Value value ->
+            replaceValue value
 
 
         E.Reference referenceId ->
@@ -83,3 +83,25 @@ replaceWithContext context expression =
                 { definitions = replacedDefinitions
                 , body = replacedBody
                 }
+
+
+replaceValue :: E.Value -> Expression
+replaceValue value =
+    case value of
+        E.Bool (E.TrueLiteral quote) ->
+            Primitive quote Primitive.Bool
+
+        E.Bool (E.FalseLiteral quote) ->
+            Primitive quote Primitive.Bool
+
+        E.Int quote _ ->
+            Primitive quote Primitive.Int
+
+        E.Float quote _ ->
+            Primitive quote Primitive.Float
+
+        E.Char quote _ ->
+            Primitive quote Primitive.Char
+
+        E.String quote _ ->
+            Primitive quote Primitive.String

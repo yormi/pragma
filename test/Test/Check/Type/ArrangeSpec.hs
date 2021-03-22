@@ -28,8 +28,8 @@ spec =
 
                     expected =
                         [ A.Primitive (A.Link 0) aQuote Primitive.Int
-                        , A.Definition (A.Link 0)
-                        , A.Future (A.Link 0)
+                        , A.Definition (A.Link 1) (A.Link 0)
+                        , A.Future (A.Link 1)
                         ]
                             |> Right
                 in
@@ -52,10 +52,10 @@ spec =
 
                     expected =
                         [ A.Primitive (A.Link 0) aQuote Primitive.Int
-                        , A.Definition (A.Link 0)
-                        , A.Future (A.Link 0)
-                        , A.Definition (A.Link 0)
-                        , A.Future (A.Link 0)
+                        , A.Definition (A.Link 1) (A.Link 0)
+                        , A.Future (A.Link 1)
+                        , A.Definition (A.Link 2) (A.Link 1)
+                        , A.Future (A.Link 2)
                         ]
                             |> Right
                 in do
