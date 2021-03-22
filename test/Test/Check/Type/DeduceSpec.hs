@@ -14,7 +14,7 @@ import qualified Utils.Map as Map
 
 spec :: Spec
 spec =
-    fdescribe "Deduce" <|
+    describe "Deduce" <|
         let
             aLink =
                 A.Link 2

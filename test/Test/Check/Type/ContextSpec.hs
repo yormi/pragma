@@ -94,7 +94,11 @@ spec =
 
                 expectedConstructor constructorName =
                     ( constructorName
-                    , TA.Custom (M.typeName aCustomType) []
+                    , TA.Custom (M.typeName aCustomType)
+                        ( M.typeVariables aCustomType
+                            |> OrderedSet.toList
+                            |> map TA.Variable
+                        )
                     )
 
                 expected =
@@ -116,7 +120,11 @@ spec =
 
                 expectedConstructor constructorName =
                     ( constructorName
-                    , TA.Custom (M.typeName aCustomType) []
+                    , TA.Custom (M.typeName aCustomType)
+                        ( M.typeVariables aCustomType
+                            |> OrderedSet.toList
+                            |> map TA.Variable
+                        )
                     )
 
                 expected =

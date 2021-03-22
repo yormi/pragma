@@ -42,11 +42,7 @@ data Expression
     | Future
         { link :: Link
         }
-    | Definition
-        { link :: Link
-        , futurePlaceholder :: F.Placeholder
-        , body :: Link
-        }
+    | Definition Link
     | OrderedIf
         { condition :: Link
         , whenTrue :: Link
@@ -101,6 +97,16 @@ placeholderLink placeholder = do
         Nothing ->
             ThisIsABug "The placeholder must have already been registered with its Link"
                 |> fail
+
+
+registerPlaceholder :: F.Placeholder -> Link -> Arranger ()
+registerPlaceholder placeholder link =
+    State.modify
+        (\state ->
+            placeholderLinks state
+                |> Map.insert placeholder link
+                |> \ls -> state { placeholderLinks = ls }
+        )
 
 
 arrangeNext :: Expression -> Arranger ()
@@ -234,8 +240,7 @@ dependencySortedDefinitions definitions =
 
 
 definitionArranger :: F.Definition -> Arranger ()
-definitionArranger F.Definition { placeholder=future, body=definitionBody } = do
-    bodyLink <- arranger definitionBody
-    link <- nextLink
-    Definition link future bodyLink
-        |> arrangeNext
+definitionArranger F.Definition { placeholder, body } = do
+    bodyLink <- arranger body
+    registerPlaceholder placeholder bodyLink
+    arrangeNext <| Definition bodyLink
