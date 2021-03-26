@@ -17,8 +17,10 @@ import qualified Type.Model as T
 import qualified Utils.List as List
 
 
-fromDefinition :: Set T.TypePlaceholder -> InstancedType -> Deducer G.GenericType
-fromDefinition expressionPlaceholders type_ =
+-- TDD the shit outta this
+-- Generalize unboundTypes !?!?
+generalize :: Set T.TypePlaceholder -> InstancedType -> Deducer G.GenericType
+generalize expressionPlaceholders type_ =
     let
         placeholderList =
             Set.toList expressionPlaceholders

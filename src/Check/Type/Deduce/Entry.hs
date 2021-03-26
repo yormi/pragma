@@ -110,7 +110,7 @@ deducer arrangedExpression =
 
         A.Definition { link, bodyLink } -> do
             deduction <- lookupDeduction bodyLink
-                |> generalize
+                |> Generalize.generalize
             case deduction of
                 Just d ->
                     addDeduction link d
