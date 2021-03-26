@@ -42,6 +42,11 @@ EOF
     cloc src
     ;;
 
+  format )
+    mapfile -t _files < <(find . -name "*.hs")
+    hindent-elm "${_files[@]}"
+    ;;
+
   *)
     cat << EOF
 Usage: $(pwd)
@@ -53,6 +58,7 @@ Usage: $(pwd)
 
   god clean
   god loc
+  god format
 EOF
     ;;
 esac
