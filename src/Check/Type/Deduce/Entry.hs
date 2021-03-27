@@ -14,6 +14,8 @@ import qualified AST.Identifier as Identifier
 import AST.TypeAnnotation (TypeAnnotation)
 import qualified AST.TypeAnnotation as TA
 import qualified Check.Type.Arrange as A
+import Check.Type.Deduce.Deducer (Deducer, Deductions, Error(..))
+import qualified Check.Type.Deduce.Deducer as Deducer
 import qualified Check.Type.Deduce.Generalize as Generalize
 import qualified Check.Type.Model.PrimitiveType as Primitive
 import Check.Type.Model.Type (Type)
@@ -23,74 +25,14 @@ import qualified Utils.Map as Map
 import qualified Utils.Set as Set
 
 
-type Deducer a =
-    ExceptT Error (State.State State) a
-
-
-data State =
-    State
-        { deductions :: Deductions
-        , nextInstancedType :: T.InstancedType
-        }
-
-
-type Deductions =
-    Map A.Link Type
-
-
-newtype Error
-    = ThisIsABug String
-    deriving (Eq, Show)
-
-
 type VariableMapping =
     Map TypeVariableId T.InstancedType
 
 
-addDeduction :: A.Link -> Type -> Deducer ()
-addDeduction link type_ =
-    State.modify
-        (\state ->
-            state
-                |> deductions
-                |> Map.insert link type_
-                |> \ds -> state { deductions = ds }
-        )
-
-
-lookupDeduction :: A.Link -> Deducer (Maybe Type)
-lookupDeduction link =
-    lift <| State.gets (deductions >> Map.lookup link)
-
-
-generateInstancedType :: Deducer T.InstancedType
-generateInstancedType = do
-    instancedType@(T.InstancedType n) <- State.gets nextInstancedType
-    let next = T.InstancedType <| n + 1
-    State.modify (\state -> state { nextInstancedType = next })
-    return instancedType
-
-
-fail :: Error -> Deducer a
-fail =
-    Except.throwE
-
--- ACTION
-
-
 deduceType :: [A.Expression] -> Either Error Deductions
 deduceType arrangedExpressions =
-    let
-        initialState =
-            State
-                Map.empty
-                (T.InstancedType 0)
-    in
     traverse deducer arrangedExpressions
-        |> Except.runExceptT
-        |> flip State.runState initialState
-        |> (\(either, ds) -> map (const ds) either)
-        |> map deductions
+        |> Deducer.run
 
 
 deducer :: A.Expression -> Deducer ()
@@ -98,33 +40,29 @@ deducer arrangedExpression =
     case arrangedExpression of
         A.Primitive link quote primitiveType ->
             primitiveToType primitiveType
-                |> addDeduction link
+                |> Deducer.addDeduction link
 
         A.ContextReference link annotation -> do
             mapping <- variableMapping annotation
             type_ <- instantiateAnnotation mapping annotation
-            addDeduction link type_
+            Deducer.addDeduction link type_
 
         -- A.Future link  ->
         --     addDeduction link type_
 
         A.Definition { link, bodyLink } -> do
-            deduction <- lookupDeduction bodyLink
-                |> Generalize.generalize
+            deduction <- Deducer.lookupDeduction bodyLink
             case deduction of
                 Just d ->
-                    addDeduction link d
+                    d
+                        |> Generalize.generalize
+                        |> Deducer.addDeduction link
 
                 Nothing ->
-                    fail <| ThisIsABug "The deduction must have been done before hand"
+                    ThisIsABug "The deduction must have been done before hand"
+                        |> Deducer.fail
             -- TODO - GENERALIZE !?
-
-        -- OrderedIf
-        --   { condition :: Link
-        --   , whenTrue :: Link
-        --   , whenFalse :: Link
-        --   , returns :: Link
-        --   }
+            -- |> Generalize.generalize
 
 
 primitiveToType :: Primitive.Type -> Type
@@ -197,7 +135,7 @@ variableMapping annotation =
             TA.extractTypeVariables annotation
                 |> Set.toList
     in do
-    unboundTypes <- traverse (const generateInstancedType) variables
+    unboundTypes <- traverse (const Deducer.generateInstancedType) variables
     unboundTypes
         |> List.zip variables
         |> Map.fromList

@@ -60,44 +60,47 @@ fromDefinition expressionPlaceholders type_ =
                 |> Map.fromList
 
     replacePlaceholders variableMapping precised
+        |> return
+
 
 
 replacePlaceholders
     :: Map T.TypePlaceholder TypeVariableId
     -> InstancedType
-    -> Solver G.GenericType
+    -> G.GenericType
 replacePlaceholders variableMapping type_ =
     case type_ of
         Bool ->
-            return G.Bool
+            G.Bool
 
         Int ->
-            return G.Int
+            G.Int
 
         Float ->
-            return G.Float
+            G.Float
 
         Char ->
-            return G.Char
+            G.Char
 
         String ->
-            return G.String
+            G.String
 
-        Function arg returnType -> do
-            argAnnotation <- replacePlaceholders variableMapping arg
-            returnAnnotation <- replacePlaceholders variableMapping returnType
+        Function arg returnType ->
+            let
+                argAnnotation =
+                    replacePlaceholders variableMapping arg
+                returnAnnotation =
+                    replacePlaceholders variableMapping returnType
+            in
             G.Function argAnnotation returnAnnotation
-                |> return
 
         Custom typeName args -> do
-            argsAnnotation <-
-                traverse (replacePlaceholders variableMapping) args
-            G.Custom typeName argsAnnotation
-                |> return
+            args
+                |> map (replacePlaceholders variableMapping)
+                |> G.Custom typeName
 
         Unbound name placeholder ->
             G.ParentVariable name placeholder
-                |> return
 
         Placeholder placeholder ->
             let
@@ -106,7 +109,7 @@ replacePlaceholders variableMapping type_ =
             in
             case replacement of
                 Just v ->
-                    return <| G.Variable v
+                    G.Variable v
 
                 Nothing ->
-                    return <| G.Placeholder placeholder
+                    G.Placeholder placeholder

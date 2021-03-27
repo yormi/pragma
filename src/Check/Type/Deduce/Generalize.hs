@@ -1,84 +1,106 @@
 module Check.Type.Deduce.Generalize
-    ( fromDefinition
+    ( generalize
     ) where
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
-import AST.Identifier (TypeVariableId)
-import AST.TypeAnnotation (TypeAnnotation)
-import qualified AST.TypeAnnotation as TA
-import qualified Type.Constraint.Solver.Deduce as Deduce
-import Type.Constraint.Solver.Model.Solver (InstancedType(..), Solver)
-import qualified Type.Constraint.Solver.Model.Solver as Solver
-import Type.Constraint.Solver.Model.Generic (GenericType)
-import qualified Type.Constraint.Solver.Model.Generic as G
-import qualified Type.Model as T
-import qualified Utils.List as List
+import Check.Type.Deduce.Deducer (Deducer)
+import Check.Type.Deduce.Model.GenericType (GenericType)
+import qualified Check.Type.Deduce.Model.GenericType as G
+import qualified Check.Type.Model.Type as T
 
 
 -- TDD the shit outta this
 -- Generalize unboundTypes !?!?
-generalize :: Set T.TypePlaceholder -> InstancedType -> Deducer G.GenericType
-generalize expressionPlaceholders type_ =
-    let
-        placeholderList =
-            Set.toList expressionPlaceholders
-    in do
-    precised <- Deduce.mostPrecised type_
-    variables <- traverse (const Solver.nextVariable) placeholderList
-    let variableMapping =
-            List.zip placeholderList variables
-                |> Map.fromList
-
-    replacePlaceholders variableMapping precised
-
-
-replacePlaceholders
-    :: Map T.TypePlaceholder TypeVariableId
-    -> InstancedType
-    -> Solver G.GenericType
-replacePlaceholders variableMapping type_ =
+--
+-- Do I really need the Deducer here ?
+--          --> NOPE, onw Generalizer to store next variable
+--
+-- Add the variables in the definition --> NOPE, info dupplication
+--
+generalize :: T.Type -> Deducer GenericType
+generalize type_ =
     case type_ of
-        Bool ->
+        T.Bool ->
             return G.Bool
 
-        Int ->
+        T.Int ->
             return G.Int
 
-        Float ->
+        T.Float ->
             return G.Float
 
-        Char ->
+        T.Char ->
             return G.Char
 
-        String ->
+        T.String ->
             return G.String
 
-        Function arg returnType -> do
-            argAnnotation <- replacePlaceholders variableMapping arg
-            returnAnnotation <- replacePlaceholders variableMapping returnType
-            G.Function argAnnotation returnAnnotation
-                |> return
+        T.Function { arg, returning } ->
+            return G.Bool
 
-        Custom typeName args -> do
-            argsAnnotation <-
-                traverse (replacePlaceholders variableMapping) args
-            G.Custom typeName argsAnnotation
-                |> return
+        T.Unbound { name, instanceType } ->
+            return G.Bool
 
-        Unbound name placeholder ->
-            G.ParentVariable name placeholder
-                |> return
-
-        Placeholder placeholder ->
-            let
-                replacement =
-                    Map.lookup placeholder variableMapping
-            in
-            case replacement of
-                Just v ->
-                    return <| G.Variable v
-
-                Nothing ->
-                    return <| G.Placeholder placeholder
+        T.Custom { name, args } ->
+            return G.Bool
+--     let
+--         placeholderList =
+--             Set.toList expressionPlaceholders
+--     in do
+--     precised <- Deduce.mostPrecised type_
+--     variables <- traverse (const Solver.nextVariable) placeholderList
+--     let variableMapping =
+--             List.zip placeholderList variables
+--                 |> Map.fromList
+-- 
+--     replacePlaceholders variableMapping precised
+-- 
+-- 
+-- replacePlaceholders
+--     :: Map T.TypePlaceholder TypeVariableId
+--     -> InstancedType
+--     -> G.GenericType
+-- replacePlaceholders variableMapping type_ =
+--     case type_ of
+--         Bool ->
+--             G.Bool
+-- 
+--         Int ->
+--             G.Int
+-- 
+--         Float ->
+--             G.Float
+-- 
+--         Char ->
+--             G.Char
+-- 
+--         String ->
+--             G.String
+-- 
+--         Function arg returnType ->
+--             let
+--                 argAnnotation =
+--                     replacePlaceholders variableMapping arg
+--                 returnAnnotation =
+--                     replacePlaceholders variableMapping returnType
+--             in
+--             G.Function argAnnotation returnAnnotation
+-- 
+--         Custom typeName args -> do
+--             args
+--                 |> map (replacePlaceholders variableMapping)
+--                 |> G.Custom typeName
+-- 
+--         Unbound name placeholder ->
+--             G.ParentVariable name placeholder
+-- 
+--         Placeholder placeholder ->
+--             let
+--                 replacement =
+--                     Map.lookup placeholder variableMapping
+--             in
+--             case replacement of
+--                 Just v ->
+--                     G.Variable v
+-- 
+--                 Nothing ->
+--                     G.Placeholder placeholder
