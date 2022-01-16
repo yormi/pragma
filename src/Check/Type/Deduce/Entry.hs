@@ -55,7 +55,7 @@ deducer arrangedExpression =
             case deduction of
                 Just d ->
                     d
-                        |> Generalize.generalize
+                        -- |> Generalize.generalize
                         |> Deducer.addDeduction link
 
                 Nothing ->

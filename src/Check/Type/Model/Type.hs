@@ -25,6 +25,12 @@ data Type
     deriving (Eq, Show)
 
 
+
+newtype UnboundType =
+    UnboundType Int
+        deriving (Eq, Show)
+
+
 newtype InstancedType =
     InstancedType Int
         deriving (Eq, Show)

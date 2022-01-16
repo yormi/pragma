@@ -33,7 +33,7 @@ data Expression
     | Future Placeholder
     | LetIn
         { definitions :: NonEmpty Definition
-        , body :: Expression
+        , letInBody :: Expression
         }
         deriving (Eq, Show)
 
@@ -42,7 +42,7 @@ data Definition =
     Definition
         { name :: String
         , placeholder :: Placeholder
-        , body :: Expression
+        , definitionBody :: Expression
         }
         deriving (Eq, Show)
 
@@ -162,6 +162,6 @@ letIn definitions body = do
 
     LetIn
         { definitions = replacedDefinitions
-        , body = replacedBody
+        , letInBody = replacedBody
         }
         |> return

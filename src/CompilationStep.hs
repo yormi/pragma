@@ -64,8 +64,8 @@ parse printPreferences filePath fileContent =
     tablePrint
        (parseResult printPreferences)
        "Parsed"
-        (ModulePrinter.print parsedModule)
-        fileContent
+       (ModulePrinter.print parsedModule)
+       fileContent
 
     return parsedModule
 

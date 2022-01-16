@@ -2,31 +2,25 @@ module Check.Type.Entry
     ( typeCheck
     ) where
 
-import qualified Control.Monad as Monad
-
 import AST.Module (Module(..))
-import Check.Type.Check (TypeError)
 import qualified Check.Type.Arrange as Arrange
 import qualified Check.Type.Check as Check
-import Check.Type.Constraint (Constraint)
+import qualified Check.Type.Check.Model.Error as Check
 import qualified Check.Type.Constraint as Constraint
 import Check.Type.Context (Context)
 import qualified Check.Type.Context as Context
-import Check.Type.Deduce.Entry (Deductions)
-import qualified Check.Type.Deduce.Entry as Deduce
 import qualified Check.Type.Futurize as Futurize
 import qualified Check.Type.ReplaceTopLevel as ReplaceTopLevel
 import Check.Type.TopLevelData (TopLevelData(..))
 import qualified Check.Type.TopLevelData as TopLevelData
 import qualified Utils.Either as Either
+import qualified Utils.Maybe as Maybe
 
 
 data Error
     = FuturizeError Futurize.Error
     | ArrangeError Arrange.Error
-    | DeduceError Deduce.Error
-    | ConstraintError Constraint.Error
-    | TypeCheckErrors [TypeError]
+    | CheckErrors Check.Error
 
 
 typeCheck :: Module -> [Error]
@@ -37,14 +31,20 @@ typeCheck module_@(Module topLevels) =
     in
     topLevels
         |> TopLevelData.filter moduleContext
-        |> map
-            (\topLevel -> do
-                arranged <- arrange moduleContext topLevel
-                deduced <- deduce arranged
-                constraints <- buildConstraint deduced arranged
-                check constraints
+        |> map (typeCheckTopLevelData moduleContext)
+        |> Maybe.values
+
+
+typeCheckTopLevelData :: Context -> TopLevelData -> Maybe Error
+typeCheckTopLevelData moduleContext topLevel = do
+    arrange moduleContext topLevel
+        |> bind
+            ( Constraint.build
+                >> Check.check
+                >> map CheckErrors
+                >> Either.fromMaybeError
             )
-        |> Either.lefts
+        |> Either.toMaybeError
 
 
 arrange :: Context -> TopLevelData -> Either Error [ Arrange.Expression ]
@@ -53,22 +53,3 @@ arrange moduleContext TopLevelData { paramTypes, body } =
         |> Futurize.futurize
         |> Either.mapLeft FuturizeError
         |> bind (Arrange.arrange >> Either.mapLeft ArrangeError)
-
-
-deduce :: [ Arrange.Expression ] -> Either Error Deductions
-deduce =
-    Deduce.deduceType >> Either.mapLeft DeduceError
-
-
-buildConstraint
-    :: Deductions -> [ Arrange.Expression ] -> Either Error [ Constraint ]
-buildConstraint deduced =
-    Constraint.build deduced
-        >> Either.mapLeft ConstraintError
-
-
-check :: [ Constraint ] -> Either Error ()
-check deduced =
-    Monad.mapM Check.check deduced
-        |> map TypeCheckErrors
-        |> Either.fromMaybeError

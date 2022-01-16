@@ -29,6 +29,14 @@ newtype Link =
         deriving (Eq, Ord, Show)
 
 
+data Definition =
+    Definition
+        { link :: Link
+        , bodyLink :: Link
+        -- , expression :: [ Expression ]
+        }
+
+
 data Expression
     = Primitive
         { link :: Link
@@ -42,11 +50,7 @@ data Expression
     | Future
         { link :: Link
         }
-    | Definition
-        { link :: Link
-        , bodyLink :: Link
-        }
-    | OrderedIf
+    | If
         { condition :: Link
         , whenTrue :: Link
         , whenFalse :: Link
@@ -161,9 +165,9 @@ arranger futurized =
             arrangeNext <| Future link
             return link
 
-        F.LetIn { definitions, body } -> do
+        F.LetIn { definitions, letInBody } -> do
             letDefinitionsArranger definitions
-            arranger body
+            arranger letInBody
 
 
 letDefinitionsArranger :: NonEmpty F.Definition -> Arranger ()
@@ -228,7 +232,7 @@ dependencySortedDefinitions definitions =
         toGraphNode definition =
             ( F.placeholder definition
             , dependancesOnCurrentLetDefinitions
-                (F.body (definition :: F.Definition))
+                (F.definitionBody definition)
                 |> Set.filter (\f -> f /= F.placeholder definition)
             )
 
@@ -243,8 +247,8 @@ dependencySortedDefinitions definitions =
 
 
 definitionArranger :: F.Definition -> Arranger ()
-definitionArranger F.Definition { placeholder, body } = do
-    bodyLink <- arranger body
+definitionArranger F.Definition { placeholder, definitionBody } = do
+    bodyLink <- arranger definitionBody
     next <- nextLink
     registerPlaceholder placeholder next
-    arrangeNext <| Definition next bodyLink
+    arrangeNext <| Definition next bodyLink 

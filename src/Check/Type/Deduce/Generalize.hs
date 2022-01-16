@@ -2,7 +2,9 @@ module Check.Type.Deduce.Generalize
     ( generalize
     ) where
 
-import Check.Type.Deduce.Deducer (Deducer)
+import Control.Monad.State (State)
+import qualified Control.Monad.State as State
+
 import Check.Type.Deduce.Model.GenericType (GenericType)
 import qualified Check.Type.Deduce.Model.GenericType as G
 import qualified Check.Type.Model.Type as T
@@ -16,8 +18,34 @@ import qualified Check.Type.Model.Type as T
 --
 -- Add the variables in the definition --> NOPE, info dupplication
 --
-generalize :: T.Type -> Deducer GenericType
+
+-- Gotta be TopLevelData wide... probably better in main pipeline
+--      Deducer or another step would be better I think
+type VariableGenerator a =
+    State NextVariable a
+
+
+type NextVariable =
+    Int
+
+
+
+-- ACTION
+
+
+generalize :: T.Type -> GenericType
 generalize type_ =
+    let
+        initialState =
+            0
+    in
+    type_
+        |> generalizeType
+        |> flip State.evalState initialState
+
+
+generalizeType :: T.Type -> VariableGenerator GenericType
+generalizeType type_ =
     case type_ of
         T.Bool ->
             return G.Bool
